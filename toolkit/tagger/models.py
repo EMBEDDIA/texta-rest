@@ -1,14 +1,15 @@
 import io
 import json
 import logging
-import os
 import pathlib
 import secrets
 import tempfile
 import zipfile
+from typing import Union
 
 from django.contrib.auth.models import User
 from django.core import serializers
+from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.dispatch import receiver
 from django.http import HttpResponse
@@ -20,9 +21,13 @@ from toolkit.core.task.models import Task
 from toolkit.elastic.models import Index
 from toolkit.elastic.searcher import EMPTY_QUERY
 from toolkit.embedding.models import Embedding
-from toolkit.settings import BASE_DIR, CELERY_LONG_TERM_TASK_QUEUE, INFO_LOGGER, RELATIVE_MODELS_PATH
+from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, INFO_LOGGER
+from toolkit.storages import ModelsStorage, PlotStorage
 from toolkit.tagger.choices import (DEFAULT_CLASSIFIER, DEFAULT_MAX_SAMPLE_SIZE, DEFAULT_MIN_SAMPLE_SIZE, DEFAULT_NEGATIVE_MULTIPLIER, DEFAULT_VECTORIZER)
 
+
+# TODO Expand tests to use the Boto library/Storage to check the actual contents in AWS.
+# TODO Replace in-test reference to applying taggers with a call to their endpoint bc of test reformat.
 
 class Tagger(models.Model):
     MODEL_TYPE = 'tagger'
@@ -50,9 +55,8 @@ class Tagger(models.Model):
     num_positives = models.IntegerField(default=None, null=True)
     num_negatives = models.IntegerField(default=None, null=True)
 
-    model = models.FileField(null=True, verbose_name='', default=None)
-    model_size = models.FloatField(default=None, null=True)
-    plot = models.FileField(upload_to='data/media', null=True, verbose_name='')
+    model = models.FileField(null=True, verbose_name='', default=None, storage=ModelsStorage())
+    plot = models.FileField(null=True, verbose_name='', storage=PlotStorage())
     task = models.OneToOneField(Task, on_delete=models.SET_NULL, null=True)
 
 
@@ -74,9 +78,7 @@ class Tagger(models.Model):
         Returns: Full and relative file paths, full for saving the model object and relative for actual DB storage.
         """
         model_file_name = f'{name}_{str(self.pk)}_{secrets.token_hex(10)}'
-        full_path = pathlib.Path(BASE_DIR) / RELATIVE_MODELS_PATH / "tagger" / model_file_name
-        relative_path = pathlib.Path(RELATIVE_MODELS_PATH) / "tagger" / model_file_name
-        return str(full_path), str(relative_path)
+        return model_file_name
 
 
     def to_json(self) -> dict:
@@ -88,7 +90,7 @@ class Tagger(models.Model):
         return json_obj
 
 
-    def export_resources(self) -> HttpResponse:
+    def export_resources(self) -> Union[str, bytes]:
         with tempfile.SpooledTemporaryFile(encoding="utf8") as tmp:
             with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED) as archive:
                 # Write model object to zip as json
@@ -96,9 +98,11 @@ class Tagger(models.Model):
                 model_json = json.dumps(model_json).encode("utf8")
                 archive.writestr(self.MODEL_JSON_NAME, model_json)
 
-                for file_path in self.get_resource_paths().values():
-                    path = pathlib.Path(file_path)
-                    archive.write(file_path, arcname=str(path.name))
+                with self.model.open() as fp:
+                    archive.writestr(self.model.name, data=fp.read())
+
+                with self.plot.open() as fp:
+                    archive.writestr(self.plot.name, data=fp.read())
 
             tmp.seek(0)
             return tmp.read()
@@ -123,15 +127,16 @@ class Tagger(models.Model):
                     index_model, is_created = Index.objects.get_or_create(name=index)
                     new_model.indices.add(index_model)
 
-                full_tagger_path, relative_tagger_path = new_model.generate_name("tagger")
-                with open(full_tagger_path, "wb") as fp:
-                    path = pathlib.Path(model_json["model"]).name
-                    fp.write(archive.read(path))
-                    new_model.model.name = relative_tagger_path
+                tagger_path = new_model.generate_name("tagger")
+                model_name = model_json["model"]
+                model_binary = archive.read(model_name)
+                content_file = ContentFile(model_binary)
+                new_model.model.save(tagger_path, content_file)
 
-                plot_name = pathlib.Path(model_json["plot"])
-                path = plot_name.name
-                new_model.plot.save(f'{secrets.token_hex(15)}.png', io.BytesIO(archive.read(path)))
+                plot_name = model_json["plot"]
+                plot_binary = archive.read(plot_name)
+                content_file = ContentFile(plot_binary)
+                new_model.plot.save(f'{secrets.token_hex(15)}.png', content_file)
 
                 new_model.save()
                 return new_model.id
@@ -142,7 +147,7 @@ class Tagger(models.Model):
         Return the full paths of every resource used by this model that lives
         on the filesystem.
         """
-        return {"model": self.model.path, "plot": self.plot.path}
+        return {"model": self.model.url, "plot": self.plot.url}
 
 
     def train(self):
@@ -155,7 +160,7 @@ class Tagger(models.Model):
         transaction.on_commit(lambda: chain.apply_async(args=(self.pk,), queue=CELERY_LONG_TERM_TASK_QUEUE))
 
 
-@receiver(models.signals.post_delete, sender=Tagger)
+@receiver(models.signals.pre_delete, sender=Tagger)
 def auto_delete_file_on_delete(sender, instance: Tagger, **kwargs):
     """
     Delete resources on the file-system upon tagger deletion.
@@ -163,12 +168,10 @@ def auto_delete_file_on_delete(sender, instance: Tagger, **kwargs):
     of a TaggerGroup.
     """
     if instance.plot:
-        if os.path.isfile(instance.plot.path):
-            os.remove(instance.plot.path)
+        instance.plot.delete()
 
     if instance.model:
-        if os.path.isfile(instance.model.path):
-            os.remove(instance.model.path)
+        instance.model.delete()
 
 
 class TaggerGroup(models.Model):

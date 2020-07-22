@@ -1,6 +1,9 @@
+import tempfile
+
 import joblib
 import numpy as np
 import pandas as pd
+from django.core.files.base import ContentFile
 from sklearn.metrics import auc, roc_curve
 from sklearn.model_selection import GridSearchCV, train_test_split
 
@@ -116,20 +119,27 @@ class TextTagger:
         return self.model.named_steps['feature_selector'].get_support()
 
 
-    def save(self, file_path: str) -> bool:
+    def save(self, file_name: str, tagger_obj: Tagger) -> bool:
         """
         Saving the model to the filesystem using joblib.
         """
-        joblib.dump(self.model, file_path)
+        # TODO Replace joblib with pickle maybe?
+        with tempfile.TemporaryFile() as fp:
+            joblib.dump(self.model, fp)
+            fp.seek(0)
+
+            content = ContentFile(fp.read())
+            tagger_obj.model.save(file_name, content)
+
         return True
 
 
     def load(self):
         tagger_object = Tagger.objects.get(pk=self.tagger_id)
-        tagger_path = tagger_object.model.name
-        self.model = joblib.load(tagger_path)
-        self.description = tagger_object.description
-        return True
+        with tagger_object.model.open() as fp:
+            self.model = joblib.load(fp)
+            self.description = tagger_object.description
+            return True
 
 
     def tag_text(self, text):

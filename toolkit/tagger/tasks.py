@@ -1,7 +1,5 @@
 import json
 import logging
-import os
-import pathlib
 import re
 import secrets
 
@@ -14,7 +12,7 @@ from toolkit.elastic.feedback import Feedback
 from toolkit.elastic.models import Index
 from toolkit.embedding.phraser import Phraser
 from toolkit.helper_functions import get_indices_from_object
-from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, ERROR_LOGGER, INFO_LOGGER, MEDIA_URL
+from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, ERROR_LOGGER, INFO_LOGGER
 from toolkit.tagger.models import Tagger, TaggerGroup
 from toolkit.tagger.plots import create_tagger_plot
 from toolkit.tagger.text_tagger import TextTagger
@@ -141,26 +139,23 @@ def train_tagger_task(tagger_id: int):
         )
 
         # save tagger to disk
-        tagger_full_path, relative_tagger_path = tagger_object.generate_name("tagger")
-        tagger.save(tagger_full_path)
-        task_object.save()
+        tagger_name = tagger_object.generate_name("tagger")
+        tagger.save(tagger_name, tagger_object)
 
         # Save the image before its path.
         image_name = f'{secrets.token_hex(15)}.png'
-        tagger_object.plot.save(image_name, create_tagger_plot(tagger.statistics), save=False)
-        image_path = pathlib.Path(MEDIA_URL) / image_name
+        tagger_object.plot.save(image_name, create_tagger_plot(tagger.statistics))
+        tagger_object.save()
 
         return {
             "id": tagger_id,
-            "tagger_path": relative_tagger_path,
+            "tagger_name": tagger_name,
             "precision": float(tagger.statistics['precision']),
             "recall": float(tagger.statistics['recall']),
             "f1_score": float(tagger.statistics['f1_score']),
             "num_features": tagger.statistics['num_features'],
             "num_positives": tagger.statistics['num_positives'],
             "num_negatives": tagger.statistics['num_negatives'],
-            "model_size": round(float(os.path.getsize(tagger_full_path)) / 1000000, 1),  # bytes to mb
-            "plot": str(image_path)
         }
 
     except Exception as e:
@@ -175,7 +170,7 @@ def save_tagger_results(result_data: dict):
     try:
 
         tagger_id = result_data['id']
-        logging.getLogger(INFO_LOGGER).info(f"Starting task results for tagger with ID: {tagger_id}!")
+        logging.getLogger(INFO_LOGGER).info(f"Saving task results for tagger with ID: {tagger_id}!")
         tagger_object = Tagger.objects.get(pk=tagger_id)
         task_object = tagger_object.task
         show_progress = ShowProgress(task_object, multiplier=1)
@@ -184,15 +179,12 @@ def save_tagger_results(result_data: dict):
         show_progress.update_step('saving')
         show_progress.update_view(0)
 
-        tagger_object.model.name = result_data["tagger_path"]
         tagger_object.precision = result_data["precision"]
         tagger_object.recall = result_data["recall"]
         tagger_object.f1_score = result_data["f1_score"]
         tagger_object.num_features = result_data["num_features"]
         tagger_object.num_positives = result_data["num_positives"]
         tagger_object.num_negatives = result_data["num_negatives"]
-        tagger_object.model_size = result_data["model_size"]
-        tagger_object.plot.name = result_data["plot"]
 
         tagger_object.save()
         task_object.complete()

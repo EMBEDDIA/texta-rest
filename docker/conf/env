@@ -1,6 +1,10 @@
 TEXTA_HOST=http://localhost
-TEXTA_ES_URL=http://elastic-dev.texta.ee:9200
+TEXTA_ES_URL=http://texta-elasticsearch:9200
 TEXTA_DEBUG=False
+
+USE_S3=True
+AWS_STORAGE_BUCKET_NAME=texta-tk
+
 
 TEXTA_REDIS_URL=redis://texta-redis:6379/0
 TEXTA_MLP_URL=http://mlp-dev.texta.ee:5000

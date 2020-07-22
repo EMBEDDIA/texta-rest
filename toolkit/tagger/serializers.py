@@ -63,15 +63,30 @@ class TaggerSerializer(FieldParseSerializer, serializers.ModelSerializer, Projec
     query = serializers.JSONField(help_text='Query in JSON format', required=False)
     url = serializers.SerializerMethodField()
     tagger_groups = serializers.SerializerMethodField(read_only=True)
+    model_size = serializers.SerializerMethodField(read_only=True)
 
 
     class Meta:
         model = Tagger
         fields = ('id', 'url', 'author_username', 'description', 'query', 'fields', 'embedding', 'vectorizer', 'classifier', 'stop_words',
                   'maximum_sample_size', 'score_threshold', 'negative_multiplier', 'precision', 'recall', 'f1_score',
-                  'num_features', 'num_positives', 'num_negatives', 'plot', 'task', "indices", "tagger_groups")
-        read_only_fields = ('precision', 'recall', 'f1_score', 'num_features', 'stop_words', 'num_positives', 'num_negatives', "tagger_groups")
+                  'num_features', 'num_positives', 'num_negatives', 'plot', 'task', "indices", "tagger_groups", "model_size")
+        read_only_fields = ('precision', 'recall', 'f1_score', 'num_features', 'stop_words', 'num_positives', 'num_negatives', "tagger_groups", "model_size")
         fields_to_parse = ('fields',)
+
+
+    def get_plot(self, obj: Tagger):
+        if obj.plot:
+            return obj.plot.url
+        else:
+            return None
+
+
+    def get_model_size(self, obj: Tagger):
+        if obj.model:
+            return obj.model.size
+        else:
+            return None
 
 
     def __init__(self, *args, **kwargs):

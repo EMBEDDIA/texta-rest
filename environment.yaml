@@ -45,3 +45,4 @@ dependencies:
       - torchtext
       - xlrd
       - dill
+      - django-storages

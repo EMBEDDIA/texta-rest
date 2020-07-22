@@ -91,7 +91,7 @@ class TaggerViewSet(viewsets.ModelViewSet, BulkDelete, FeedbackModelView):
         tagger_object: Tagger = self.get_object()
 
         # check if tagger exists
-        if not tagger_object.model.path:
+        if not tagger_object.model:
             raise NonExistantModelError()
 
         # retrieve model
@@ -183,7 +183,7 @@ class TaggerViewSet(viewsets.ModelViewSet, BulkDelete, FeedbackModelView):
         # retrieve tagger object
         tagger_object = self.get_object()
         # check if tagger exists
-        if not tagger_object.model.path:
+        if not tagger_object.model:
             raise NonExistantModelError()
         # apply tagger
         tagger_response = apply_tagger(
@@ -208,7 +208,7 @@ class TaggerViewSet(viewsets.ModelViewSet, BulkDelete, FeedbackModelView):
         # retrieve tagger object
         tagger_object = self.get_object()
         # check if tagger exists
-        if not tagger_object.model.path:
+        if not tagger_object.model:
             raise NonExistantModelError()
         # declare input_document variable
         input_document = serializer.validated_data['doc']
@@ -238,11 +238,8 @@ class TaggerViewSet(viewsets.ModelViewSet, BulkDelete, FeedbackModelView):
         tagger_object = self.get_object()
         # check if tagger exists
 
-        if not tagger_object.model.path:
+        if not tagger_object.model:
             raise NonExistantModelError()
-
-        if not tagger_object.model.path:
-            return Response({'error': 'model does not exist (yet?)'}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = TagRandomDocSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

@@ -72,7 +72,8 @@ INSTALLED_APPS = [
     "allauth.socialaccount",
     "rest_auth.registration",
     "django_extensions",
-    "drf_yasg"
+    "drf_yasg",
+    "storages"
 ]
 
 # For registration (see: https://django-rest-auth.readthedocs.io/en/latest/installation.html#registration-optional)
@@ -188,12 +189,6 @@ USE_I18N = True
 USE_L10N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/2.1/howto/static-files/
-
-STATIC_URL = "/static/"
-STATIC_ROOT = os.path.join(BASE_DIR, "static")
-
 # OTHER ELASTICSEARCH OPTIONS
 ES_CONNECTION_PARAMETERS = {
     "use_ssl": True if os.getenv("TEXTA_ES_USE_SSL", None) == "True" else None,
@@ -215,6 +210,7 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 CELERYD_PREFETCH_MULTIPLIER = 1
 CELERY_ALWAYS_EAGER = False if os.getenv("TEXTA_CELERY_ALWAYS_EAGER", "False") == "False" else True
+
 CELERY_LONG_TERM_TASK_QUEUE = "long_term_tasks"
 CELERY_SHORT_TERM_TASK_QUEUE = "short_term_tasks"
 CELERY_MLP_TASK_QUEUE = "mlp_queue"
@@ -269,6 +265,7 @@ if not os.path.exists(TEST_DATA_DIR):
 # Logger IDs, used in apps.
 INFO_LOGGER = "info_logger"
 ERROR_LOGGER = "error_logger"
+
 # Paths to info and error log files.
 INFO_LOG_FILE_NAME = os.path.join(LOG_PATH, "info.log")
 ERROR_LOG_FILE_NAME = os.path.join(LOG_PATH, "error.log")
@@ -285,3 +282,30 @@ SWAGGER_SETTINGS = {
 SKIP_MLP_RESOURCES = False if os.getenv("SKIP_MLP_RESOURCES", "False") == "False" else True
 if SKIP_MLP_RESOURCES is False:
     download_mlp_requirements(MLP_MODEL_DIRECTORY, DEFAULT_MLP_LANGUAGE_CODES, logging.getLogger(INFO_LOGGER))
+
+USE_S3 = os.getenv('USE_S3') == 'True'
+
+if USE_S3:
+    # For whatever reason, trying to set the access key and secret key through the env
+    # gives an error of "Invalid credentials"...
+    AWS_ACCESS_KEY_ID = ""
+    AWS_SECRET_ACCESS_KEY = ""
+    AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+    AWS_S3_OBJECT_PARAMETERS = {
+        "Expires": "Thu, 31 Dec 2099 20:00:00 GMT",
+        "CacheControl": "max-age=94608000",
+    }
+
+    # s3 static settings
+    STATIC_LOCATION = 'static'
+    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{STATIC_LOCATION}/'
+    STATICFILES_STORAGE = 'toolkit.storages.StaticStorage'
+
+    # s3 public media settings
+    PUBLIC_MEDIA_LOCATION = 'media'
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{PUBLIC_MEDIA_LOCATION}/'
+    DEFAULT_FILE_STORAGE = 'toolkit.storages.PublicMediaStorage'
+else:
+    STATIC_URL = "/static/"
+    STATIC_ROOT = os.path.join(BASE_DIR, "static")
