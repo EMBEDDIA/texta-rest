@@ -161,7 +161,6 @@ class TopicAnalyzerTests(APITransactionTestCase):
         for mlt in response.data:
             self.assertTrue("_index" in mlt)
             self.assertTrue("_id" in mlt)
-            self.assertTrue("_type" in mlt)
             self.assertTrue("_source" in mlt)
             self.assertTrue(TEST_FIELD in mlt["_source"])
 

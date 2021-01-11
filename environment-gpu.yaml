@@ -32,8 +32,8 @@ dependencies:
       - drf-nested-routers
       - celery==4.*
       - redis==3.*
-      - elasticsearch<7
-      - elasticsearch_dsl<7
+      - elasticsearch
+      - elasticsearch_dsl
       - termcolor
       - joblib
       - python-json-logger

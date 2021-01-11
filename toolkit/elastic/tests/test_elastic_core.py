@@ -104,9 +104,3 @@ class TestElasticCore(TestCase):
 
         self.assertRaises(ElasticAuthorizationException, self.elastic_core.create_index, "locked_index")
         requests.delete(index_url)
-
-
-    def test_getting_all_mappings_of_index(self):
-        self.elastic_core.es.index(index=DOCTYPE_INDEX_NAME, doc_type=DOCTYPE_NAME, body={DOCTYPE_FIELD_NAME: "hello there, kenobi!"})
-        doc_types = self.elastic_core.get_index_doc_types(DOCTYPE_INDEX_NAME)
-        self.assertTrue(doc_types[0] == DOCTYPE_NAME)

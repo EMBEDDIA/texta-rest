@@ -109,7 +109,7 @@ class Feedback:
             document = self.es_doc.get(feedback_id)
             document["_source"]["correct_result"] = json.dumps(correct_result)
             document["_source"]["feedback_time"] = datetime.now()
-            self.es_doc.update(index=document["_index"], doc_type=document["_type"], doc_id=feedback_id, doc=document["_source"])
+            self.es_doc.update(index=document["_index"], doc_id=feedback_id, doc=document["_source"])
             return {"success": "Tagger feedback updated."}
 
         except Exception as e:

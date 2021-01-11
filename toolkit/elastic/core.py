@@ -6,7 +6,7 @@ import elasticsearch_dsl
 import requests
 from django.db import transaction
 from elasticsearch import Elasticsearch
-from elasticsearch_dsl import Index, Keyword, Long, Mapping, Nested
+from elasticsearch_dsl import Keyword, Long, Mapping, Nested
 from rest_framework.exceptions import ValidationError
 
 from toolkit.elastic.decorators import elastic_connection
@@ -79,17 +79,6 @@ class ElasticCore:
     @elastic_connection
     def create_index(self, index, body=None):
         return self.es.indices.create(index=index, body=body, ignore=[400, 404])
-
-
-    @elastic_connection
-    def get_index_doc_types(self, index: str) -> List[str]:
-        container = []
-        mapping = Index(index, using=self.es).get_mapping()
-        for index_name, schema in mapping.items():
-            schema = schema["mappings"]
-            for doc_type_name, schema in schema.items():
-                container.append(doc_type_name)
-        return container
 
 
     @elastic_connection
@@ -170,23 +159,26 @@ class ElasticCore:
     @elastic_connection
     def get_fields(self, indices=[]):
         out = []
-        if indices:
-            lookup = ','.join(indices)
-        else:
-            lookup = '*'
+        indices = indices if indices else ["*"]
         if self.connection:
-            for index, mappings in self.es.indices.get_mapping(lookup).items():
-                for mapping, properties in mappings['mappings'].items():
-                    properties = properties['properties']
-                    for field in self._decode_mapping_structure(properties):
-                        index_with_field = {'index': index, 'path': field['path'], 'type': field['type']}
-                        out.append(index_with_field)
+            for index in indices:
+                mapping = Mapping.from_es(index=index, using=self.es).to_dict()
+
+                properties = None
+                if "properties" in mapping:
+                    properties = mapping['properties']
+                elif index in mapping.keys()[0]:
+                    properties = mapping[mapping.keys()[0]]["properties"]
+
+                for field in self._decode_mapping_structure(properties):
+                    index_with_field = {'index': index, 'path': field['path'], 'type': field['type']}
+                    out.append(index_with_field)
         return out
 
 
-    def _decode_mapping_structure(self, structure, root_path=list(), nested_layers=list()):
+    def _decode_mapping_structure(self, structure, root_path=list()):
         """
-        Decode mapping structure (nested dictionary) to a flat structure
+        Decode mapping structure (nested dictionary) to a flat structure, separated by dot notation.
         """
         mapping_data = []
         for k, v in structure.items():
@@ -230,7 +222,7 @@ class ElasticCore:
             documents = initial_scroll["hits"]["hits"] if with_meta else [doc["_source"] for doc in initial_scroll["hits"]["hits"]]
             response = {
                 "scroll_id": initial_scroll["_scroll_id"],
-                "total_documents": initial_scroll["hits"]["total"],
+                "total_documents": initial_scroll["hits"]["total"]["value"],
                 "returned_count": len(initial_scroll["hits"]["hits"]),
                 "documents": documents
             }
@@ -242,7 +234,7 @@ class ElasticCore:
 
             response = {
                 "scroll_id": continuation_scroll["_scroll_id"],
-                "total_documents": continuation_scroll["hits"]["total"],
+                "total_documents": continuation_scroll["hits"]["total"]["value"],
                 "returned_count": len(continuation_scroll["hits"]["hits"]),
                 "documents": documents
             }
@@ -250,29 +242,27 @@ class ElasticCore:
 
 
     @elastic_connection
-    def add_texta_facts_mapping(self, index: str, doc_types: List[str] = []):
+    def add_texta_facts_mapping(self, index: str):
         """
         To allow for more flexibility, we do not use the indices variable in the class.
 
         Adding the same mapping multiple times doesn't effect anything,
         adding a single field is also save as the query only adds, not overwrites.
         """
-        doc_types = [index] if not doc_types else doc_types
-        for doc_type in doc_types:
-            m = Mapping(doc_type)
-            texta_facts = Nested(
-                properties={
-                    "spans": Keyword(),
-                    "fact": Keyword(),
-                    "str_val": Keyword(),
-                    "doc_path": Keyword(),
-                    "num_val": Long(),
-                }
-            )
+        m = Mapping()
+        texta_facts = Nested(
+            properties={
+                "spans": Keyword(),
+                "fact": Keyword(),
+                "str_val": Keyword(),
+                "doc_path": Keyword(),
+                "num_val": Long(),
+            }
+        )
 
-            # Set the name of the field along with its mapping body
-            m.field(TEXTA_TAGS_KEY, texta_facts)
-            m.save(index=index, using=self.es)
+        # Set the name of the field along with its mapping body
+        m.field(TEXTA_TAGS_KEY, texta_facts)
+        m.save(index=index, using=self.es)
 
 
     def flatten(self, d, parent_key='', sep='.'):
