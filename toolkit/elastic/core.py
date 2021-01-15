@@ -167,8 +167,9 @@ class ElasticCore:
                 properties = None
                 if "properties" in mapping:
                     properties = mapping['properties']
-                elif index in mapping.keys()[0]:
-                    properties = mapping[mapping.keys()[0]]["properties"]
+                elif index in list(mapping.keys())[0]:
+                    key = list(mapping.keys())[0]
+                    properties = mapping[key]["properties"]
 
                 for field in self._decode_mapping_structure(properties):
                     index_with_field = {'index': index, 'path': field['path'], 'type': field['type']}
