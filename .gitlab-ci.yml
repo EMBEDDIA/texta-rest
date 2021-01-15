@@ -2,7 +2,7 @@ image: continuumio/miniconda3:latest
 
 variables:
   # Elastic
-  TEXTA_ES_URL: http://172.18.0.2:9200
+  TEXTA_ES_URL: http://elasticsearch:9200
   # Redis
   TEXTA_REDIS_URL: redis://redis:6379
   # UAA
@@ -22,6 +22,10 @@ variables:
   #TEXTA_ADMIN_PASSWORD: "1234"
 
 services:
+  - name: docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.1
+    alias: elasticsearch
+    command: [ "bin/elasticsearch", "-Ediscovery.type=single-node" ]
+
   - name: redis:latest
   - name: docker.texta.ee/texta/texta-uaa:latest
     alias: texta-uaa
