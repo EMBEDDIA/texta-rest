@@ -6,7 +6,7 @@ from django.test import TestCase
 
 from toolkit.settings import CORE_SETTINGS
 from toolkit.elastic.core import ElasticCore
-from toolkit.elastic.exceptions import ElasticIndexNotFoundException, ElasticAuthorizationException
+from toolkit.elastic.exceptions import ElasticIndexNotFoundException, ElasticAuthorizationException, ElasticTransportException
 from toolkit.test_settings import TEST_INDEX
 from toolkit.tools.utils_for_tests import print_output
 
@@ -102,5 +102,5 @@ class TestElasticCore(TestCase):
             }
         })
 
-        self.assertRaises(ElasticAuthorizationException, self.elastic_core.create_index, "locked_index")
+        self.assertRaises((ElasticAuthorizationException, ElasticTransportException), self.elastic_core.create_index, "locked_index")
         requests.delete(index_url)
