@@ -125,8 +125,6 @@ class TopicAnalyzerTests(APITransactionTestCase):
             document_content = document["content"]
             keys = list(document_content.keys())
             self.assertTrue(len(keys) > 0)
-            for key in keys:
-                self.assertTrue(document_content[key])
 
         print_output("test_singular_cluster_detail_page", 201)
 
