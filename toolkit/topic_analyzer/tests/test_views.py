@@ -122,7 +122,11 @@ class TopicAnalyzerTests(APITransactionTestCase):
             self.assertTrue("content" in document)
 
             # Check that the field key exists inside the content window.
-            self.assertTrue(TEST_FIELD in document["content"])
+            document_content = document["content"]
+            keys = list(document_content.keys())
+            self.assertTrue(len(keys) > 0)
+            for key in keys:
+                self.assertTrue(document_content[key])
 
         print_output("test_singular_cluster_detail_page", 201)
 
