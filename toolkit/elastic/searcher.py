@@ -105,7 +105,7 @@ class ElasticSearcher:
         s = s.query(mlt).exclude("ids", values=exclude)
         s = s.extra(size=size)
         if include_meta:
-            response = [{"_id": hit.meta.id, "_type": hit.meta.doc_type, "_index": hit.meta.index, "_source": self.core.flatten(hit.to_dict()) if flatten else hit.to_dict()} for hit in s.execute()]
+            response = [{"_id": hit.meta.id, "_index": hit.meta.index, "_source": self.core.flatten(hit.to_dict()) if flatten else hit.to_dict()} for hit in s.execute()]
             return response
         else:
             response = [self.core.flatten(hit.to_dict()) if flatten else hit.to_dict() for hit in s.execute()]

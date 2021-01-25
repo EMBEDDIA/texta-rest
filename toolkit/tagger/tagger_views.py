@@ -15,7 +15,7 @@ from toolkit.core.task.models import Task
 from toolkit.elastic.core import ElasticCore
 from toolkit.elastic.models import Index
 from toolkit.elastic.searcher import ElasticSearcher
-from toolkit.exceptions import NonExistantModelError, SerializerNotValid
+from toolkit.exceptions import NonExistantModelError, RedisNotAvailable, SerializerNotValid
 from toolkit.helper_functions import add_finite_url_to_feedback
 from toolkit.permissions.project_permissions import ProjectResourceAllowed
 from toolkit.serializer_constants import (

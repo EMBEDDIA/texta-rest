@@ -44,7 +44,6 @@ class DocumentImportView(GenericAPIView):
         new_index = False
         for document in documents:
             document["_index"] = index_name
-            document["_type"] = index_name
             new_index = True
         return documents, index_name, new_index
 
@@ -80,7 +79,6 @@ class DocumentImportView(GenericAPIView):
                             content = {**content, **{"page": page["page"], field: page["text"]}}
                             container.append({
                                 "_index": document["_index"],
-                                "_type": document["_index"],
                                 "_source": content
                             })
                     else:
@@ -155,7 +153,7 @@ class DocumentInstanceView(GenericAPIView):
 
         try:
             ed = ElasticDocument(index)
-            document = ed.update(index=index, doc_type=index, doc_id=document_id, doc=request.data)
+            document = ed.update(index=index, doc_id=document_id, doc=request.data)
             return Response(document)
         except elasticsearch.exceptions.RequestError as e:
             if e.error == "mapper_parsing_exception":  # TODO Extend the decorator with different variants of the request error instead.
@@ -184,7 +182,7 @@ class UpdateSplitDocument(GenericAPIView):
         for page in pages:
             text = page.pop("text")
             page = {**page, **sample_doc, text_field: text}
-            actions.append({"_index": index, "_type": index, "_source": page})
+            actions.append({"_index": index, "_source": page})
         return actions
 
 
