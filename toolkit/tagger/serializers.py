@@ -70,6 +70,7 @@ class TaggerSerializer(FieldParseSerializer, serializers.ModelSerializer, Projec
     negative_multiplier = serializers.IntegerField(default=DEFAULT_NEGATIVE_MULTIPLIER, help_text=f'Multiplies the size of positive samples to determine negative example set size. Default: {DEFAULT_NEGATIVE_MULTIPLIER}')
     maximum_sample_size = serializers.IntegerField(default=DEFAULT_MAX_SAMPLE_SIZE, help_text=f'Maximum number of documents used to build a model. Default: {DEFAULT_MAX_SAMPLE_SIZE}')
     score_threshold = serializers.FloatField(default=DEFAULT_SCORE_THRESHOLD, help_text=f'Elasticsearch score threshold for filtering out irrelevant examples. All examples below first document\'s score * score threshold are ignored. Float between 0 and 1. Default: {DEFAULT_SCORE_THRESHOLD}')
+    use_snowball = serializers.BooleanField(default=False, help_text='Use Snowball stemmer to normalize the texts. Default: False.')
     task = TaskSerializer(read_only=True)
     plot = serializers.SerializerMethodField()
     query = serializers.JSONField(help_text='Query in JSON format', required=False)
@@ -81,7 +82,7 @@ class TaggerSerializer(FieldParseSerializer, serializers.ModelSerializer, Projec
     class Meta:
         model = Tagger
         fields = ('id', 'url', 'author_username', 'description', 'query', 'fact_name', 'fields', 'embedding', 'vectorizer', 'classifier', 'stop_words',
-                  'maximum_sample_size', 'score_threshold', 'negative_multiplier', 'precision', 'recall', 'f1_score',
+                  'maximum_sample_size', 'score_threshold', 'negative_multiplier', 'precision', 'recall', 'f1_score', 'use_snowball',
                   'num_features', 'num_examples', 'confusion_matrix', 'plot', 'task', 'indices', 'tagger_groups')
         read_only_fields = ('precision', 'recall', 'f1_score', 'num_features', 'stop_words', 'num_examples', "tagger_groups")
         fields_to_parse = ('fields',)

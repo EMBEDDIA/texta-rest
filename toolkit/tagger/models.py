@@ -42,6 +42,7 @@ class Tagger(models.Model):
     negative_multiplier = models.FloatField(default=DEFAULT_NEGATIVE_MULTIPLIER, blank=True)
     maximum_sample_size = models.IntegerField(default=DEFAULT_MAX_SAMPLE_SIZE, blank=True)
     score_threshold = models.FloatField(default=0.0, blank=True)
+    use_snowball = models.BooleanField(default=False)
 
     precision = models.FloatField(default=None, null=True)
     recall = models.FloatField(default=None, null=True)

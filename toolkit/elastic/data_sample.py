@@ -15,7 +15,7 @@ class InvalidDataSampleError(Exception):
 
 class DataSample:
     """Re-usable object for handling positive and negative data samples for Taggers and TorchTaggers."""
-    def __init__(self, model_object, indices: List[str], field_data: List[str], show_progress=None, join_fields=False, text_processor=None, add_negative_sample=False, use_snowball=True):
+    def __init__(self, model_object, indices: List[str], field_data: List[str], show_progress=None, join_fields=False, text_processor=None, add_negative_sample=False, use_snowball=False):
         self.tagger_object = model_object
         self.show_progress = show_progress
         self.indices = indices
@@ -49,7 +49,7 @@ class DataSample:
             for cl, examples in self.data.items():
                 processed_examples = []
                 for example_doc in examples:
-                    new_example_doc = {k: stemmer.stem(v) for k, v in example_doc.items()}
+                    new_example_doc = {k: stemmer.lemmatize(v) for k, v in example_doc.items()}
                     processed_examples.append(new_example_doc)
                 self.data[cl] = processed_examples
 

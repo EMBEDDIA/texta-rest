@@ -9,16 +9,18 @@ class ElasticStemmer:
         self.indices_client = IndicesClient(self.core.es)
         
     
-    def stem(self, text):
+    def lemmatize(self, text):
         body = {
             "analyzer": "snowball",
             "text": text
         }
+
+        # TODO: make analyze list of texts to make it faster
+        # TODO: add exceptions etc.
 
         analysis = self.indices_client.analyze(body=body)
 
         tokens = [token["token"] for token in analysis["tokens"]]
         token_string = " ".join(tokens)
 
-        return tokens
-
+        return token_string

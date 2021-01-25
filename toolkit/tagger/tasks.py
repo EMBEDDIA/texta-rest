@@ -14,6 +14,7 @@ from toolkit.core.task.models import Task
 from toolkit.elastic.data_sample import DataSample
 from toolkit.elastic.feedback import Feedback
 from toolkit.elastic.models import Index
+from toolkit.elastic.stemmer import ElasticStemmer
 from toolkit.helper_functions import get_indices_from_object
 from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, ERROR_LOGGER, INFO_LOGGER, MEDIA_URL
 from toolkit.tagger.models import Tagger, TaggerGroup
@@ -113,7 +114,8 @@ def train_tagger_task(tagger_id: int):
             tagger_object,
             indices=indices,
             field_data=field_data,
-            show_progress=show_progress
+            show_progress=show_progress,
+            use_snowball=tagger_object.use_snowball
         )
         # update status to training
         show_progress.update_step("training")
@@ -200,6 +202,8 @@ def apply_tagger(tagger_id, text, input_type='text', lemmatize=False, feedback=N
     # get lemmatizer
     if lemmatize:
         lemmatizer = CeleryLemmatizer()
+    elif tagger_object.use_snowball:
+        lemmatizer = ElasticStemmer()
     else:
         lemmatizer = None
     # create text processor object for tagger
