@@ -13,7 +13,7 @@ from toolkit.core.task.models import Task
 from toolkit.settings import RELATIVE_MODELS_PATH
 from toolkit.tagger.models import Tagger
 from toolkit.test_settings import (TEST_FIELD,
-                                   TEST_FIELD_CHOICE,
+                                   TEST_FIELD_UNLEMMATIZED_CHOICE,
                                    TEST_FACT_NAME,
                                    TEST_INDEX,
                                    TEST_VERSION_PREFIX,
@@ -60,14 +60,14 @@ class TaggerViewTests(APITransactionTestCase):
             for classifier_opt in self.classifier_opts:
                 payload = {
                     "description": "TestTaggerMultiClass",
-                    "fields": TEST_FIELD_CHOICE,
+                    "fields": TEST_FIELD_UNLEMMATIZED_CHOICE,
                     "fact_name": TEST_FACT_NAME,
                     "vectorizer": vectorizer_opt,
                     "classifier": classifier_opt,
                     "maximum_sample_size": 500,
                     "negative_multiplier": 1.0,
                     "score_threshold": 0.1,
-                    "use_snowball": True
+                    "snowball_language": "Finnish"
                 }
                 # procees to analyze result
                 response = self.client.post(self.url, payload, format='json')

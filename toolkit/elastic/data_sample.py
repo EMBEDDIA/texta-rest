@@ -15,7 +15,7 @@ class InvalidDataSampleError(Exception):
 
 class DataSample:
     """Re-usable object for handling positive and negative data samples for Taggers and TorchTaggers."""
-    def __init__(self, model_object, indices: List[str], field_data: List[str], show_progress=None, join_fields=False, text_processor=None, add_negative_sample=False, use_snowball=False):
+    def __init__(self, model_object, indices: List[str], field_data: List[str], show_progress=None, join_fields=False, text_processor=None, add_negative_sample=False, snowball_language=None):
         self.tagger_object = model_object
         self.show_progress = show_progress
         self.indices = indices
@@ -34,18 +34,18 @@ class DataSample:
         self.data = {**self.feedback, **self.data}
 
         # use Snowball stemmer
-        self._snowball(use_snowball)
+        self._snowball(snowball_language)
 
         # validate resulting data sample
         self._validate()
 
 
-    def _snowball(self, use_snowball):
+    def _snowball(self, snowball_language):
         """
         Stems the texts in data sample using Snowball.
         """
-        if use_snowball:
-            stemmer = ElasticStemmer()
+        if snowball_language:
+            stemmer = ElasticStemmer(language=snowball_language)
             for cl, examples in self.data.items():
                 processed_examples = []
                 for example_doc in examples:

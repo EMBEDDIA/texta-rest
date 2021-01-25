@@ -48,6 +48,19 @@ def get_tokenizer_choices():
    pipeline = get_pipeline_builder()
    return [(a, a) for a in pipeline.get_analyzer_options()]
 
+
+def get_snowball_choices():
+   choices = [
+      (None, None),
+      ("Estonian", "Estonian"),
+      ("English", "English"),
+      ("Finnish", "Finnish"),
+      ("German", "German"),
+      ("Arabic", "Arabic")
+   ]
+   return choices
+
+
 DEFAULT_MAX_SAMPLE_SIZE = 10000
 DEFAULT_NEGATIVE_MULTIPLIER = 1.0
 DEFAULT_MIN_SAMPLE_SIZE = 50

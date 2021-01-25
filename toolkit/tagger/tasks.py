@@ -115,7 +115,7 @@ def train_tagger_task(tagger_id: int):
             indices=indices,
             field_data=field_data,
             show_progress=show_progress,
-            use_snowball=tagger_object.use_snowball
+            snowball_language=tagger_object.snowball_language
         )
         # update status to training
         show_progress.update_step("training")
@@ -199,11 +199,11 @@ def apply_tagger(tagger_id, text, input_type='text', lemmatize=False, feedback=N
     logging.getLogger(INFO_LOGGER).info(f"Starting task 'apply_tagger' for tagger with ID: {tagger_id} with params (input_type : {input_type}, lemmatize: {lemmatize}, feedback: {feedback})!")
     # get tagger object
     tagger_object = Tagger.objects.get(pk=tagger_id)
-    # get lemmatizer
-    if lemmatize:
+    # get lemmatizer/stemmer
+    if tagger_object.snowball_language:
+        lemmatizer = ElasticStemmer(language=tagger_object.snowball_language)
+    elif lemmatize:
         lemmatizer = CeleryLemmatizer()
-    elif tagger_object.use_snowball:
-        lemmatizer = ElasticStemmer()
     else:
         lemmatizer = None
     # create text processor object for tagger
