@@ -41,8 +41,9 @@ class TaggerViewTests(APITransactionTestCase):
         self.classifier_opts = ('Logistic Regression',)
 
         self.snowball_languages = (
-            'english',
-            #'Estonian'
+            #'english',
+            'finnish',
+            #'estonian'
         )
 
         # list tagger_ids for testing. is populated during training test
