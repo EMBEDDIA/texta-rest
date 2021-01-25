@@ -7,18 +7,13 @@ class ElasticStemmer:
     def __init__(self, language="English"):
         self.core = ElasticCore()
         self.indices_client = IndicesClient(self.core.es)
-        self.language = language
+        self.snowball_filter = {"type": "snowball", "language": language}
     
     def lemmatize(self, text):
         body = {
             "tokenizer": "whitespace",
             "text": text,
-            "filter": [
-                {
-                    "type": "snowball",
-                    "language": self.language
-                }
-            ]
+            "filter": [self.snowball_filter]
             
         }
 

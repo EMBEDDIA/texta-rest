@@ -17,7 +17,8 @@ from toolkit.test_settings import (TEST_FIELD,
                                    TEST_FACT_NAME,
                                    TEST_INDEX,
                                    TEST_VERSION_PREFIX,
-                                   TEST_KEEP_PLOT_FILES
+                                   TEST_KEEP_PLOT_FILES,
+                                   TEST_QUERY
                                    )
 from toolkit.tools.utils_for_tests import create_test_user, print_output, project_creation, remove_file
 
@@ -39,6 +40,11 @@ class TaggerViewTests(APITransactionTestCase):
         self.vectorizer_opts = ('Count Vectorizer',)
         self.classifier_opts = ('Logistic Regression',)
 
+        self.snowball_languages = (
+            'English',
+            #'Estonian'
+        )
+
         # list tagger_ids for testing. is populated during training test
         self.test_tagger_ids = []
         self.client.login(username='taggerOwner', password='pw')
@@ -58,35 +64,36 @@ class TaggerViewTests(APITransactionTestCase):
         """Tests the endpoint for a new Tagger, and if a new Task gets created via the signal"""
         for vectorizer_opt in self.vectorizer_opts:
             for classifier_opt in self.classifier_opts:
-                payload = {
-                    "description": "TestTaggerMultiClass",
-                    "fields": TEST_FIELD_UNLEMMATIZED_CHOICE,
-                    "fact_name": TEST_FACT_NAME,
-                    "vectorizer": vectorizer_opt,
-                    "classifier": classifier_opt,
-                    "maximum_sample_size": 500,
-                    "negative_multiplier": 1.0,
-                    "score_threshold": 0.1,
-                    "snowball_language": "Finnish"
-                }
-                # procees to analyze result
-                response = self.client.post(self.url, payload, format='json')
-                print_output('test_create_snowball_tagger_training_and_task_signal:response.data', response.data)
-                # Check if Tagger gets created
-                self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-                created_tagger = Tagger.objects.get(id=response.data['id'])
-                # add tagger to be tested
-                self.test_tagger_ids.append(created_tagger.pk)
-                # Check if not errors
-                self.assertEqual(created_tagger.task.errors, '[]')
-                # Remove tagger files after test is done
-                self.addCleanup(remove_file, created_tagger.model.path)
-                if not TEST_KEEP_PLOT_FILES:
-                    self.addCleanup(remove_file, created_tagger.plot.path)
-                # Check if Task gets created via a signal
-                self.assertTrue(created_tagger.task is not None)
-                # Check if Tagger gets trained and completed
-                self.assertEqual(created_tagger.task.status, Task.STATUS_COMPLETED)
+                for snowball_language in self.snowball_languages:
+                    payload = {
+                        "description": "TestTaggerSnowball",
+                        "fields": TEST_FIELD_UNLEMMATIZED_CHOICE,
+                        "query": json.dumps(TEST_QUERY),
+                        "vectorizer": vectorizer_opt,
+                        "classifier": classifier_opt,
+                        "maximum_sample_size": 500,
+                        "negative_multiplier": 1.0,
+                        "score_threshold": 0.1,
+                        "snowball_language": snowball_language
+                    }
+                    # procees to analyze result
+                    response = self.client.post(self.url, payload, format='json')
+                    print_output('test_create_snowball_tagger_training_and_task_signal:response.data', response.data)
+                    # Check if Tagger gets created
+                    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+                    created_tagger = Tagger.objects.get(id=response.data['id'])
+                    # add tagger to be tested
+                    self.test_tagger_ids.append(created_tagger.pk)
+                    # Check if not errors
+                    self.assertEqual(created_tagger.task.errors, '[]')
+                    # Remove tagger files after test is done
+                    self.addCleanup(remove_file, created_tagger.model.path)
+                    if not TEST_KEEP_PLOT_FILES:
+                        self.addCleanup(remove_file, created_tagger.plot.path)
+                    # Check if Task gets created via a signal
+                    self.assertTrue(created_tagger.task is not None)
+                    # Check if Tagger gets trained and completed
+                    self.assertEqual(created_tagger.task.status, Task.STATUS_COMPLETED)
 
 
     def run_snowball_list_features(self, test_tagger_ids: List[int]):
