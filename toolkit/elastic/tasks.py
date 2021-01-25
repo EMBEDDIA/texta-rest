@@ -1,4 +1,5 @@
 import json
+import logging
 from collections import defaultdict
 
 from celery.decorators import task
@@ -10,6 +11,7 @@ from toolkit.elastic.mapping_generator import SchemaGenerator
 from toolkit.elastic.models import Reindexer
 from toolkit.elastic.searcher import ElasticSearcher
 from toolkit.tools.show_progress import ShowProgress
+from toolkit.settings import ERROR_LOGGER, INFO_LOGGER
 
 
 """ TODOs:
@@ -100,20 +102,29 @@ def unflatten_doc(doc):
     return unflattened_doc
 
 
-def apply_elastic_search(elastic_search, fields, flatten_doc=False):
-    new_docs = []
+def apply_elastic_search(elastic_search, flatten_doc=False):
     for document in elastic_search:
-        new_doc = {k: v for k, v in document.items() if k in fields}
+        new_doc = document
         if not flatten_doc:
             new_doc = unflatten_doc(new_doc)
-        if new_doc:
-            new_docs.append(new_doc)
-    return new_docs
+
+        yield new_doc
 
 
-def bulk_add_documents(elastic_search, fields, elastic_doc, flatten_doc=False):
-    new_docs = apply_elastic_search(elastic_search, fields, flatten_doc)
-    elastic_doc.bulk_add(new_docs)
+def elastic_bulk_generator(generator, index: str):
+    for document in generator:
+        yield {
+            "_index": index,
+            "_type": index,
+            "_source": document
+        }
+
+
+def bulk_add_documents(elastic_search: ElasticSearcher, elastic_doc: ElasticDocument, index: str, chunk_size: int, flatten_doc=False):
+    new_docs = apply_elastic_search(elastic_search, flatten_doc)
+    actions = elastic_bulk_generator(new_docs, index)
+    # No need to wait for indexing to actualize, hence refresh is False.
+    elastic_doc.bulk_add_raw(actions=actions, chunk_size=chunk_size, refresh=False)
 
 
 @task(name="reindex_task", base=BaseTask)
@@ -124,39 +135,49 @@ def reindex_task(reindexer_task_id):
     fields = json.loads(reindexer_obj.fields)
     random_size = reindexer_obj.random_size
     field_type = json.loads(reindexer_obj.field_type)
+    scroll_size = reindexer_obj.scroll_size
+    new_index = reindexer_obj.new_index
     query = reindexer_obj.query
 
-    ''' for empty field post, use all posted indices fields '''
-    if not fields:
-        fields = ElasticCore().get_fields(indices)
-        fields = [field["path"] for field in fields]
+    logging.getLogger(INFO_LOGGER).info("Starting task 'reindex'.")
 
-    show_progress = ShowProgress(task_object, multiplier=1)
-    show_progress.update_step("scrolling data")
-    show_progress.update_view(0)
+    try:
+        ''' for empty field post, use all posted indices fields '''
+        if not fields:
+            fields = ElasticCore().get_fields(indices)
+            fields = [field["path"] for field in fields]
 
-    elastic_search = ElasticSearcher(indices=indices, callback_progress=show_progress, query=query)
-    elastic_doc = ElasticDocument(reindexer_obj.new_index)
+        show_progress = ShowProgress(task_object, multiplier=1)
+        show_progress.update_step("scrolling data")
+        show_progress.update_view(0)
 
-    if random_size > 0:
-        elastic_search = ElasticSearcher(indices=indices, query=query).random_documents(size=random_size)
+        elastic_search = ElasticSearcher(indices=indices, field_data=fields, callback_progress=show_progress, query=query, scroll_size=scroll_size)
+        elastic_doc = ElasticDocument(new_index)
 
-    ''' the operations that don't require a mapping update have been completed '''
+        if random_size > 0:
+            elastic_search = ElasticSearcher(indices=indices, field_data=fields, query=query, scroll_size=scroll_size).random_documents(size=random_size)
 
-    schema_input = update_field_types(indices, fields, field_type, flatten_doc=FLATTEN_DOC)
-    updated_schema = update_mapping(schema_input, reindexer_obj.new_index, reindexer_obj.add_facts_mapping)
+        logging.getLogger(INFO_LOGGER).info("Updating index schema.")
+        ''' the operations that don't require a mapping update have been completed '''
+        schema_input = update_field_types(indices, fields, field_type, flatten_doc=FLATTEN_DOC)
+        updated_schema = update_mapping(schema_input, new_index, reindexer_obj.add_facts_mapping)
 
-    # create new_index
-    create_index_res = ElasticCore().create_index(reindexer_obj.new_index, updated_schema)
+        logging.getLogger(INFO_LOGGER).info("Creating new index.")
+        # create new_index
+        create_index_res = ElasticCore().create_index(new_index, updated_schema)
 
-    # set new_index name as mapping name, perhaps make it customizable in the future
-    mapping_name = reindexer_obj.new_index
-    bulk_add_documents(elastic_search, fields, elastic_doc, flatten_doc=FLATTEN_DOC)
+        logging.getLogger(INFO_LOGGER).info("Indexing documents.")
+        # set new_index name as mapping name, perhaps make it customizable in the future
+        bulk_add_documents(elastic_search, elastic_doc, index=new_index, chunk_size=scroll_size, flatten_doc=FLATTEN_DOC)
 
-    # get_map = ElasticCore().get_mapping(index=reindexer_obj.new_index)
-    # print("ourmap", get_map)
+        # declare the job done
+        task_object.complete()
 
-    # declare the job done
-    task_object.complete()
+    except Exception as e:
+        logging.getLogger(ERROR_LOGGER).exception(e)
+        task_object.add_error(str(e))
+        task_object.update_status(Task.STATUS_FAILED)
+        raise e
 
+    logging.getLogger(INFO_LOGGER).info("Reindexing succesfully completed.")
     return True

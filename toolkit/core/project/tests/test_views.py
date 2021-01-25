@@ -168,11 +168,11 @@ class ProjectViewTests(APITestCase):
         hosted_url = response.data
         file_name = hosted_url.split("/")[-1]
         self.assertTrue(response.status_code == status.HTTP_200_OK)
-        path = pathlib.Path(RELATIVE_PROJECT_DATA_PATH) / str(self.project.pk) / SEARCHER_FOLDER_KEY
+        path = pathlib.Path(RELATIVE_PROJECT_DATA_PATH) / str(self.project.pk) / SEARCHER_FOLDER_KEY / file_name
         self.assertTrue(path.exists() is True)
-        for path in path.glob(f"*{file_name}"):
-            file_size = os.path.getsize(path)
-            self.assertTrue(file_size > 1)  # Check that file actually has content
+
+        file_size = os.path.getsize(path)
+        self.assertTrue(file_size > 1)  # Check that file actually has content
 
         # Check if file is downloadable.
         response = self.client.get(hosted_url)
