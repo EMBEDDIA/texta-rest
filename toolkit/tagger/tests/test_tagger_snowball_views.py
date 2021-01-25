@@ -41,7 +41,7 @@ class TaggerViewTests(APITransactionTestCase):
         self.classifier_opts = ('Logistic Regression',)
 
         self.snowball_languages = (
-            'English',
+            'english',
             #'Estonian'
         )
 
