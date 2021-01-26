@@ -16,8 +16,8 @@ from toolkit.tagger.choices import (
     DEFAULT_TAGGER_GROUP_FACT_NAME,
     get_classifier_choices,
     get_vectorizer_choices,
-    get_snowball_choices
     )
+from toolkit.elastic.choices import get_snowball_choices
 from toolkit.tagger.models import Tagger, TaggerGroup
 
 

@@ -28,7 +28,7 @@ class ElasticLemmatizer:
 
     def lemmatize(self, text):
         body = {
-            "tokenizer": "whitespace",
+            "tokenizer": "standard",
             "text": text,
             "filter": [self.snowball_filter]
             

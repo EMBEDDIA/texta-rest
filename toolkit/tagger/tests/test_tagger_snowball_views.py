@@ -42,8 +42,8 @@ class TaggerViewTests(APITransactionTestCase):
 
         self.snowball_languages = (
             #'english',
-            'finnish',
-            #'estonian'
+            #'finnish',
+            'estonian',
         )
 
         # list tagger_ids for testing. is populated during training test

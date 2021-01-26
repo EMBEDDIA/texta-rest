@@ -49,22 +49,6 @@ def get_tokenizer_choices():
    return [(a, a) for a in pipeline.get_analyzer_options()]
 
 
-def get_snowball_choices():
-   elastic_langs = [
-      'estonian', 'english', 'arabic', 'armenian', 'basque', 'bengali', 'brazilian',
-      'bulgarian', 'catalan', 'czech', 'danish', 'dutch', 'finnish', 'french', 'galician', 
-      'german', 'greek', 'hindi', 'hungarian', 'indonesian', 'irish', 'italian', 'latvian', 
-      'lithuanian', 'norwegian', 'persian', 'portuguese', 'romanian', 'russian',
-      'spanish', 'swedish', 'turkish', 'thai']
-   
-   choices = [(None, None)]
-
-   for lang in elastic_langs:
-      choices.append((lang, lang))
-
-   return choices
-
-
 DEFAULT_MAX_SAMPLE_SIZE = 10000
 DEFAULT_NEGATIVE_MULTIPLIER = 1.0
 DEFAULT_MIN_SAMPLE_SIZE = 50
