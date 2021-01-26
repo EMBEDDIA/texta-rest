@@ -69,7 +69,6 @@ class TaggerViewTests(APITransactionTestCase):
                     payload = {
                         "description": "TestTaggerSnowball",
                         "fields": TEST_FIELD_UNLEMMATIZED_CHOICE,
-                        "query": json.dumps(TEST_QUERY),
                         "vectorizer": vectorizer_opt,
                         "classifier": classifier_opt,
                         "maximum_sample_size": 500,
