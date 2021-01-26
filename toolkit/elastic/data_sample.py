@@ -1,16 +1,12 @@
 from typing import List
+import json
 
 from toolkit.elastic.searcher import ElasticSearcher
 from toolkit.elastic.aggregator import ElasticAggregator
-from toolkit.elastic.stemmer import ElasticStemmer
 from toolkit.elastic.feedback import Feedback
 from toolkit.elastic.query import Query
-import json
-
-
-class InvalidDataSampleError(Exception):
-    """Raised on invalid Data Sample""" 
-    pass
+from toolkit.tools.lemmatizer import ElasticLemmatizer
+from .exceptions import InvalidDataSampleError
 
 
 class DataSample:
@@ -45,11 +41,11 @@ class DataSample:
         Stems the texts in data sample using Snowball.
         """
         if snowball_language:
-            stemmer = ElasticStemmer(language=snowball_language)
+            lemmatizer = ElasticLemmatizer(language=snowball_language)
             for cl, examples in self.data.items():
                 processed_examples = []
                 for example_doc in examples:
-                    new_example_doc = {k: stemmer.lemmatize(v) for k, v in example_doc.items()}
+                    new_example_doc = {k: lemmatizer.lemmatize(v) for k, v in example_doc.items()}
                     processed_examples.append(new_example_doc)
                 self.data[cl] = processed_examples
 

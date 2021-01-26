@@ -50,7 +50,6 @@ class ElasticAuthenticationException(APIException):
     default_code = "auth_failed"
 
 
-class ElasticSnowballException(APIException):
-    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-    default_detail = "Snowball analysis failed!"
-    default_code = "snowball_failed"
+class InvalidDataSampleError(Exception):
+    """Raised on invalid Data Sample""" 
+    pass
