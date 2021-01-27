@@ -162,15 +162,8 @@ class ElasticCore:
         indices = indices if indices else ["*"]
         if self.connection:
             for index in indices:
-                mapping = Mapping.from_es(index=index, using=self.es).to_dict()
-
-                properties = None
-                mapping_keys = list(mapping.keys())[0]
-                if "properties" in mapping:
-                    properties = mapping['properties']
-                elif "_doc" in mapping_keys or index in mapping_keys:
-                    key = mapping_keys
-                    properties = mapping[key]["properties"]
+                mapping = Mapping.from_es(index=index, using=self.es)
+                properties = {field: mapping[field].to_dict() for field in mapping}
 
                 for field in self._decode_mapping_structure(properties):
                     index_with_field = {'index': index, 'path': field['path'], 'type': field['type']}
@@ -178,9 +171,13 @@ class ElasticCore:
         return out
 
 
-    def _decode_mapping_structure(self, structure, root_path=list()):
+    def _decode_mapping_structure(self, structure: dict, root_path=list()) -> List[dict]:
         """
         Decode mapping structure (nested dictionary) to a flat structure, separated by dot notation.
+
+        :param structure: Dictionary where the keys are field names and their values their respective mapping in JSON format.
+        :param root_path: Where to start from, used when dealing recursively with nested fields so the function would know where to start from.
+        :return: List of dictionaries where the "path" key shows the dot notated path of a field and the "type" it's Elasticsearch data type.
         """
         mapping_data = []
         for k, v in structure.items():

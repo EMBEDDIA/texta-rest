@@ -70,7 +70,7 @@ def update_field_types(indices, fields, field_type, flatten_doc=False):
     return updated_field_types
 
 
-def update_mapping(schema_input, new_index, add_facts_mapping):
+def update_mapping(schema_input, doc_type: str, add_facts_mapping):
     mod_schema = SchemaGenerator().generate_schema(schema_input, add_facts_mapping)
     return {'mappings': {"_doc": mod_schema}}
 

@@ -113,7 +113,7 @@ class DocumentImportView(GenericAPIView):
             project.indices.add(index)
 
         # Send the documents to Elasticsearch.
-        success_count, errors = ed.bulk_add_raw(actions=split_actions, stats_only=False)
+        success_count, errors = ed.bulk_add_generator(actions=split_actions, stats_only=False)
         return Response(
             {
                 "successfully_indexed": success_count,
@@ -215,7 +215,7 @@ class UpdateSplitDocument(GenericAPIView):
                 sample_doc = documents[0]["_source"]
                 response = ed.bulk_delete([document["_id"] for document in documents])  # Delete existing documents to make room for new ones.
                 actions = self._create_new_pages(content, sample_doc, text_field, index)
-                success_count, errors = ed.bulk_add_raw(actions=actions, stats_only=False)
+                success_count, errors = ed.bulk_add_generator(actions=actions, stats_only=False)
                 return Response({"successfully_updated": success_count, "errors": errors})
             else:
                 return Response(f"Could not find the id field withing the document!", status=status.HTTP_400_BAD_REQUEST)
