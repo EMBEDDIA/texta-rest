@@ -10,7 +10,7 @@ from toolkit.core.task.models import Task
 from toolkit.elastic.searcher import EMPTY_QUERY
 from toolkit.embedding.models import Embedding
 from toolkit.settings import RELATIVE_MODELS_PATH
-from toolkit.test_settings import TEST_FIELD_CHOICE, TEST_INDEX, TEST_VERSION_PREFIX
+from toolkit.test_settings import TEST_FIELD_CHOICE, TEST_INDEX, TEST_VERSION_PREFIX, W2V_EMBEDDING, FASTTEXT_EMBEDDING
 from toolkit.tools.utils_for_tests import create_test_user, print_output, project_creation
 
 
