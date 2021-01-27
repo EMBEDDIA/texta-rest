@@ -72,7 +72,7 @@ def update_field_types(indices, fields, field_type, flatten_doc=False):
 
 def update_mapping(schema_input, new_index, add_facts_mapping):
     mod_schema = SchemaGenerator().generate_schema(schema_input, add_facts_mapping)
-    return {'mappings': {new_index: mod_schema}}
+    return {'mappings': {"_doc": mod_schema}}
 
 
 def unflatten_doc(doc):

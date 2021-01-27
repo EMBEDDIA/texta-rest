@@ -165,10 +165,11 @@ class ElasticCore:
                 mapping = Mapping.from_es(index=index, using=self.es).to_dict()
 
                 properties = None
+                mapping_keys = list(mapping.keys())[0]
                 if "properties" in mapping:
                     properties = mapping['properties']
-                elif index in list(mapping.keys())[0]:
-                    key = list(mapping.keys())[0]
+                elif "_doc" in mapping_keys or index in mapping_keys:
+                    key = mapping_keys
                     properties = mapping[key]["properties"]
 
                 for field in self._decode_mapping_structure(properties):
@@ -221,9 +222,10 @@ class ElasticCore:
         if scroll_id is None:
             initial_scroll = self.es.search(index=indices, body=query, request_timeout=connection_timeout, scroll=scroll_timeout, size=size, _source=fields)
             documents = initial_scroll["hits"]["hits"] if with_meta else [doc["_source"] for doc in initial_scroll["hits"]["hits"]]
+            total = initial_scroll["hits"]["total"]
             response = {
                 "scroll_id": initial_scroll["_scroll_id"],
-                "total_documents": initial_scroll["hits"]["total"]["value"],
+                "total_documents": total if isinstance(total, int) else total["value"],
                 "returned_count": len(initial_scroll["hits"]["hits"]),
                 "documents": documents
             }
@@ -232,10 +234,11 @@ class ElasticCore:
         else:
             continuation_scroll = self.es.scroll(scroll_id=scroll_id, scroll=scroll_timeout)
             documents = continuation_scroll["hits"]["hits"] if with_meta else [doc["_source"] for doc in continuation_scroll["hits"]["hits"]]
+            total = continuation_scroll["hits"]["total"]
 
             response = {
                 "scroll_id": continuation_scroll["_scroll_id"],
-                "total_documents": continuation_scroll["hits"]["total"]["value"],
+                "total_documents": total if isinstance(total, int) else total["value"],
                 "returned_count": len(continuation_scroll["hits"]["hits"]),
                 "documents": documents
             }
@@ -262,8 +265,8 @@ class ElasticCore:
         )
 
         # Set the name of the field along with its mapping body
-        m.field(TEXTA_TAGS_KEY, texta_facts)
-        m.save(index=index, using=self.es)
+        mapping = m.field("texta_facts", texta_facts).to_dict()
+        self.es.indices.put_mapping(body=mapping, index="texta_test_index", doc_type="_doc", include_type_name=True)
 
 
     def flatten(self, d, parent_key='', sep='.'):
