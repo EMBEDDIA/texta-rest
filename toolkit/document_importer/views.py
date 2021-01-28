@@ -79,7 +79,8 @@ class DocumentImportView(GenericAPIView):
                             content = {**content, **{"page": page["page"], field: page["text"]}}
                             container.append({
                                 "_index": document["_index"],
-                                "_source": content
+                                "_source": content,
+                                "_type": document.get("_type", "_doc")
                             })
                     else:
                         container.append(document)

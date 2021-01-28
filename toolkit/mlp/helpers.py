@@ -27,6 +27,7 @@ def process_actions(generator: ElasticSearcher, analyzers: List[str], field_data
             elastic_update_body = {
                 "_id": original_elastic_document["_id"],
                 "_index": original_elastic_document["_index"],
+                "_type": original_elastic_document.get("_type", "_doc"),
                 "_op_type": "update",
                 "doc": {**mlp_processed_document, **{"texta_facts": unique_facts}}
             }

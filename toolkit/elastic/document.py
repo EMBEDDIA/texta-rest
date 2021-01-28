@@ -49,7 +49,8 @@ class ElasticDocument:
             if "texta_facts" not in document["_source"]:
                 self.core.add_texta_facts_mapping(document["_index"])
                 document["_source"]["texta_facts"] = [fact]
-                self.update(index=document["_index"], doc_id=document["_id"], doc=document["_source"])
+                doc_type = document.get("_type", "_doc")
+                self.update(index=document["_index"], doc_type=doc_type, doc_id=document["_id"], doc=document["_source"])
 
             else:
                 # Avoid sending duplicates.
@@ -57,7 +58,8 @@ class ElasticDocument:
                     pass
                 else:
                     document["_source"]["texta_facts"].append(fact)
-                    self.update(index=document["_index"], doc_id=document["_id"], doc=document["_source"])
+                    doc_type = document.get("_type", "_doc")
+                    self.update(index=document["_index"], doc_type=doc_type, doc_id=document["_id"], doc=document["_source"])
 
         return True
 
@@ -74,7 +76,8 @@ class ElasticDocument:
         response = s.execute()
         if response:
             document = response[0]
-            return {"_index": document.meta.index, "_id": document.meta.id, "_source": document.to_dict()}
+            doc_type = getattr(document.meta, "doc_type", "_doc")
+            return {"_index": document.meta.index, "_type": doc_type, "_id": document.meta.id, "_source": document.to_dict()}
         else:
             return None
 
@@ -92,7 +95,16 @@ class ElasticDocument:
         s = s[:10000]
         response = s.execute()
         if response:
-            return [{"_index": document.meta.index, "_id": document.meta.id, "_source": self.core.flatten(document.to_dict()) if flatten else document.to_dict()} for document in response]
+            container = []
+            for document in response:
+                document = {
+                    "_index": document.meta.index,
+                    "_type": getattr(document.meta, "doc_type", "_doc"),
+                    "_id": document.meta.id,
+                    "_source": self.core.flatten(document.to_dict()) if flatten else document.to_dict()
+                }
+                container.append(document)
+            return container
         else:
             return []
 
@@ -138,7 +150,6 @@ class ElasticDocument:
 
     @elastic_connection
     def bulk_add(self, docs, chunk_size=100, raise_on_error=True, stats_only=True):
-        """ _type is deprecated in ES 6"""
         actions = [{"_index": self.index, "_source": doc, "_type": doc.get("_type", "_doc")} for doc in docs]
         return bulk(client=self.core.es, actions=actions, chunk_size=chunk_size, stats_only=stats_only, raise_on_error=raise_on_error)
 

@@ -11,7 +11,7 @@ from rest_framework.exceptions import ValidationError
 
 from toolkit.elastic.decorators import elastic_connection
 from toolkit.helper_functions import get_core_setting
-from toolkit.settings import ES_CONNECTION_PARAMETERS, TEXTA_TAGS_KEY
+from toolkit.settings import ES_CONNECTION_PARAMETERS
 
 
 class ElasticCore:
@@ -156,6 +156,16 @@ class ElasticCore:
             return [], []
 
 
+    def handle_es6_mapping(self, mapping_schema: dict):
+        properties = {}
+        for doctype_key, mapping in mapping_schema.items():
+            if mapping:
+                mapping = mapping["properties"]
+                for field_name, field_schema in mapping.items():
+                    properties[field_name] = field_schema
+        return properties
+
+
     @elastic_connection
     def get_fields(self, indices=[]):
         out = []
@@ -163,7 +173,8 @@ class ElasticCore:
         if self.connection:
             for index in indices:
                 mapping = Mapping.from_es(index=index, using=self.es)
-                properties = {field: mapping[field].to_dict() for field in mapping}
+                properties = {field: mapping[field].to_dict() for field in mapping}  # Only works for ES7 clusters.
+                properties = properties if properties else self.handle_es6_mapping(mapping.to_dict())
 
                 for field in self._decode_mapping_structure(properties):
                     index_with_field = {'index': index, 'path': field['path'], 'type': field['type']}
@@ -242,6 +253,31 @@ class ElasticCore:
             return response
 
 
+    @staticmethod
+    def parse_doc_type_from_mapping(mapping: dict, default_es7_doctype="_doc") -> str:
+        """
+        Parse the result of the indexes _mapping endpoint to fetch the set
+        doc_type and if it doesn't exist yet (fresh index) put it into the default _doc.
+        From the start of ES6, only a single doc_type is allowed per index.
+        """
+        doc_types = []
+
+        for index, mappings in mapping.items():
+            mappings = mappings["mappings"]
+            for doc_type in mappings:
+                if doc_type != "properties":
+                    doc_types.append(doc_type)
+
+        return doc_types[0] if doc_types else default_es7_doctype
+
+
+    def get_doc_type_for_index(self, index: str):
+        index_interface = elasticsearch_dsl.Index(index, using=self.es)
+        mapping = index_interface.get_mapping()
+        doc_type = self.parse_doc_type_from_mapping(mapping)
+        return doc_type
+
+
     @elastic_connection
     def add_texta_facts_mapping(self, index: str):
         """
@@ -263,7 +299,8 @@ class ElasticCore:
 
         # Set the name of the field along with its mapping body
         mapping = m.field("texta_facts", texta_facts).to_dict()
-        self.es.indices.put_mapping(body=mapping, index="texta_test_index", doc_type="_doc", include_type_name=True)
+        doc_type = self.get_doc_type_for_index(index)
+        self.es.indices.put_mapping(body=mapping, index=index, doc_type=doc_type, include_type_name=True)
 
 
     def flatten(self, d, parent_key='', sep='.'):
