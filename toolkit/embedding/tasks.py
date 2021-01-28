@@ -15,7 +15,7 @@ from toolkit.helper_functions import get_indices_from_object
 
 
 @task(name="train_embedding", base=BaseTask, queue=CELERY_LONG_TERM_TASK_QUEUE)
-def train_embedding(embedding_id, embedding_type=W2V_EMBEDDING):
+def train_embedding(embedding_id):
     # retrieve embedding & task objects
     embedding_object = Embedding.objects.get(pk=embedding_id)
     task_object = embedding_object.task
@@ -37,9 +37,9 @@ def train_embedding(embedding_id, embedding_type=W2V_EMBEDDING):
                                     text_processor=TextProcessor(sentences=True, remove_stop_words=True, words_as_list=True),
                                     output=ElasticSearcher.OUT_TEXT)
         # create embedding object & train
-        if embedding_type == W2V_EMBEDDING:
+        if embedding_object.embedding_type == W2V_EMBEDDING:
         	embedding = W2VEmbedding()
-        elif embedding_type == FASTTEXT_EMBEDDING:
+        elif embedding_object.embedding_type == FASTTEXT_EMBEDDING:
         	embedding = FastTextEmbedding()
         else:
         	embedding = W2VEmbedding()
