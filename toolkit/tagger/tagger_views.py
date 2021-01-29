@@ -37,7 +37,7 @@ from toolkit.view_constants import (
     BulkDelete,
     FeedbackModelView,
 )
-from toolkit.tools.celery_lemmatizer import CeleryLemmatizer
+from toolkit.tools.lemmatizer import CeleryLemmatizer
 from toolkit.core.health.utils import get_redis_status
 
 
