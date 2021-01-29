@@ -20,15 +20,15 @@ class ElasticStemmerViewTests(APITransactionTestCase):
         self.url = f'{TEST_VERSION_PREFIX}/snowball/'
 
 
-    def test_stem_estonian(self):
-        payload = {
-            "text": "Autoriteetidega.",
-            "language": "estonian",
-        }
-        response = self.client.post(self.url, payload)
-        print_output('test_snowball_estonian:response.data', response.data)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        assert response.data["text"].lower() == "autoriteeti"
+    #def test_stem_estonian(self):
+    #    payload = {
+    #        "text": "Autoriteetidega.",
+    #        "language": "estonian",
+    #    }
+    #    response = self.client.post(self.url, payload)
+    #    print_output('test_snowball_estonian:response.data', response.data)
+    #    self.assertEqual(response.status_code, status.HTTP_200_OK)
+    #    assert response.data["text"].lower() == "autoriteeti"
 
 
     def test_stem_english(self):
