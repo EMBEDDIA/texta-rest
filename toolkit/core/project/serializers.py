@@ -160,11 +160,12 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
             'taggers',
             'tagger_groups',
             'torchtaggers',
-            "bert_taggers",
+            'bert_taggers',
             'regex_taggers',
             'anonymizers',
             'regex_tagger_groups',
             'mlp_index',
+            'evaluators'
 
         )
         for resource_name in resources:

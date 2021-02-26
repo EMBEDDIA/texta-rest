@@ -4,6 +4,7 @@ from rest_framework_nested import routers
 
 from toolkit.anonymizer.urls import router as anonymizer_router
 from toolkit.bert_tagger.urls import router as bert_tagger_router
+from toolkit.evaluator.urls import router as evaluator_router
 from toolkit.core.core_variable.views import CoreVariableViewSet
 from toolkit.core.health.views import HealthView
 from toolkit.core.project.views import DocumentView, ExportSearchView, GetFactsView, GetFieldsView, GetIndicesView, GetSpamView, ProjectViewSet, ScrollView, SearchByQueryView, SearchView
@@ -44,6 +45,7 @@ project_router.registry.extend(mlp_router.registry)
 project_router.registry.extend(regex_tagger_router.registry)
 project_router.registry.extend(anonymizer_router.registry)
 project_router.registry.extend(bert_tagger_router.registry)
+project_router.registry.extend(evaluator_router.registry)
 
 # TODO Look for putting this into a better place.
 project_router.register(r'clustering', ClusteringViewSet, basename='clustering')
