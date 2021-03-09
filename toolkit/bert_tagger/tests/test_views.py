@@ -23,8 +23,8 @@ from toolkit.test_settings import (
     TEST_KEEP_PLOT_FILES,
     TEST_BERT_MODEL,
     TEST_QUERY,
-    TEST_BERT_TAGGER_MULTICLASS,
-    TEST_BERT_TAGGER_BINARY
+    TEST_BERT_TAGGER_MULTICLASS_GPU,
+    TEST_BERT_TAGGER_BINARY_GPU
     )
 from toolkit.tools.utils_for_tests import create_test_user, print_output, project_creation, remove_file, remove_folder
 from toolkit.bert_tagger.models import BertTagger as BertTaggerObject
@@ -74,8 +74,8 @@ class BertTaggerObjectViewTests(APITransactionTestCase):
         print_output("reindex test index for applying bert tagger:response.data:", resp.json())
         self.reindexer_object = Reindexer.objects.get(pk=resp.json()["id"])
 
-        self.test_imported_binary_tagger_id = self.import_test_model(TEST_BERT_TAGGER_BINARY)
-        self.test_imported_multiclass_tagger_id = self.import_test_model(TEST_BERT_TAGGER_MULTICLASS)
+        self.test_imported_binary_tagger_id = self.import_test_model(TEST_BERT_TAGGER_BINARY_GPU)
+        self.test_imported_multiclass_tagger_id = self.import_test_model(TEST_BERT_TAGGER_MULTICLASS_GPU)
 
 
     def import_test_model(self, file_path: str):
@@ -375,7 +375,7 @@ class BertTaggerObjectViewTests(APITransactionTestCase):
         print_output("test_apply_binary_bert_tagger_to_index:elastic aggerator results:", results)
 
         # Check if the expected number of facts are added to the index
-        expected_number_of_facts = 19
+        expected_number_of_facts = 29
         self.assertTrue(results[self.new_fact_value] == expected_number_of_facts)
 
         self.add_cleanup_files(self.test_imported_binary_tagger_id)
