@@ -85,8 +85,7 @@ class TaggerViewTests(APITransactionTestCase):
         self.run_create_tagger_training_and_task_signal()
         self.run_create_tagger_with_incorrect_fields()
         self.run_tag_text(self.test_tagger_ids)
-        # Predicts everything true suddenly and the tests fail
-        #self.run_tag_text_result_check([self.test_tagger_ids[0]])
+        self.run_tag_text_result_check([self.test_tagger_ids[0]])
         self.run_tag_text_with_lemmatization()
         self.run_tag_doc()
         self.run_tag_doc_with_lemmatization()
@@ -260,8 +259,8 @@ class TaggerViewTests(APITransactionTestCase):
 
     def run_tag_text_result_check(self, test_tagger_ids: List[int]):
         """Tests the endpoint to check if the tagger result corresponds to the input text."""
-        payload_pos = {"text": "This is some loll test text for the Tagger Test loll"}
-        payload_neg = {"text": "asdssj kkks kkkkhhhhh fhfhhfdja jsdksjk"}
+        payload_pos = {"text": "This is some test text for the Tagger Test loll"}
+        payload_neg = {"text": "This is some test text for the Tagger Test"}
 
         payloads = {True: payload_pos, False: payload_neg}
 
@@ -273,7 +272,7 @@ class TaggerViewTests(APITransactionTestCase):
 
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
                 self.assertEqual(response.data['result'], label)
-                print_output("Checking prediction results", f"Expected label: {label}; Predicted label: {response.data['result']}")
+
 
     def run_tag_text_with_lemmatization(self):
         """Tests the endpoint for the tag_text action"""

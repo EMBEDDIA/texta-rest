@@ -240,19 +240,8 @@ class TaggerGroupViewTests(APITransactionTestCase):
         results = ElasticAggregator(indices=[self.test_index_copy]).get_fact_values_distribution(self.new_fact_name)
         print_output("test_apply_tagger_group_to_index:elastic aggerator results:", results)
 
+        # Check if at least one new fact is added
         self.assertTrue(len(results) >= 1)
-
-        fact_value_1 = "bar"
-        fact_value_2 = "foo"
-
-        n_fact_value_1 = 3
-        n_fact_value_2 = 2
-
-        # Check if expected number of new facts is added to the index
-        self.assertTrue(fact_value_1 in results)
-        self.assertTrue(fact_value_2 in results)
-        self.assertTrue(results[fact_value_1] == n_fact_value_1)
-        self.assertTrue(results[fact_value_2] == n_fact_value_2)
 
         # clean
         imported_tagger_group = TaggerGroup.objects.get(id=self.test_imported_tagger_group_id)
