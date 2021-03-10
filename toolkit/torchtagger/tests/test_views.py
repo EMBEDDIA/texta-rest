@@ -21,8 +21,8 @@ from toolkit.test_settings import (
     TEST_VERSION_PREFIX,
     TEST_KEEP_PLOT_FILES,
     TEST_QUERY,
-    TEST_TORCH_TAGGER_BINARY,
-    TEST_TORCH_TAGGER_MULTICLASS
+    TEST_TORCH_TAGGER_BINARY_GPU,
+    TEST_TORCH_TAGGER_MULTICLASS_GPU
     )
 from toolkit.tools.utils_for_tests import create_test_user, print_output, project_creation, remove_file
 from toolkit.torchtagger.models import TorchTagger
@@ -66,8 +66,8 @@ class TorchTaggerViewTests(APITransactionTestCase):
         print_output("reindex test index for applying torch tagger:response.data:", resp.json())
         self.reindexer_object = Reindexer.objects.get(pk=resp.json()["id"])
 
-        self.test_imported_binary_tagger_id = self.import_test_model(TEST_TORCH_TAGGER_BINARY)
-        self.test_imported_multiclass_tagger_id = self.import_test_model(TEST_TORCH_TAGGER_MULTICLASS)
+        self.test_imported_binary_tagger_id = self.import_test_model(TEST_TORCH_TAGGER_BINARY_GPU)
+        self.test_imported_multiclass_tagger_id = self.import_test_model(TEST_TORCH_TAGGER_MULTICLASS_GPU)
 
 
     def import_test_model(self, file_path: str):
@@ -316,8 +316,8 @@ class TorchTaggerViewTests(APITransactionTestCase):
         print_output("test_apply_binary_torch_tagger_to_index:elastic aggerator results:", results)
 
         # Check if expected number of facts is added
-        self.assertTrue(results[self.new_fact_value] == 30)
-        
+        self.assertTrue(results[self.new_fact_value] == 25)
+
         self.add_cleanup_files(self.test_imported_binary_tagger_id)
 
 
@@ -351,10 +351,16 @@ class TorchTaggerViewTests(APITransactionTestCase):
         print_output("test_apply_multiclass_torch_tagger_to_index:elastic aggerator results:", results)
 
         # Check if the expected facts with expected number of values is added
-        expected_fact_value = "foo"
-        expected_number_of_facts = 30
-        self.assertTrue(expected_fact_value in results)
-        self.assertTrue(results[expected_fact_value] == expected_number_of_facts )
+        fact_value_1 = "foo"
+        expected_count_1 = 28
+
+        fact_value_2 = "bar"
+        expected_count_2 = 2
+
+        self.assertTrue(fact_value_1 in results)
+        self.assertTrue(fact_value_2 in results)
+        self.assertTrue(results[fact_value_1] == expected_count_1)
+        self.assertTrue(results[fact_value_2] == expected_count_2)
 
         self.add_cleanup_files(self.test_imported_multiclass_tagger_id)
 

@@ -48,8 +48,8 @@ TEST_IMAGE_FILE_2 = os.path.join(TEST_DATA_DIR, "photos", "test_image_2.jpg")
 TEST_BERT_TAGGER_BINARY_GPU = os.path.join(TEST_DATA_DIR, "models", "bert_tagger", "berttagger_model_41.zip")
 TEST_BERT_TAGGER_MULTICLASS_GPU = os.path.join(TEST_DATA_DIR, "models", "bert_tagger", "berttagger_model_42.zip")
 
-TEST_TORCH_TAGGER_BINARY = os.path.join(TEST_DATA_DIR, "models", "torch_tagger", "torchtagger_model_7.zip")
-TEST_TORCH_TAGGER_MULTICLASS = os.path.join(TEST_DATA_DIR, "models", "torch_tagger", "torchtagger_model_8.zip")
+TEST_TORCH_TAGGER_BINARY_GPU = os.path.join(TEST_DATA_DIR, "models", "torch_tagger", "torchtagger_model_12.zip")
+TEST_TORCH_TAGGER_MULTICLASS_GPU = os.path.join(TEST_DATA_DIR, "models", "torch_tagger", "torchtagger_model_13.zip")
 
 TEST_TAGGER_BINARY = os.path.join(TEST_DATA_DIR, "models", "tagger", "tagger_model_35.zip")
 TEST_TAGGER_MULTICLASS = os.path.join(TEST_DATA_DIR, "models", "tagger", "tagger_model_36.zip")
