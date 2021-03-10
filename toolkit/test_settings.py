@@ -42,8 +42,8 @@ TEST_VERSION_PREFIX = f"/api/{VERSION_NAMESPACE}"
 TEST_UAA_USERNAME = 'test1'
 TEST_UAA_PASSWORD = 'test1'
 
-TEST_IMAGE_FILE_1 = os.path.join(TEST_DATA_DIR, "import_test_data", "photos", "test_image_1.jpg")
-TEST_IMAGE_FILE_2 = os.path.join(TEST_DATA_DIR, "import_test_data", "photos", "test_image_2.jpg")
+TEST_IMAGE_FILE_1 = os.path.join(TEST_DATA_DIR, "photos", "test_image_1.jpg")
+TEST_IMAGE_FILE_2 = os.path.join(TEST_DATA_DIR, "photos", "test_image_2.jpg")
 
 # Test BERT models trained on GPU
 TEST_BERT_TAGGER_BINARY_GPU = os.path.join(TEST_DATA_DIR, "models", "bert_tagger", "gpu", "berttagger_model_41.zip")
