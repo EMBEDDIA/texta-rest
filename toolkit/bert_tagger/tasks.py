@@ -10,11 +10,11 @@ from toolkit.core.task.models import Task
 
 from toolkit.bert_tagger.models import BertTagger as BertTaggerObject
 from toolkit.base_tasks import TransactionAwareTask
-from toolkit.elastic.data_sample import DataSample
-from toolkit.elastic.feedback import Feedback
-from toolkit.elastic.searcher import ElasticSearcher
-from toolkit.elastic.core import ElasticCore
-from toolkit.elastic.document import ElasticDocument
+from toolkit.elastic.tools.data_sample import DataSample
+from toolkit.elastic.tools.feedback import Feedback
+from toolkit.elastic.tools.searcher import ElasticSearcher
+from toolkit.elastic.tools.core import ElasticCore
+from toolkit.elastic.tools.document import ElasticDocument
 from toolkit.tools.plots import create_tagger_plot
 from toolkit.tools.show_progress import ShowProgress
 from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, BERT_PRETRAINED_MODEL_DIRECTORY, BERT_FINETUNED_MODEL_DIRECTORY, BERT_CACHE_DIR, INFO_LOGGER, ERROR_LOGGER
@@ -56,7 +56,6 @@ def train_bert_tagger(tagger_id, testing=False):
         else:
             sklearn_avg_function = choices.DEFAULT_SKLEARN_AVG_MULTICLASS
 
-
         # NB! saving pretrained models must be disabled!
         tagger = BertTagger(
             allow_standard_output = choices.DEFAULT_ALLOW_STANDARD_OUTPUT,
@@ -64,10 +63,16 @@ def train_bert_tagger(tagger_id, testing=False):
             sklearn_avg_function = sklearn_avg_function,
             use_gpu = choices.DEFAULT_USE_GPU,
             save_pretrained = False,
-            pretrained_models_dir = "",
+            pretrained_models_dir = BERT_PRETRAINED_MODEL_DIRECTORY,
             logger = logging.getLogger(INFO_LOGGER),
             cache_dir = BERT_CACHE_DIR
         )
+
+        # use state dict for binary taggers
+        if data_sample.is_binary:
+            tagger.config.use_state_dict = True
+        else:
+            tagger.config.use_state_dict = False
 
         # train tagger and get result statistics
         report = tagger.train(
@@ -128,11 +133,18 @@ def load_tagger(tagger_object: BertTaggerObject) -> BertTagger:
     tagger = BertTagger(
         allow_standard_output = choices.DEFAULT_ALLOW_STANDARD_OUTPUT,
         save_pretrained = False,
+        pretrained_models_dir = BERT_PRETRAINED_MODEL_DIRECTORY,
         use_gpu = choices.DEFAULT_USE_GPU,
         logger = logging.getLogger(INFO_LOGGER),
         cache_dir = BERT_CACHE_DIR
     )
     tagger.load(tagger_object.model.path)
+
+    # use state dict for binary taggers
+    if tagger.config.n_classes == 2:
+        tagger.config.use_state_dict = True
+    else:
+        tagger.config.use_state_dict = False
     return tagger
 
 

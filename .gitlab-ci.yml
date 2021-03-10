@@ -2,7 +2,7 @@ image: continuumio/miniconda3:latest
 
 variables:
   # Elastic
-  TEXTA_ES_URL: http://172.18.0.2:9200
+  TEXTA_ES_URL: http://elastic-dev.texta.ee:9200
   # Redis
   TEXTA_REDIS_URL: redis://redis:6379
   # UAA
@@ -22,6 +22,7 @@ variables:
   #TEXTA_ADMIN_PASSWORD: "1234"
   # MLP lang codes
   TEXTA_LANGUAGE_CODES: et,en
+  TEXTA_EXTERNAL_DATA_DIR: /cache
 
 services:
   - name: redis:latest
@@ -34,7 +35,7 @@ stages:
 
 Test:
   before_script:
-    - apt-get install curl -y
+    - apt-get install curl cmake build-essential -y
     - conda env create -f environment-nogpu.yaml && source activate texta-rest
     - python import_test_data.py -es $TEXTA_ES_URL
     - python migrate.py
@@ -48,10 +49,6 @@ Test:
   script:
     - sh wait-for-uaa.sh
     - python manage.py test
-  #only:
-  #  - master
-  #  - merge_requests
-  #  - tags
 
 Build:
   stage: build

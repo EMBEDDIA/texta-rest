@@ -14,11 +14,11 @@ from toolkit.core.task.models import Task
 from toolkit.torchtagger.models import TorchTagger as TorchTaggerObject
 from toolkit.tools.show_progress import ShowProgress
 from toolkit.base_tasks import TransactionAwareTask
-from toolkit.elastic.feedback import Feedback
-from toolkit.elastic.data_sample import DataSample
-from toolkit.elastic.searcher import ElasticSearcher
-from toolkit.elastic.core import ElasticCore
-from toolkit.elastic.document import ElasticDocument
+from toolkit.elastic.tools.data_sample import DataSample
+from toolkit.elastic.tools.feedback import Feedback
+from toolkit.elastic.tools.searcher import ElasticSearcher
+from toolkit.elastic.tools.core import ElasticCore
+from toolkit.elastic.tools.document import ElasticDocument
 from toolkit.tools.plots import create_tagger_plot
 from toolkit.settings import RELATIVE_MODELS_PATH, CELERY_LONG_TERM_TASK_QUEUE, INFO_LOGGER, ERROR_LOGGER
 from toolkit.helper_functions import get_core_setting, get_indices_from_object

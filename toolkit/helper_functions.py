@@ -16,6 +16,8 @@ def avoid_db_timeout(func):
         for conn in connections.all():
             conn.close_if_unusable_or_obsolete()
         func(*args, **kwargs)
+
+
     return inner_wrapper
 
 
@@ -108,13 +110,14 @@ def download_mlp_requirements(model_directory: str, supported_langs: List[str], 
     from texta_mlp.mlp import MLP, ENTITY_MAPPER_DATA_URLS
     MLP.download_entity_mapper_resources(model_directory, entity_mapper_urls=ENTITY_MAPPER_DATA_URLS, logger=logger)
     MLP.download_stanza_resources(model_directory, supported_langs=supported_langs, logger=logger)
+    MLP.download_concatenator_resources(model_directory, logger=logger)
 
 
-def download_bert_requirements(model_directory: str, supported_models: List[str], cache_directory: str, logger=None):
+def download_bert_requirements(model_directory: str, supported_models: List[str], cache_directory: str, logger=None, num_labels: int = None):
     """ Download pretrained BERT models & tokenizers.
     """
     from texta_bert_tagger.tagger import BertTagger
-    errors, failed_models = BertTagger.download_pretrained_models(bert_models=supported_models, save_dir=model_directory, cache_dir=cache_directory, logger=logger)
+    errors, failed_models = BertTagger.download_pretrained_models(bert_models=supported_models, save_dir=model_directory, cache_dir=cache_directory, logger=logger, num_labels=num_labels)
     return (errors, failed_models)
 
 

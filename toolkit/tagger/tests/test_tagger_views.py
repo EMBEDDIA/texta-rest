@@ -7,29 +7,22 @@ from time import sleep
 from typing import List
 
 from django.test import override_settings
+from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITransactionTestCase
 
-from toolkit.elastic.models import Reindexer
-from toolkit.elastic.aggregator import ElasticAggregator
-from toolkit.elastic.core import ElasticCore
 from toolkit.core.task.models import Task
+from toolkit.elastic.reindexer.models import Reindexer
+from toolkit.elastic.tools.aggregator import ElasticAggregator
+from toolkit.elastic.tools.core import ElasticCore
 from toolkit.settings import RELATIVE_MODELS_PATH
 from toolkit.tagger.models import Tagger
-from toolkit.test_settings import (TEST_FIELD,
-                                   TEST_FIELD_CHOICE,
-                                   TEST_INDEX,
-                                   TEST_MATCH_TEXT,
-                                   TEST_QUERY,
-                                   TEST_VERSION_PREFIX,
-                                   TEST_KEEP_PLOT_FILES
-                                   )
+from toolkit.test_settings import (TEST_FIELD, TEST_FIELD_CHOICE, TEST_INDEX, TEST_KEEP_PLOT_FILES, TEST_MATCH_TEXT, TEST_QUERY, TEST_TAGGER_BINARY, TEST_VERSION_PREFIX, VERSION_NAMESPACE)
 from toolkit.tools.utils_for_tests import create_test_user, print_output, project_creation, remove_file
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
 class TaggerViewTests(APITransactionTestCase):
-
 
     def setUp(self):
         # Owner of the project
@@ -60,6 +53,7 @@ class TaggerViewTests(APITransactionTestCase):
         self.reindex_payload = {
             "description": "test index for applying taggers",
             "indices": [TEST_INDEX],
+            "query": json.dumps(TEST_QUERY),
             "new_index": self.test_index_copy,
             "fields": [TEST_FIELD]
         }
@@ -67,13 +61,59 @@ class TaggerViewTests(APITransactionTestCase):
         print_output("reindex test index for applying tagger:response.data:", resp.json())
         self.reindexer_object = Reindexer.objects.get(pk=resp.json()["id"])
 
+        self.test_imported_binary_tagger_id = self.import_test_model(TEST_TAGGER_BINARY)
+
+
+    def import_test_model(self, file_path: str):
+        """Import models for testing."""
+        print_output("Importing model from file:", file_path)
+        files = {"file": open(file_path, "rb")}
+        import_url = f'{self.url}import_model/'
+        resp = self.client.post(import_url, data={'file': open(file_path, "rb")}).json()
+        print_output("Importing test model:", resp)
+        return resp["id"]
+
+    def __train_embedding_for_tagger(self) -> int:
+        url = reverse(f"{VERSION_NAMESPACE}:embedding-list", kwargs={"project_pk": self.project.pk})
+        payload = {
+            "description": "TestEmbedding",
+            "fields": [TEST_FIELD],
+            "max_vocab": 10000,
+            "min_freq": 5,
+            "num_dimensions": 100
+        }
+        response = self.client.post(url, data=payload, format="json")
+        self.assertTrue(response.status_code == status.HTTP_201_CREATED)
+        print_output("__train_embedding_for_tagger:response.data", response.data)
+        return response.data["id"]
+
+
+    def test_training_tagger_with_embedding(self):
+        url = reverse(f"{VERSION_NAMESPACE}:tagger-list", kwargs={"project_pk": self.project.pk})
+        embedding_id = self.__train_embedding_for_tagger()
+        payload = {
+            "description": "TestTagger",
+            "query": json.dumps(TEST_QUERY),
+            "fields": [TEST_FIELD],
+            "vectorizer": "TfIdf Vectorizer",
+            "classifier": "LinearSVC",
+            "maximum_sample_size": 500,
+            "negative_multiplier": 1.0,
+            "score_threshold": 0.1,
+            "embedding": embedding_id
+        }
+        response = self.client.post(url, data=payload, format="json")
+        self.assertTrue(response.status_code == status.HTTP_201_CREATED)
+        print_output("test_training_tagger_with_embedding:response.data", response.data)
+        self.run_tag_text([response.data["id"]])
+        self.add_cleanup_files(response.data["id"])
 
 
     def test_run(self):
         self.run_create_tagger_training_and_task_signal()
         self.run_create_tagger_with_incorrect_fields()
         self.run_tag_text(self.test_tagger_ids)
-        self.run_tag_text_result_check([self.test_tagger_ids[0]])
+        self.run_tag_text_result_check([self.test_tagger_ids[-1]])
         self.run_tag_text_with_lemmatization()
         self.run_tag_doc()
         self.run_tag_doc_with_lemmatization()
@@ -229,6 +269,7 @@ class TaggerViewTests(APITransactionTestCase):
             print_output("put_response", put_response.data)
             self.assertEqual(put_response.status_code, status.HTTP_200_OK)
 
+
     def run_tag_text(self, test_tagger_ids: List[int]):
         """Tests the endpoint for the tag_text action"""
         payload = {"text": "This is some test text for the Tagger Test"}
@@ -256,7 +297,7 @@ class TaggerViewTests(APITransactionTestCase):
             for test_tagger_id in test_tagger_ids:
                 tag_text_url = f'{self.url}{test_tagger_id}/tag_text/'
                 response = self.client.post(tag_text_url, payload)
-                print_output('test_tag_text_result_check:response.data', response.data)
+                print_output(f'test_tag_text_result_check_{label}:response.data', response.data)
 
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
                 self.assertEqual(response.data['result'], label)
@@ -403,7 +444,7 @@ class TaggerViewTests(APITransactionTestCase):
             print_output('test_apply_tagger_to_index: waiting for reindexer task to finish, current status:', self.reindexer_object.task.status)
             sleep(2)
 
-        test_tagger_id = self.test_tagger_ids[0]
+        test_tagger_id = self.test_imported_binary_tagger_id
         url = f'{self.url}{test_tagger_id}/apply_to_index/'
 
         payload = {
@@ -412,9 +453,7 @@ class TaggerViewTests(APITransactionTestCase):
             "new_fact_value": self.new_fact_value,
             "indices": [{"name": self.test_index_copy}],
             "fields": [TEST_FIELD],
-            "query": json.dumps(TEST_QUERY),
-            "lemmatize": False,
-            "bulk_size": 100
+            "lemmatize": False
         }
         response = self.client.post(url, payload, format='json')
         print_output('test_apply_tagger_to_index:response.data', response.data)
@@ -429,10 +468,10 @@ class TaggerViewTests(APITransactionTestCase):
         results = ElasticAggregator(indices=[self.test_index_copy]).get_fact_values_distribution(self.new_fact_name)
         print_output("test_apply_tagger_to_index:elastic aggerator results:", results)
 
-        # Check if applying the tagger results in at least 1 new fact
-        # Exact numbers cannot be checked as creating taggers contains random and thus
-        # predicting with them isn't entirely deterministic
-        self.assertTrue(results[self.new_fact_value] >= 1)
+        # Check if expected number of facts are added to the index
+        expected_number_of_facts = 30
+        self.assertTrue(results[self.new_fact_value] == expected_number_of_facts)
+        self.add_cleanup_files(test_tagger_id)
 
 
     def run_apply_tagger_to_index_invalid_input(self):

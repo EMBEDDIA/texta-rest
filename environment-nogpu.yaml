@@ -4,6 +4,7 @@ channels:
   - conda-forge
   - anaconda
   - bioconda
+  - menpo
 
 dependencies:
   - python=3.7
@@ -42,12 +43,13 @@ dependencies:
       - xlrd==1.2.0
       - dill
       - texta-anonymizer==1.*
-      - texta-mlp==1.7.*
+      - texta-mlp>=1.9.1
       - texta-lexicon-matcher==1.*
       - texta-tools==1.*
       - texta-tagger==1.*
       - texta-torch-tagger==1.*
-      - texta-bert-tagger==2.1.*
+      - texta-bert-tagger==2.3.*
+      - texta-face-analyzer==0.*
       - torchtext==0.6.*
       - torch==1.5.0+cpu
       - -f https://download.pytorch.org/whl/torch_stable.html
