@@ -2,8 +2,8 @@ import json
 
 from rest_framework import serializers
 from toolkit.core.task.serializers import TaskSerializer
-from toolkit.elastic.serializers import IndexSerializer
-from toolkit.elastic.searcher import EMPTY_QUERY
+from toolkit.elastic.index.serializers import IndexSerializer
+from toolkit.elastic.tools.searcher import EMPTY_QUERY
 from toolkit.serializer_constants import FieldParseSerializer, ProjectResourceUrlSerializer
 from toolkit.evaluator import choices
 from toolkit.evaluator.models import Evaluator

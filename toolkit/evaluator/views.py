@@ -13,10 +13,11 @@ from rest_framework.response import Response
 from toolkit.core.task.models import Task
 from toolkit.core.project.models import Project
 
-from toolkit.elastic.core import ElasticCore
-from toolkit.elastic.feedback import Feedback
-from toolkit.elastic.models import Index
-from toolkit.elastic.searcher import ElasticSearcher
+from toolkit.elastic.tools.core import ElasticCore
+from toolkit.elastic.tools.feedback import Feedback
+from toolkit.elastic.tools.searcher import ElasticSearcher
+
+from toolkit.elastic.index.models import Index
 
 from toolkit.exceptions import NonExistantModelError, ProjectValidationFailed, DownloadingModelsNotAllowedError, InvalidModelIdentifierError
 

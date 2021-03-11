@@ -9,13 +9,15 @@ from elasticsearch.helpers import streaming_bulk
 from toolkit.core.task.models import Task
 
 from toolkit.evaluator.models import Evaluator
+from toolkit.evaluator import choices
 from toolkit.base_tasks import TransactionAwareTask
-from toolkit.elastic.data_sample import DataSample
-from toolkit.elastic.feedback import Feedback
-from toolkit.elastic.searcher import ElasticSearcher
-from toolkit.elastic.core import ElasticCore
-from toolkit.elastic.document import ElasticDocument
-from toolkit.elastic.aggregator import ElasticAggregator
+
+from toolkit.elastic.tools.data_sample import DataSample
+from toolkit.elastic.tools.feedback import Feedback
+from toolkit.elastic.tools.searcher import ElasticSearcher
+from toolkit.elastic.tools.core import ElasticCore
+from toolkit.elastic.tools.document import ElasticDocument
+from toolkit.elastic.tools.aggregator import ElasticAggregator
 
 from toolkit.tools.show_progress import ShowProgress
 from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, INFO_LOGGER, ERROR_LOGGER
@@ -69,10 +71,18 @@ def get_scores(true_labels: List[Union[str, int]], pred_labels: List[Union[str, 
         mlb = MultiLabelBinarizer(classes=classes)
         true_labels = mlb.fit_transform(true_labels)
         pred_labels = mlb.fit_transform(pred_labels)
+
+        confusion_classes = [i for i in range(len(classes))]
+
+        if len(classes) <= choices.DEFAULT_MAX_CONFUSION_CLASSES:
+            confusion = confusion_matrix(true_labels.argmax(axis=1), pred_labels.argmax(axis=1), labels=confusion_classes).tolist()
+        else:
+            confusion = [[]]
     else:
         # Use numerical classes for binary taggers to avoid conflicts
         # when calculating confusion matrix
         classes = [0, 1]
+        confusion = confusion_matrix(true_labels, pred_labels, labels=classes).tolist()
 
     logging.getLogger(INFO_LOGGER).info(f"TRUE_LABLS: {true_labels}\nPRED_LABELS: {pred_labels}")
 
@@ -81,7 +91,7 @@ def get_scores(true_labels: List[Union[str, int]], pred_labels: List[Union[str, 
         "recall": recall_score(true_labels, pred_labels, average=average),
         "f1_score": f1_score(true_labels, pred_labels, average=average),
         "accuracy": accuracy_score(true_labels, pred_labels),
-        "confusion_matrix": confusion_matrix(true_labels, pred_labels, labels=classes).tolist()
+        "confusion_matrix": confusion
     }
 
     return scores
@@ -125,13 +135,18 @@ def evaluate_tags_task(object_id: int, indices: List[str], query: dict, es_timeo
             es_aggregator = ElasticAggregator(indices = indices, query = query)
 
             # TODO: does the aggregation need size update?
-            true_fact_values = es_aggregator.get_fact_values_distribution(true_fact)
-            pred_fact_values = es_aggregator.get_fact_values_distribution(pred_fact)
+            true_fact_values = es_aggregator.facts(size=choices.DEFAULT_MAX_AGGREGATION_SIZE, filter_by_fact_name=true_fact)
+            pred_fact_values = es_aggregator.facts(size=choices.DEFAULT_MAX_AGGREGATION_SIZE, filter_by_fact_name=pred_fact)
 
-            true_set = set(true_fact_values.keys())
-            pred_set = set(pred_fact_values.keys())
+            true_set = set(true_fact_values)
+            pred_set = set(pred_fact_values)
 
-            classes = list(true_set.union(pred_set))
+            classes = list(true_set.keys().union(pred_set))
+
+            # TODO: add information about the labelset size to the model!
+            print("Number of true classes: ", len(true_set))
+            print("Number of predicted classes: ", len(pred_set))
+            print("Number of classes total: ", len(classes))
 
 
         true_labels, pred_labels = scroll_labels(generator=searcher, true_fact = true_fact, pred_fact = pred_fact, true_fact_value = true_fact_value, pred_fact_value=pred_fact_value)
@@ -152,3 +167,4 @@ def evaluate_tags_task(object_id: int, indices: List[str], query: dict, es_timeo
         logging.getLogger(ERROR_LOGGER).exception(e)
         error_message = f"{str(e)[:100]}..."  # Take first 100 characters in case the error message is massive.
         evaluator_object.task.add_error(error_message)
+        evaluator_object.task.fail()
