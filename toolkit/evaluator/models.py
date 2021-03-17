@@ -23,7 +23,7 @@ from toolkit.evaluator import choices
 
 
 class Evaluator(models.Model):
-    MODEL_TYPE = 'evaluator'
+    MODEL_TYPE = "evaluator"
     MODEL_JSON_NAME = "model.json"
 
     description = models.CharField(max_length=MAX_DESC_LEN)
@@ -46,8 +46,14 @@ class Evaluator(models.Model):
     f1_score = models.FloatField(default=None, null=True)
     confusion_matrix = models.TextField(default="[]", null=True, blank=True)
 
+    n_true_classes = models.IntegerField(default=None, null=True)
+    n_predicted_classes = models.IntegerField(default=None, null=True)
+    n_total_classes = models.IntegerField(default=None, null=True)
 
-    #plot = models.FileField(upload_to='data/media', null=True, verbose_name='')
+    binary_scores = models.TextField(default=json.dumps({}))
+
+
+    #plot = models.FileField(upload_to="data/media", null=True, verbose_name="")
 
     task = models.OneToOneField(Task, on_delete=models.SET_NULL, null=True)
 
@@ -57,7 +63,7 @@ class Evaluator(models.Model):
 
 
     def to_json(self) -> dict:
-        serialized = serializers.serialize('json', [self])
+        serialized = serializers.serialize("json", [self])
         #json_obj = json.loads(serialized)[0]["fields"]
         json_obj.pop("project")
         json_obj.pop("author")
@@ -68,7 +74,7 @@ class Evaluator(models.Model):
     @staticmethod
     def import_resources(zip_file, request, pk) -> int:
         with transaction.atomic():
-            with zipfile.ZipFile(zip_file, 'r') as archive:
+            with zipfile.ZipFile(zip_file, "r") as archive:
                 json_string = archive.read(Evaluator.MODEL_JSON_NAME).decode()
                 evaluator_json = json.loads(json_string)
 
@@ -89,7 +95,7 @@ class Evaluator(models.Model):
 
                 #plot_name = pathlib.Path(evaluator_json["plot"])
                 #path = plot_name.name
-                #evaluator_model.plot.save(f'{secrets.token_hex(15)}.png', io.BytesIO(archive.read(path)))
+                #evaluator_model.plot.save(f"{secrets.token_hex(15)}.png", io.BytesIO(archive.read(path)))
 
                 evaluator_model.save()
                 return evaluator_model.id
@@ -97,7 +103,7 @@ class Evaluator(models.Model):
 
     def export_resources(self) -> HttpResponse:
         with tempfile.SpooledTemporaryFile(encoding="utf8") as tmp:
-            with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED) as archive:
+            with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as archive:
                 # Write model object to zip as json
                 model_json = self.to_json()
                 model_json = json.dumps(model_json).encode("utf8")
@@ -113,11 +119,11 @@ class Evaluator(models.Model):
 
 
     def __str__(self):
-        return '{0} - {1}'.format(self.pk, self.description)
+        return "{0} - {1}".format(self.pk, self.description)
 
     """
     def evaluate_tags(self, indices, query, es_timeout = 10, bulk_size = 100):
-        new_task = Task.objects.create(evaluator=self, status='created')
+        new_task = Task.objects.create(evaluator=self, status="created")
         self.task = new_task
         self.save()
         evaluate_tags_task.apply_async(args=(self.pk, indices, query, es_timeout, bulk_size), queue=CELERY_LONG_TERM_TASK_QUEUE)
