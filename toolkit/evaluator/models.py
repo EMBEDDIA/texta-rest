@@ -17,6 +17,7 @@ from toolkit.core.project.models import Project
 from toolkit.core.task.models import Task
 from toolkit.elastic.index.models import Index
 from toolkit.elastic.tools.searcher import EMPTY_QUERY
+from toolkit.elastic.tools.aggregator import ElasticAggregator
 from toolkit.settings import BASE_DIR, CELERY_LONG_TERM_TASK_QUEUE
 from toolkit.evaluator import choices
 #from toolkit.evaluator.tasks import evaluate_tags_task
@@ -52,6 +53,8 @@ class Evaluator(models.Model):
 
     binary_scores = models.TextField(default=json.dumps({}))
 
+    evaluation_type = models.CharField(max_length=MAX_DESC_LEN, default=None, null=True)
+
 
     #plot = models.FileField(upload_to="data/media", null=True, verbose_name="")
 
@@ -60,6 +63,8 @@ class Evaluator(models.Model):
 
     def get_indices(self):
         return [index.name for index in self.indices.filter(is_open=True)]
+
+
 
 
     def to_json(self) -> dict:

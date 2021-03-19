@@ -16,6 +16,7 @@ from toolkit.core.project.models import Project
 from toolkit.elastic.tools.core import ElasticCore
 from toolkit.elastic.tools.feedback import Feedback
 from toolkit.elastic.tools.searcher import ElasticSearcher
+from toolkit.elastic.tools.aggregator import ElasticAggregator
 
 from toolkit.elastic.index.models import Index
 
@@ -25,8 +26,8 @@ from toolkit.permissions.project_permissions import ProjectResourceAllowed
 from toolkit.serializer_constants import ProjectResourceImportModelSerializer
 from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, INFO_LOGGER
 from toolkit.evaluator.models import Evaluator as EvaluatorObject
-from toolkit.evaluator.serializers import EvaluatorSerializer, BinaryResultsSerializer, AverageScoreByCountsSerializer
-from toolkit.evaluator.tasks import evaluate_tags_task, calculate_averages_filtered_by_counts, get_scores_filtered_by_counts
+from toolkit.evaluator.serializers import EvaluatorSerializer, IndividualResultsSerializer, FilteredAverageSerializer
+from toolkit.evaluator.tasks import evaluate_tags_task, filter_results, filter_and_average_results
 from toolkit.evaluator import choices
 
 from toolkit.view_constants import BulkDelete, FeedbackModelView
@@ -54,14 +55,20 @@ class EvaluatorViewSet(viewsets.ModelViewSet, BulkDelete, FeedbackModelView):
     filterset_class = EvaluatorFilter
     ordering_fields = ("id", "author__username", "description",  "task__time_started", "task__time_completed", "f1_score", "precision", "recall", "task__status")
 
+    def get_queryset(self):
+        return EvaluatorObject.objects.filter(project=self.kwargs["project_pk"]).order_by("-id")
 
     def perform_create(self, serializer, **kwargs):
         project = Project.objects.get(id=self.kwargs["project_pk"])
         indices = [index["name"] for index in serializer.validated_data["indices"]]
         indices = project.get_available_or_all_project_indices(indices)
 
-        serializer.validated_data.pop("indices")
+        es_timeout = serializer.validated_data["es_timeout"]
+        scroll_size = serializer.validated_data["scroll_size"]
 
+        serializer.validated_data.pop("es_timeout")
+        serializer.validated_data.pop("scroll_size")
+        serializer.validated_data.pop("indices")
 
         evaluator: EvaluatorObject = serializer.save(
             author=self.request.user,
@@ -78,58 +85,70 @@ class EvaluatorViewSet(viewsets.ModelViewSet, BulkDelete, FeedbackModelView):
         evaluator.task = new_task
         evaluator.save()
 
-        es_timeout = 10
-        bulk_size = 100
-        evaluate_tags_task.apply_async(args=(evaluator.pk, indices, query, es_timeout, bulk_size), queue=CELERY_LONG_TERM_TASK_QUEUE)
+        evaluate_tags_task.apply_async(args=(evaluator.pk, indices, query, es_timeout, scroll_size), queue=CELERY_LONG_TERM_TASK_QUEUE)
 
 
-        #evaluator.evaluate_tags(indices, query)
-
-    @action(detail=True, methods=["get", "post"], serializer_class = AverageScoreByCountsSerializer)
-    def get_average_scores_by_counts(self, request, pk=None, project_pk=None):
-        """Retrieve binary results"""
+    @action(detail=True, methods=["get", "post"], serializer_class = FilteredAverageSerializer)
+    def filtered_average(self, request, pk=None, project_pk=None):
+        """todo"""
         evaluator_object: EvaluatorObject = self.get_object()
+        if evaluator_object.evaluation_type in ["binary"]:
+            return Response("This operation is applicable only for multilabel evaluators.", status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
         binary_results = json.loads(evaluator_object.binary_scores)
 
         if request.method == "GET":
             max_count = choices.DEFAULT_MAX_COUNT
             min_count = choices.DEFAULT_MIN_COUNT
+            metric_restrictions = {}
         else:
-            serializer = AverageScoreByCountsSerializer(data=request.data)
+            serializer = FilteredAverageSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
 
             max_count = serializer.validated_data["max_count"]
             min_count = serializer.validated_data["min_count"]
+            metric_restrictions = serializer.validated_data["metric_restrictions"]
+            if not metric_restrictions:
+                metric_restrictions = {}
 
-        avg_scores = calculate_averages_filtered_by_counts(binary_results, min_count=min_count, max_count=max_count)
+
+        avg_scores = filter_and_average_results(binary_results, min_count=min_count, max_count=max_count, metric_restrictions=metric_restrictions)
 
         return Response(avg_scores, status=status.HTTP_200_OK)
 
 
-    @action(detail=True, methods=["post"], serializer_class = BinaryResultsSerializer)
-    def binary_results(self, request, pk=None, project_pk=None):
-        """Retrieve binary results"""
+    @action(detail=True, methods=["post"], serializer_class = IndividualResultsSerializer)
+    def individual_results(self, request, pk=None, project_pk=None):
+        """Retrieve individual scores for multilabel tags."""
         evaluator_object: EvaluatorObject = self.get_object()
+
+        if evaluator_object.evaluation_type in ["binary"]:
+            return Response("This operation is applicable only for multilabel evaluators.", status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
         binary_results = json.loads(evaluator_object.binary_scores)
 
-        serializer = BinaryResultsSerializer(data=request.data)
+        serializer = IndividualResultsSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         max_count = serializer.validated_data["max_count"]
         min_count = serializer.validated_data["min_count"]
         order_by = serializer.validated_data["order_by"]
+        order_desc = serializer.validated_data["order_desc"]
+        metric_restrictions = serializer.validated_data["metric_restrictions"]
 
-        filtered_scores = get_scores_filtered_by_counts(binary_results, min_count=min_count, max_count=max_count)
-        filtered_scores = OrderedDict(sorted(filtered_scores.items(), key=lambda x: x[1][order_by]))
 
-        filtered_bin_results = {"total": len(filtered_scores), "filtered_scores": filtered_scores}
+        if not metric_restrictions:
+            metric_restrictions = {}
+
+        if isinstance(metric_restrictions, str):
+            metric_restrictions = json.loads(metric_restrictions)
+
+        filtered_results = filter_results(binary_results, min_count=min_count, max_count=max_count, metric_restrictions=metric_restrictions)
+        filtered_results = OrderedDict(sorted(filtered_results.items(), key=lambda x: x[1][order_by], reverse=order_desc))
+
+        filtered_bin_results = {"total": len(filtered_results), "filtered_results": filtered_results}
 
         return Response(filtered_bin_results, status=status.HTTP_200_OK)
-
-
-    def get_queryset(self):
-        return EvaluatorObject.objects.filter(project=self.kwargs["project_pk"]).order_by("-id")
-
 
 
     @action(detail=True, methods=["get"])
