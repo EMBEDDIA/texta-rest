@@ -49,6 +49,7 @@ class EvaluatorSerializer(serializers.ModelSerializer, ProjectResourceUrlSeriali
     es_timeout = serializers.IntegerField(default=choices.DEFAULT_ES_TIMEOUT, help_text=f"Elasticsearch scroll timeout in minutes. Default = {choices.DEFAULT_ES_TIMEOUT}.")
     scroll_size = serializers.IntegerField(min_value=1, max_value=10000, default=choices.DEFAULT_SCROLL_SIZE, help_text=f"How many documents should be returned by one Elasticsearch scroll. Default = {choices.DEFAULT_SCROLL_SIZE}.")
 
+    plot = serializers.SerializerMethodField()
     task = TaskSerializer(read_only=True)
 
     url = serializers.SerializerMethodField()
@@ -85,6 +86,6 @@ class EvaluatorSerializer(serializers.ModelSerializer, ProjectResourceUrlSeriali
         model = Evaluator
         fields = ("url", "author_username", "id", "description", "indices", "query", "true_fact", "predicted_fact", "true_fact_value", "predicted_fact_value",
                   "average_function", "f1_score", "precision", "recall", "accuracy", "confusion_matrix", "n_true_classes", "n_predicted_classes", "n_total_classes",
-                  "evaluation_type", "scroll_size", "es_timeout", "task")
+                  "evaluation_type", "scroll_size", "es_timeout", "scores_imprecise", "document_count", "plot", "task")
 
-        read_only_fields = ("project", "f1_score", "precision", "recall", "accuracy", "confusion_matrix", "n_true_classes", "n_predicted_classes", "n_total_classes", "evaluation_type", "task")
+        read_only_fields = ("project", "f1_score", "precision", "recall", "accuracy", "confusion_matrix", "n_true_classes", "n_predicted_classes", "n_total_classes", "document_count", "evaluation_type", "scores_imprecise", "task")

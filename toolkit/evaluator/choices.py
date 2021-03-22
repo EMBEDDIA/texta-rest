@@ -13,7 +13,7 @@ DEFAULT_MAX_AGGREGATION_SIZE = 30000
 # Max number of classes to caclulate the confusion matrix
 # If the number of classes exceeds the allowed limit,
 # an empty matrix is returned
-DEFAULT_MAX_CONFUSION_CLASSES = 10
+DEFAULT_MAX_CONFUSION_CLASSES = 20
 
 
 # Default min and max count of label to display its result
@@ -24,9 +24,9 @@ DEFAULT_MAX_COUNT = math.inf
 
 # Fields that can be used for ordering the results in
 # `filtered_average` and `individual_results`
-ORDERING_FIELDS = ["count", "precision", "recall", "f1_score", "accuracy"]
+ORDERING_FIELDS = ["alphabetic", "count", "precision", "recall", "f1_score", "accuracy"]
 ORDERING_FIELDS_CHOICES = [(c, c) for c in ORDERING_FIELDS]
-DEFAULT_ORDER_BY_FIELD = "count"
+DEFAULT_ORDER_BY_FIELD = "alphabetic"
 
 # Order results in descending order?
 DEFAULT_ORDER_DESC = False
@@ -39,3 +39,9 @@ METRIC_RESTRICTION_FIELDS = ["max_score", "min_score"]
 
 DEFAULT_SCROLL_SIZE = 500
 DEFAULT_ES_TIMEOUT = 10
+
+# Weather to use dynamic evaluation of available memory
+USE_DYNAMIC_MEMORY_EVALUATION = True
+
+# How much free memory should be left
+DEFAULT_MEMORY_BUFFER_GB = 20

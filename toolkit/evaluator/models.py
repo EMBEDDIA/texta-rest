@@ -53,10 +53,15 @@ class Evaluator(models.Model):
 
     binary_scores = models.TextField(default=json.dumps({}))
 
+    scores_imprecise = models.BooleanField(default=None, null=True)
+
     evaluation_type = models.CharField(max_length=MAX_DESC_LEN, default=None, null=True)
 
+    document_count = models.IntegerField(default=None, null=True)
 
-    #plot = models.FileField(upload_to="data/media", null=True, verbose_name="")
+
+
+    plot = models.FileField(upload_to="data/media", null=True, verbose_name="")
 
     task = models.OneToOneField(Task, on_delete=models.SET_NULL, null=True)
 
@@ -98,9 +103,9 @@ class Evaluator(models.Model):
                     evaluator_model.indices.add(index_model)
 
 
-                #plot_name = pathlib.Path(evaluator_json["plot"])
-                #path = plot_name.name
-                #evaluator_model.plot.save(f"{secrets.token_hex(15)}.png", io.BytesIO(archive.read(path)))
+                plot_name = pathlib.Path(evaluator_json["plot"])
+                path = plot_name.name
+                evaluator_model.plot.save(f"{secrets.token_hex(15)}.png", io.BytesIO(archive.read(path)))
 
                 evaluator_model.save()
                 return evaluator_model.id

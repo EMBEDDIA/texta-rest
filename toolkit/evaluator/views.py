@@ -144,7 +144,13 @@ class EvaluatorViewSet(viewsets.ModelViewSet, BulkDelete, FeedbackModelView):
             metric_restrictions = json.loads(metric_restrictions)
 
         filtered_results = filter_results(binary_results, min_count=min_count, max_count=max_count, metric_restrictions=metric_restrictions)
-        filtered_results = OrderedDict(sorted(filtered_results.items(), key=lambda x: x[1][order_by], reverse=order_desc))
+
+        if order_by == "alphabetic":
+            filtered_results = OrderedDict(sorted(filtered_results.items(), key=lambda x: x[0], reverse=order_desc))
+            
+        else:
+            filtered_results = OrderedDict(sorted(filtered_results.items(), key=lambda x: x[1][order_by], reverse=order_desc))
+
 
         filtered_bin_results = {"total": len(filtered_results), "filtered_results": filtered_results}
 
