@@ -30,7 +30,7 @@ class Evaluator(models.Model):
     description = models.CharField(max_length=MAX_DESC_LEN)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     author = models.ForeignKey(User, on_delete=models.CASCADE)
-    #fields = models.TextField(default=json.dumps([])) #are facts with different doc paths considered different?
+
     indices = models.ManyToManyField(Index, default=None)
     query = models.TextField(default=json.dumps(EMPTY_QUERY))
 
@@ -40,6 +40,7 @@ class Evaluator(models.Model):
     predicted_fact_value = models.CharField(default=None, max_length=MAX_DESC_LEN, null=True)
 
     average_function = models.CharField(null=False, max_length=MAX_DESC_LEN)
+    add_individual_results = models.BooleanField(default=choices.DEFAULT_ADD_INDIVIDUAL_RESULTS, null=True)
 
     accuracy = models.FloatField(default=None, null=True)
     precision = models.FloatField(default=None, null=True)
@@ -50,19 +51,16 @@ class Evaluator(models.Model):
     n_true_classes = models.IntegerField(default=None, null=True)
     n_predicted_classes = models.IntegerField(default=None, null=True)
     n_total_classes = models.IntegerField(default=None, null=True)
-
-    binary_scores = models.TextField(default=json.dumps({}))
-
-    scores_imprecise = models.BooleanField(default=None, null=True)
-
-    evaluation_type = models.CharField(max_length=MAX_DESC_LEN, default=None, null=True)
-
     document_count = models.IntegerField(default=None, null=True)
 
+    individual_results = models.TextField(default=json.dumps({}))
 
+    memory_buffer = models.FloatField(default=choices.DEFAULT_MEMORY_BUFFER_GB, null=True)
+
+    scores_imprecise = models.BooleanField(default=None, null=True)
+    evaluation_type = models.CharField(max_length=MAX_DESC_LEN, default=None, null=True)
 
     plot = models.FileField(upload_to="data/media", null=True, verbose_name="")
-
     task = models.OneToOneField(Task, on_delete=models.SET_NULL, null=True)
 
 
@@ -70,14 +68,13 @@ class Evaluator(models.Model):
         return [index.name for index in self.indices.filter(is_open=True)]
 
 
-
-
     def to_json(self) -> dict:
         serialized = serializers.serialize("json", [self])
-        #json_obj = json.loads(serialized)[0]["fields"]
+        json_obj = json.loads(serialized)[0]["fields"]
         json_obj.pop("project")
         json_obj.pop("author")
         json_obj.pop("task")
+        json_obj.pop("individual_results")
         return json_obj
 
 
@@ -131,10 +128,12 @@ class Evaluator(models.Model):
     def __str__(self):
         return "{0} - {1}".format(self.pk, self.description)
 
+
+@receiver(models.signals.post_delete, sender=Evaluator)
+def auto_delete_file_on_delete(sender, instance: Evaluator, **kwargs):
     """
-    def evaluate_tags(self, indices, query, es_timeout = 10, bulk_size = 100):
-        new_task = Task.objects.create(evaluator=self, status="created")
-        self.task = new_task
-        self.save()
-        evaluate_tags_task.apply_async(args=(self.pk, indices, query, es_timeout, bulk_size), queue=CELERY_LONG_TERM_TASK_QUEUE)
-     """
+    Delete resources on the file-system upon evaluator deletion.
+    """
+    if instance.plot:
+        if os.path.isfile(instance.plot.path):
+            os.remove(instance.plot.path)

@@ -55,3 +55,10 @@ def validate_fact_value(indices: List[str], fact: str, fact_value: str):
     if fact_value not in fact_values:
         raise ValidationError(f"Fact value '{fact_value}' not in the list of fact values for fact '{fact}'.")
     return True
+
+
+def validate_average_function(average_function: str, true_fact_value: str, pred_fact_value: str):
+    """ Check if binary average function is not used for multilabel evaluation. """
+    if not true_fact_value and not pred_fact_value and average_function == "binary":
+        raise serializers.ValidationError(f"Average function '{average_function}' can only be used for binary evaluation. Available average functions for non-binary evaluation are: {choices.MULTILABEL_AVG_FUNCTIONS}.")
+    return True

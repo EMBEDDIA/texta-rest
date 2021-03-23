@@ -4,6 +4,8 @@ import math
 AVG_FUNCTIONS = ["binary", "micro", "macro", "samples", "weighted"]
 AVG_CHOICES = [(c, c) for c in AVG_FUNCTIONS]
 
+MULTILABEL_AVG_FUNCTIONS = ["micro", "macro", "samples", "weighted"]
+
 # Default average function for multilabel/multiclass
 DEFAULT_AVG_FUNCTION = "macro"
 
@@ -44,4 +46,6 @@ DEFAULT_ES_TIMEOUT = 10
 USE_DYNAMIC_MEMORY_EVALUATION = True
 
 # How much free memory should be left
-DEFAULT_MEMORY_BUFFER_GB = 20
+DEFAULT_MEMORY_BUFFER_GB = 2
+
+DEFAULT_ADD_INDIVIDUAL_RESULTS = True

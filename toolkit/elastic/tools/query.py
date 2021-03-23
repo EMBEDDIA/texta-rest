@@ -43,11 +43,16 @@ class Query:
         self.query["query"]["bool"][self.operator].append(query)
 
 
-    def add_facts_filter(self, fact_names: List[str], fact_values: List[str] = [], operator: str="must", max_inner_hits: int=INNER_HITS_MAX_SIZE, filter_id: int=1):
+    def add_facts_filter(self, fact_names: List[str], fact_values: List[str] = [], operator: str="must", filter_id: int=1):
         """
         Adds facts filter to the query. Fact values are optional, but if added
         len(fact_values) should equal len(fact_names) and fact value in position i
         should correspond to fact name in position i.
+
+        :param fact_names: List of fact names to use for restricting the query.
+        :param fact_values: List of fact values (corresponding to the fact names on
+                            the same position) to use for restricting the query.
+        :param operator: Operator used for joining the facts in the query.
         """
         self.query["query"]["bool"][self.operator].append({"bool": {operator:[]}})
         for i, fact_name in enumerate(fact_names):
@@ -56,7 +61,7 @@ class Query:
                     "path": "texta_facts",
                     "inner_hits": {
                         "name": "fact_filter_{}".format(filter_id+i),
-                        "size": max_inner_hits
+                        "size": INNER_HITS_MAX_SIZE
                     },
                     "query": {
                         "bool": {

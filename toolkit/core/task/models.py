@@ -52,14 +52,6 @@ class Task(models.Model):
         self.save()
 
     @avoid_db_timeout
-    def fail(self):
-        self.status = Task.STATUS_FAILED
-        self.time_completed = now()
-        #self.step = ""
-        #self.progress = 100
-        self.save()
-
-    @avoid_db_timeout
     def update_progress(self, progress, step):
         self.progress = progress
         self.step = step

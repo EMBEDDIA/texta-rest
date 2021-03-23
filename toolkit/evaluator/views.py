@@ -65,9 +65,11 @@ class EvaluatorViewSet(viewsets.ModelViewSet, BulkDelete, FeedbackModelView):
 
         es_timeout = serializer.validated_data["es_timeout"]
         scroll_size = serializer.validated_data["scroll_size"]
+        memory_buffer = serializer.validated_data["memory_buffer"]
 
         serializer.validated_data.pop("es_timeout")
         serializer.validated_data.pop("scroll_size")
+        serializer.validated_data.pop("memory_buffer")
         serializer.validated_data.pop("indices")
 
         evaluator: EvaluatorObject = serializer.save(
@@ -79,13 +81,19 @@ class EvaluatorViewSet(viewsets.ModelViewSet, BulkDelete, FeedbackModelView):
         for index in Index.objects.filter(name__in=indices, is_open=True):
             evaluator.indices.add(index)
 
-        query = serializer.validated_data["query"]
+        query = json.loads(serializer.validated_data["query"])
 
         new_task = Task.objects.create(evaluator=evaluator, status="created")
         evaluator.task = new_task
         evaluator.save()
 
-        evaluate_tags_task.apply_async(args=(evaluator.pk, indices, query, es_timeout, scroll_size), queue=CELERY_LONG_TERM_TASK_QUEUE)
+        evaluate_tags_task.apply_async(args=(evaluator.pk, indices, query, es_timeout, scroll_size, memory_buffer), queue=CELERY_LONG_TERM_TASK_QUEUE)
+
+
+    def destroy(self, request, *args, **kwargs):
+        evaluator_object: Evaluator = self.get_object()
+        evaluator_object.delete()
+        return Response({"success": "Evaluator instance deleted, plot file removed"}, status=status.HTTP_204_NO_CONTENT)
 
 
     @action(detail=True, methods=["get", "post"], serializer_class = FilteredAverageSerializer)
@@ -95,7 +103,7 @@ class EvaluatorViewSet(viewsets.ModelViewSet, BulkDelete, FeedbackModelView):
         if evaluator_object.evaluation_type in ["binary"]:
             return Response("This operation is applicable only for multilabel evaluators.", status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-        binary_results = json.loads(evaluator_object.binary_scores)
+        binary_results = json.loads(evaluator_object.individual_results)
 
         if request.method == "GET":
             max_count = choices.DEFAULT_MAX_COUNT
@@ -111,8 +119,10 @@ class EvaluatorViewSet(viewsets.ModelViewSet, BulkDelete, FeedbackModelView):
             if not metric_restrictions:
                 metric_restrictions = {}
 
-
-        avg_scores = filter_and_average_results(binary_results, min_count=min_count, max_count=max_count, metric_restrictions=metric_restrictions)
+        if binary_results:
+            avg_scores = filter_and_average_results(binary_results, min_count=min_count, max_count=max_count, metric_restrictions=metric_restrictions)
+        else:
+            avg_scores = {}
 
         return Response(avg_scores, status=status.HTTP_200_OK)
 
@@ -125,7 +135,7 @@ class EvaluatorViewSet(viewsets.ModelViewSet, BulkDelete, FeedbackModelView):
         if evaluator_object.evaluation_type in ["binary"]:
             return Response("This operation is applicable only for multilabel evaluators.", status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-        binary_results = json.loads(evaluator_object.binary_scores)
+        binary_results = json.loads(evaluator_object.individual_results)
 
         serializer = IndividualResultsSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -147,7 +157,7 @@ class EvaluatorViewSet(viewsets.ModelViewSet, BulkDelete, FeedbackModelView):
 
         if order_by == "alphabetic":
             filtered_results = OrderedDict(sorted(filtered_results.items(), key=lambda x: x[0], reverse=order_desc))
-            
+
         else:
             filtered_results = OrderedDict(sorted(filtered_results.items(), key=lambda x: x[1][order_by], reverse=order_desc))
 
