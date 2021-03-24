@@ -38,7 +38,12 @@ def filter_results(binary_results: dict, min_count: int, max_count: int, metric_
     filtered_scores = {}
 
     for label, label_scores in list(binary_results.items()):
-        count = np.sum(np.array(label_scores["confusion_matrix"]))
+        cm = np.array(label_scores["confusion_matrix"])
+        fns = cm[0][0]
+
+        # Remove false negative from the confusion matrix to
+        # get the total count of labels
+        count = np.sum(cm) - fns
 
         if min_count <= count <= max_count:
 
@@ -64,7 +69,12 @@ def filter_and_average_results(binary_results: dict, min_count: int, max_count: 
     filtered_scores = {metric: [] for metric in metrics}
 
     for label, label_scores in list(binary_results.items()):
-        count = np.sum(np.array(label_scores["confusion_matrix"]))
+        cm = np.array(label_scores["confusion_matrix"])
+        fns = cm[0][0]
+
+        # Remove false negative from the confusion matrix to
+        # get the total count of labels
+        count = np.sum(cm) - fns
 
         # If label count is in required range, add scores to corresponding lists
         if min_count <= count <= max_count:
@@ -303,7 +313,6 @@ def scroll_and_score(generator: ElasticSearcher, evaluator_object: Evaluator, tr
             evaluator_object.individual_results = json.dumps(bin_scores)
             evaluator_object.save()
 
-
     if not score_after_scroll:
         logging.getLogger(INFO_LOGGER).info(f"Start evaluation...")
         scores = get_scores(true_labels, pred_labels, classes, average, add_individual_results)
@@ -311,14 +320,11 @@ def scroll_and_score(generator: ElasticSearcher, evaluator_object: Evaluator, tr
         scores["confusion_matrix"] = scores["confusion_matrix"].astype("int").tolist()
         bin_scores = scores.pop("bin_scores")
 
-
-    # convert bin labels confusion matrix from numpy array to list
-    for label in bin_scores:
-        bin_scores[label]["confusion_matrix"] = bin_scores[label]["confusion_matrix"].astype("int").tolist()
+        # convert bin labels confusion matrix from numpy array to list
+        for label in bin_scores:
+            bin_scores[label]["confusion_matrix"] = bin_scores[label]["confusion_matrix"].astype("int").tolist()
 
     return (scores, bin_scores)
-
-
 
 
 @task(name="evaluate_tags", base=TransactionAwareTask, queue=CELERY_LONG_TERM_TASK_QUEUE)
@@ -328,7 +334,6 @@ def evaluate_tags_task(object_id: int, indices: List[str], query: dict, es_timeo
 
         evaluator_object = Evaluator.objects.get(pk=object_id)
         progress = ShowProgress(evaluator_object.task, multiplier=1)
-
 
         # Retreieve facts and sklearn average function from the model
         true_fact = evaluator_object.true_fact
@@ -348,7 +353,6 @@ def evaluate_tags_task(object_id: int, indices: List[str], query: dict, es_timeo
             callback_progress=progress,
             scroll_size = scroll_size
         )
-
 
         # Binary
         if true_fact_value and pred_fact_value:
@@ -404,6 +408,7 @@ def evaluate_tags_task(object_id: int, indices: List[str], query: dict, es_timeo
         evaluator_object.n_predicted_classes = len(pred_set)
         evaluator_object.n_total_classes = len(classes)
         evaluator_object.scores_imprecise = scores_imprecise
+        evaluator_object.save()
 
         # Save model updates
         evaluator_object.save()

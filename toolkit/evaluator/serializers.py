@@ -9,7 +9,6 @@ from toolkit.core.task.serializers import TaskSerializer
 
 from toolkit.elastic.index.serializers import IndexSerializer
 from toolkit.elastic.tools.searcher import EMPTY_QUERY
-from toolkit.elastic.tools.aggregator import ElasticAggregator
 
 from toolkit.serializer_constants import FieldParseSerializer, ProjectResourceUrlSerializer
 
@@ -19,7 +18,8 @@ from toolkit.evaluator.validators import (
     validate_fact,
     validate_fact_value,
     validate_metric_restrictions,
-    validate_average_function
+    validate_average_function,
+    validate_fact_values_in_sync
 )
 
 class FilteredAverageSerializer(serializers.Serializer):
@@ -61,6 +61,7 @@ class EvaluatorSerializer(serializers.ModelSerializer, ProjectResourceUrlSeriali
 
     url = serializers.SerializerMethodField()
 
+
     def validate_indices(self, value):
         """ Check if indices exist in the relevant project. """
         project_obj = Project.objects.get(id=self.context["view"].kwargs["project_pk"])
@@ -87,6 +88,8 @@ class EvaluatorSerializer(serializers.ModelSerializer, ProjectResourceUrlSeriali
 
         validate_fact_value(indices, true_fact, true_fact_value)
         validate_fact_value(indices, predicted_fact, predicted_fact_value)
+
+        validate_fact_values_in_sync(true_fact_value, predicted_fact_value)
 
         validate_average_function(avg_function, true_fact_value, predicted_fact_value)
 

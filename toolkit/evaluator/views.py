@@ -13,24 +13,19 @@ from rest_framework.response import Response
 from toolkit.core.task.models import Task
 from toolkit.core.project.models import Project
 
-from toolkit.elastic.tools.core import ElasticCore
-from toolkit.elastic.tools.feedback import Feedback
-from toolkit.elastic.tools.searcher import ElasticSearcher
-from toolkit.elastic.tools.aggregator import ElasticAggregator
-
 from toolkit.elastic.index.models import Index
 
 from toolkit.exceptions import NonExistantModelError, ProjectValidationFailed, DownloadingModelsNotAllowedError, InvalidModelIdentifierError
 
 from toolkit.permissions.project_permissions import ProjectResourceAllowed
 from toolkit.serializer_constants import ProjectResourceImportModelSerializer
-from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, INFO_LOGGER
+from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE
 from toolkit.evaluator.models import Evaluator as EvaluatorObject
 from toolkit.evaluator.serializers import EvaluatorSerializer, IndividualResultsSerializer, FilteredAverageSerializer
 from toolkit.evaluator.tasks import evaluate_tags_task, filter_results, filter_and_average_results
 from toolkit.evaluator import choices
 
-from toolkit.view_constants import BulkDelete, FeedbackModelView
+from toolkit.view_constants import BulkDelete
 
 from collections import OrderedDict
 
@@ -44,7 +39,7 @@ class EvaluatorFilter(filters.FilterSet):
         fields = []
 
 
-class EvaluatorViewSet(viewsets.ModelViewSet, BulkDelete, FeedbackModelView):
+class EvaluatorViewSet(viewsets.ModelViewSet, BulkDelete):
     serializer_class = EvaluatorSerializer
     permission_classes = (
         permissions.IsAuthenticated,
@@ -55,8 +50,10 @@ class EvaluatorViewSet(viewsets.ModelViewSet, BulkDelete, FeedbackModelView):
     filterset_class = EvaluatorFilter
     ordering_fields = ("id", "author__username", "description",  "task__time_started", "task__time_completed", "f1_score", "precision", "recall", "task__status")
 
+
     def get_queryset(self):
         return EvaluatorObject.objects.filter(project=self.kwargs["project_pk"]).order_by("-id")
+
 
     def perform_create(self, serializer, **kwargs):
         project = Project.objects.get(id=self.kwargs["project_pk"])
@@ -67,9 +64,8 @@ class EvaluatorViewSet(viewsets.ModelViewSet, BulkDelete, FeedbackModelView):
         scroll_size = serializer.validated_data["scroll_size"]
         memory_buffer = serializer.validated_data["memory_buffer"]
 
-        serializer.validated_data.pop("es_timeout")
-        serializer.validated_data.pop("scroll_size")
-        serializer.validated_data.pop("memory_buffer")
+        #serializer.validated_data.pop("es_timeout")
+        #serializer.validated_data.pop("scroll_size")
         serializer.validated_data.pop("indices")
 
         evaluator: EvaluatorObject = serializer.save(
@@ -98,10 +94,10 @@ class EvaluatorViewSet(viewsets.ModelViewSet, BulkDelete, FeedbackModelView):
 
     @action(detail=True, methods=["get", "post"], serializer_class = FilteredAverageSerializer)
     def filtered_average(self, request, pk=None, project_pk=None):
-        """todo"""
+        """Return average scores of (optionally filtered) individual results."""
         evaluator_object: EvaluatorObject = self.get_object()
         if evaluator_object.evaluation_type in ["binary"]:
-            return Response("This operation is applicable only for multilabel evaluators.", status=status.HTTP_405_METHOD_NOT_ALLOWED)
+            return Response("This operation is enabled only for multilabel evaluators.", status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
         binary_results = json.loads(evaluator_object.individual_results)
 
@@ -160,7 +156,6 @@ class EvaluatorViewSet(viewsets.ModelViewSet, BulkDelete, FeedbackModelView):
 
         else:
             filtered_results = OrderedDict(sorted(filtered_results.items(), key=lambda x: x[1][order_by], reverse=order_desc))
-
 
         filtered_bin_results = {"total": len(filtered_results), "filtered_results": filtered_results}
 

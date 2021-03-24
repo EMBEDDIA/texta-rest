@@ -17,10 +17,8 @@ from toolkit.core.project.models import Project
 from toolkit.core.task.models import Task
 from toolkit.elastic.index.models import Index
 from toolkit.elastic.tools.searcher import EMPTY_QUERY
-from toolkit.elastic.tools.aggregator import ElasticAggregator
-from toolkit.settings import BASE_DIR, CELERY_LONG_TERM_TASK_QUEUE
+
 from toolkit.evaluator import choices
-#from toolkit.evaluator.tasks import evaluate_tags_task
 
 
 class Evaluator(models.Model):
@@ -53,6 +51,9 @@ class Evaluator(models.Model):
     n_total_classes = models.IntegerField(default=None, null=True)
     document_count = models.IntegerField(default=None, null=True)
 
+    scroll_size = models.IntegerField(default=choices.DEFAULT_SCROLL_SIZE, null=True)
+    es_timeout = models.IntegerField(default=choices.DEFAULT_ES_TIMEOUT, null=True)
+
     individual_results = models.TextField(default=json.dumps({}))
 
     memory_buffer = models.FloatField(default=choices.DEFAULT_MEMORY_BUFFER_GB, null=True)
@@ -74,7 +75,6 @@ class Evaluator(models.Model):
         json_obj.pop("project")
         json_obj.pop("author")
         json_obj.pop("task")
-        json_obj.pop("individual_results")
         return json_obj
 
 
@@ -92,6 +92,7 @@ class Evaluator(models.Model):
                 evaluator_model.task = Task.objects.create(evaluator=evaluator_model, status=Task.STATUS_COMPLETED)
                 evaluator_model.author = User.objects.get(id=request.user.id)
                 evaluator_model.project = Project.objects.get(id=pk)
+
 
                 evaluator_model.save()
 
@@ -123,6 +124,9 @@ class Evaluator(models.Model):
             tmp.seek(0)
             return tmp.read()
 
+
+    def get_resource_paths(self):
+        return {"plot": self.plot.path}
 
 
     def __str__(self):
