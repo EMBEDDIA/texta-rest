@@ -42,6 +42,9 @@ ALLOWED_HOSTS = parse_list_env_headers("TEXTA_ALLOWED_HOSTS", ["*"])
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv("TEXTA_MAX_UPLOAD", 1024 * 1024 * 1024))
 
+# The minimum amount of memory that should be left free while using evaluator
+EVALUATOR_MEMORY_BUFFER_GB = float(os.getenv("TEXTA_EVALUATOR_MEMORY_BUFFER_GB", 5))
+
 # Application definition
 INSTALLED_APPS = [
     "django.contrib.admin",

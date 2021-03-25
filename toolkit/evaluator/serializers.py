@@ -47,14 +47,14 @@ class EvaluatorSerializer(serializers.ModelSerializer, ProjectResourceUrlSeriali
     true_fact_value = serializers.CharField(required=False, default="", help_text=f"Fact value used as true label for binary evaluation.")
     predicted_fact_value = serializers.CharField(required=False, default="", help_text=f"Fact value used as predicted label for binary evaluation.")
 
-    average_function = serializers.ChoiceField(choices=choices.AVG_CHOICES, default=choices.DEFAULT_AVG_FUNCTION, required=False, help_text = f"Sklearn average function. Default ={ choices.DEFAULT_AVG_FUNCTION}")
+    average_function = serializers.ChoiceField(choices=choices.AVG_CHOICES, default=choices.DEFAULT_AVG_FUNCTION, required=False, help_text = f"Sklearn average function. Default = {choices.DEFAULT_AVG_FUNCTION}")
 
     es_timeout = serializers.IntegerField(default=choices.DEFAULT_ES_TIMEOUT, help_text=f"Elasticsearch scroll timeout in minutes. Default = {choices.DEFAULT_ES_TIMEOUT}.")
     scroll_size = serializers.IntegerField(min_value=1, max_value=10000, default=choices.DEFAULT_SCROLL_SIZE, help_text=f"How many documents should be returned by one Elasticsearch scroll. Default = {choices.DEFAULT_SCROLL_SIZE}.")
 
     add_individual_results = serializers.BooleanField(default=choices.DEFAULT_ADD_INDIVIDUAL_RESULTS, required=False, help_text=f"Only used for multilabel/multiclass evaluation. If enabled, individual label scores are calculated and stored as well. Default = {choices.DEFAULT_ADD_INDIVIDUAL_RESULTS}.")
 
-    memory_buffer = serializers.FloatField(default=choices.DEFAULT_MEMORY_BUFFER_GB, required=False, help_text=f"The minimum amount of memory that should be left free when using the evaluator (Unit = GB). Default = {choices.DEFAULT_MEMORY_BUFFER_GB}GB.")
+    memory_buffer = serializers.FloatField(min_value=choices.DEFAULT_MEMORY_BUFFER_GB, default=choices.DEFAULT_MEMORY_BUFFER_GB, required=False, help_text=f"The minimum amount of memory that should be left free while using the evaluator (Unit = GB). Default = {choices.DEFAULT_MEMORY_BUFFER_GB}GB.")
 
     plot = serializers.SerializerMethodField()
     task = TaskSerializer(read_only=True)

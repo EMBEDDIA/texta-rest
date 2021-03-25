@@ -1,4 +1,5 @@
 import math
+from toolkit.settings import EVALUATOR_MEMORY_BUFFER_GB
 
 # Sklearn average functions
 AVG_FUNCTIONS = ["binary", "micro", "macro", "samples", "weighted"]
@@ -44,7 +45,7 @@ DEFAULT_SCROLL_SIZE = 500
 DEFAULT_ES_TIMEOUT = 10
 
 # How much free memory should be left
-DEFAULT_MEMORY_BUFFER_GB = 2
+DEFAULT_MEMORY_BUFFER_GB = EVALUATOR_MEMORY_BUFFER_GB
 
 # If enabled, individual results for each label
 # are also calculated and saved during multilabel
