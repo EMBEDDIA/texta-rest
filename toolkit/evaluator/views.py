@@ -62,10 +62,7 @@ class EvaluatorViewSet(viewsets.ModelViewSet, BulkDelete):
 
         es_timeout = serializer.validated_data["es_timeout"]
         scroll_size = serializer.validated_data["scroll_size"]
-        memory_buffer = serializer.validated_data["memory_buffer"]
 
-        #serializer.validated_data.pop("es_timeout")
-        #serializer.validated_data.pop("scroll_size")
         serializer.validated_data.pop("indices")
 
         evaluator: EvaluatorObject = serializer.save(
@@ -83,7 +80,7 @@ class EvaluatorViewSet(viewsets.ModelViewSet, BulkDelete):
         evaluator.task = new_task
         evaluator.save()
 
-        evaluate_tags_task.apply_async(args=(evaluator.pk, indices, query, es_timeout, scroll_size, memory_buffer), queue=CELERY_LONG_TERM_TASK_QUEUE)
+        evaluate_tags_task.apply_async(args=(evaluator.pk, indices, query, es_timeout, scroll_size), queue=CELERY_LONG_TERM_TASK_QUEUE)
 
 
     def destroy(self, request, *args, **kwargs):

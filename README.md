@@ -86,7 +86,7 @@ Running Docker with GPU support requires NVIDIA Container Toolkit to be installe
 * TEXTA_BERT_MODELS - Comma seprated string of pretrained BERT models to download.
   (Default: "bert-base-multilingual-cased,bert-base-uncased,EMBEDDIA/finest-bert").
 * SKIP_BERT_RESOURCES - If set "True", skips downloading pretrained BERT models. (Default: False).
-* TEXTA_EVALUATOR_MEMORY_BUFFER_GB - The minimum amount of memory that should be left free while using the evaluator, unit = GB. (Default = 5GB)
+* TEXTA_EVALUATOR_MEMORY_BUFFER_GB - The minimum amount of memory that should be left free while using the evaluator, unit = GB. (Default = 50% of available_memory)
 
 ## External services
 

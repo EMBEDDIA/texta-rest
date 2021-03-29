@@ -54,8 +54,6 @@ class EvaluatorSerializer(serializers.ModelSerializer, ProjectResourceUrlSeriali
 
     add_individual_results = serializers.BooleanField(default=choices.DEFAULT_ADD_INDIVIDUAL_RESULTS, required=False, help_text=f"Only used for multilabel/multiclass evaluation. If enabled, individual label scores are calculated and stored as well. Default = {choices.DEFAULT_ADD_INDIVIDUAL_RESULTS}.")
 
-    memory_buffer = serializers.FloatField(min_value=choices.DEFAULT_MEMORY_BUFFER_GB, default=choices.DEFAULT_MEMORY_BUFFER_GB, required=False, help_text=f"The minimum amount of memory that should be left free while using the evaluator (Unit = GB). Default = {choices.DEFAULT_MEMORY_BUFFER_GB}GB.")
-
     plot = serializers.SerializerMethodField()
     task = TaskSerializer(read_only=True)
 
@@ -100,6 +98,6 @@ class EvaluatorSerializer(serializers.ModelSerializer, ProjectResourceUrlSeriali
         model = Evaluator
         fields = ("url", "author_username", "id", "description", "indices", "query", "true_fact", "predicted_fact", "true_fact_value", "predicted_fact_value",
                   "average_function", "f1_score", "precision", "recall", "accuracy", "confusion_matrix", "n_true_classes", "n_predicted_classes", "n_total_classes",
-                  "evaluation_type", "scroll_size", "es_timeout", "scores_imprecise", "document_count", "memory_buffer", "add_individual_results", "plot", "task")
+                  "evaluation_type", "scroll_size", "es_timeout", "scores_imprecise", "score_after_scroll", "document_count", "add_individual_results", "plot", "task")
 
-        read_only_fields = ("project", "f1_score", "precision", "recall", "accuracy", "confusion_matrix", "n_true_classes", "n_predicted_classes", "n_total_classes", "document_count", "evaluation_type", "scores_imprecise", "task")
+        read_only_fields = ("project", "f1_score", "precision", "recall", "accuracy", "confusion_matrix", "n_true_classes", "n_predicted_classes", "n_total_classes", "document_count", "evaluation_type", "scores_imprecise", "score_after_scroll","task")

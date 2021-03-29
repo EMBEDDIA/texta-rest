@@ -13,6 +13,7 @@ from time import sleep
 
 from toolkit.core.task.models import Task
 from toolkit.elastic.tools.query import Query
+from toolkit.helper_functions import set_core_setting, get_core_setting
 from toolkit.evaluator.models import Evaluator as EvaluatorObject
 from toolkit.evaluator import choices
 
@@ -56,6 +57,8 @@ class EvaluatorObjectViewTests(APITransactionTestCase):
         self.true_fact_value = "650 kapital"
         self.pred_fact_value = "650 kuvand"
 
+        self.core_variables_url = f"{TEST_VERSION_PREFIX}/core_variables/5/"
+
         # Construct a test query
         self.fact_names_to_filter = [self.true_fact_name, self.pred_fact_name]
         self.fact_values_to_filter = ["650 bioeetika", "650 rahvusbibliograafiad"]
@@ -77,8 +80,10 @@ class EvaluatorObjectViewTests(APITransactionTestCase):
         self.run_test_binary_evaluation()
         self.run_test_multilabel_evaluation(add_individual_results=True)
         self.run_test_multilabel_evaluation(add_individual_results=False)
+
         self.run_test_multilabel_evaluation_with_scoring_after_each_scroll(add_individual_results=True)
         self.run_test_multilabel_evaluation_with_scoring_after_each_scroll(add_individual_results=False)
+
 
         self.run_test_individual_results_enabled(self.memory_optimized_multilabel_evaluators.values())
         self.run_test_individual_results_enabled(self.multilabel_evaluators.values())
@@ -361,7 +366,7 @@ class EvaluatorObjectViewTests(APITransactionTestCase):
             individual_results = json.loads(evaluator_object.individual_results)
 
             evaluation_type = evaluator_object.evaluation_type
-            memory_optimized = "true" if evaluator_object.memory_buffer == 100 else "false"
+            memory_optimized = evaluator_object.score_after_scroll
             avg_function = evaluator_object.average_function
 
             print_output(f"evaluator:run_test_individual_results_enabled:{evaluation_type}:{avg_function}:memory_optimized:{memory_optimized}:response.data", individual_results)
@@ -395,10 +400,10 @@ class EvaluatorObjectViewTests(APITransactionTestCase):
             individual_results = json.loads(evaluator_object.individual_results)
 
             evaluation_type = evaluator_object.evaluation_type
-            memory_optimized = "true" if evaluator_object.memory_buffer == 100 else "false"
+            memory_optimized = evaluator_object.score_after_scroll
             avg_function = evaluator_object.average_function
 
-            print_output(f"evaluator:run_test_individual_results_disabled:{evaluation_type}:{avg_function}:memory_optimized:{memory_optimized}:response.data", individual_results)
+            print_output(f"evaluator:run_test_individual_results_disabled:type:{evaluation_type}:avg:{avg_function}:memory_optimized:{memory_optimized}:response.data", individual_results)
 
             # Check if individual results is empty
             self.assertEqual(0, len(individual_results))
@@ -571,6 +576,9 @@ class EvaluatorObjectViewTests(APITransactionTestCase):
         calculating and averaging scores after each scroll.
         """
 
+        # Set required memory buffer high
+        set_core_setting("TEXTA_EVALUATOR_MEMORY_BUFFER_GB", "100")
+
         main_payload = {
             "description": "Test Multilabel Evaluator",
             "indices": [{"name": TEST_INDEX_EVALUATOR}],
@@ -578,7 +586,6 @@ class EvaluatorObjectViewTests(APITransactionTestCase):
             "predicted_fact": self.pred_fact_name,
             "scroll_size": 500,
             "add_individual_results": add_individual_results,
-            "memory_buffer": 100
 
         }
 
@@ -631,8 +638,10 @@ class EvaluatorObjectViewTests(APITransactionTestCase):
             else:
                 self.assertEqual(len(json.loads(evaluator_object.individual_results)), 0)
 
-
             self.add_cleanup_files(evaluator_id)
+
+        # Set memory buffer back to default
+        set_core_setting("TEXTA_EVALUATOR_MEMORY_BUFFER_GB", "")
 
 
     def run_export_import(self, evaluator_id: int):

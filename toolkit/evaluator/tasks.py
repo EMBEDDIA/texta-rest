@@ -24,7 +24,9 @@ from toolkit.elastic.tools.aggregator import ElasticAggregator
 from toolkit.evaluator.models import Evaluator
 from toolkit.evaluator import choices
 
-from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, INFO_LOGGER, ERROR_LOGGER, MEDIA_URL
+from toolkit.helper_functions import get_core_setting, calculate_memory_buffer
+
+from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, INFO_LOGGER, ERROR_LOGGER, MEDIA_URL, EVALUATOR_MEMORY_BUFFER_RATIO
 
 from toolkit.tools.show_progress import ShowProgress
 from toolkit.tools.plots import create_confusion_plot
@@ -32,6 +34,7 @@ from toolkit.tools.plots import create_confusion_plot
 from typing import List, Union, Dict, Tuple
 
 SCORES_NAN_MARKER = -1
+#kk
 
 def filter_results(binary_results: dict, min_count: int, max_count: int, metric_restrictions: json) -> json:
     """ Filter multilabel scores based on label count and metric scores restrictions. """
@@ -328,7 +331,7 @@ def scroll_and_score(generator: ElasticSearcher, evaluator_object: Evaluator, tr
 
 
 @task(name="evaluate_tags", base=TransactionAwareTask, queue=CELERY_LONG_TERM_TASK_QUEUE)
-def evaluate_tags_task(object_id: int, indices: List[str], query: dict, es_timeout: int = 10, scroll_size: int = 100, memory_buffer: int = 2):
+def evaluate_tags_task(object_id: int, indices: List[str], query: dict, es_timeout: int = 10, scroll_size: int = 100):
     try:
         logging.getLogger(INFO_LOGGER).info(f"Starting evaluator task for Evaluator with ID {object_id}.")
 
@@ -391,8 +394,14 @@ def evaluate_tags_task(object_id: int, indices: List[str], query: dict, es_timeo
 
         logging.getLogger(INFO_LOGGER).info(f"Number of documents: {n_docs} | Number of classes: {len(classes)}")
 
+        # Get the memory buffer value from core variables
+        core_memory_buffer_value_gb = get_core_setting("TEXTA_EVALUATOR_MEMORY_BUFFER_GB")
+
+        # Calculate the value based on given ratio if the core variable is empty
+        memory_buffer_gb = calculate_memory_buffer(memory_buffer=core_memory_buffer_value_gb, ratio=EVALUATOR_MEMORY_BUFFER_RATIO, unit="gb")
+
         required_memory = get_memory_imprint(n_docs=n_docs, n_classes=len(classes), eval_type=evaluator_object.evaluation_type, unit="gb", int_size=64)
-        enough_memory = is_enough_memory_available(required_memory=required_memory, memory_buffer=memory_buffer, unit="gb")
+        enough_memory = is_enough_memory_available(required_memory=required_memory, memory_buffer=memory_buffer_gb, unit="gb")
 
         # Enable scoring after each scroll if there isn't enough memory
         # for calculating the scores for the whole set of documents at once.
@@ -408,6 +417,7 @@ def evaluate_tags_task(object_id: int, indices: List[str], query: dict, es_timeo
         evaluator_object.n_predicted_classes = len(pred_set)
         evaluator_object.n_total_classes = len(classes)
         evaluator_object.scores_imprecise = scores_imprecise
+        evaluator_object.score_after_scroll = score_after_scroll
         evaluator_object.save()
 
         # Save model updates

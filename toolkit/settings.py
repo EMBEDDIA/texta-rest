@@ -20,13 +20,17 @@ DEPLOY_KEY = os.getenv("TEXTA_DEPLOY_KEY", 1)
 # INSTEAD USE get_setting_val() function, e.g.:
 # from toolkit.helper_functions import get_core_setting
 # ES_URL = get_core_setting("ES_URL")
+
 CORE_SETTINGS = {
     "TEXTA_ES_URL": os.getenv("TEXTA_ES_URL", "http://localhost:9200"),
     "TEXTA_ES_PREFIX": os.getenv("TEXTA_ES_PREFIX", ""),
     "TEXTA_ES_USERNAME": os.getenv("TEXTA_ES_USER", ""),
     "TEXTA_ES_PASSWORD": os.getenv("TEXTA_ES_PASSWORD", ""),
+    "TEXTA_EVALUATOR_MEMORY_BUFFER_GB": os.getenv("TEXTA_EVALUATOR_MEMORY_BUFFER_GB", "")
 }
 ### END OF CORE SETTINGS ###
+
+EVALUATOR_MEMORY_BUFFER_RATIO = 0.5
 
 TEXTA_TAGS_KEY = "texta_facts"
 
@@ -42,8 +46,6 @@ ALLOWED_HOSTS = parse_list_env_headers("TEXTA_ALLOWED_HOSTS", ["*"])
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv("TEXTA_MAX_UPLOAD", 1024 * 1024 * 1024))
 
-# The minimum amount of memory that should be left free while using evaluator
-EVALUATOR_MEMORY_BUFFER_GB = float(os.getenv("TEXTA_EVALUATOR_MEMORY_BUFFER_GB", 5))
 
 # Application definition
 INSTALLED_APPS = [

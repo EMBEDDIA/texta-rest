@@ -56,9 +56,9 @@ class Evaluator(models.Model):
 
     individual_results = models.TextField(default=json.dumps({}))
 
-    memory_buffer = models.FloatField(default=choices.DEFAULT_MEMORY_BUFFER_GB, null=True)
-
     scores_imprecise = models.BooleanField(default=None, null=True)
+    score_after_scroll = models.BooleanField(default=None, null=True)
+    
     evaluation_type = models.CharField(max_length=MAX_DESC_LEN, default=None, null=True)
 
     plot = models.FileField(upload_to="data/media", null=True, verbose_name="")
