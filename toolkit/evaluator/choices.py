@@ -12,7 +12,7 @@ BINARY_AVG_FUNCTIONS = ["binary", "micro", "macro", "weighted"]
 DEFAULT_AVG_FUNCTION = "macro"
 
 # Max number of fact values retrieved with facts aggregation
-DEFAULT_MAX_AGGREGATION_SIZE = 30000
+DEFAULT_MAX_AGGREGATION_SIZE = 10000
 
 # Max number of classes to calculate the confusion matrix.
 # If the number of classes exceeds the allowed limit,
