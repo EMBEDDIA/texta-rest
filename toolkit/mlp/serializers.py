@@ -4,6 +4,7 @@ from django.urls import reverse
 from rest_framework import serializers
 from texta_mlp.mlp import SUPPORTED_ANALYZERS
 
+from toolkit.core.project.models import Project
 from toolkit.core.task.serializers import TaskSerializer
 from toolkit.elastic.index.serializers import IndexSerializer
 from toolkit.mlp.models import ApplyLangWorker, MLPWorker
@@ -74,6 +75,20 @@ class ApplyLangOnIndicesSerializer(serializers.ModelSerializer, FieldValidationS
     url = serializers.SerializerMethodField()
     query = serializers.JSONField(help_text='Query in JSON format', required=False)
     field = serializers.CharField(required=True, allow_blank=False)
+
+
+    def validate_field(self, value: str):
+        """
+        Check if selected fields are present in the project and raise error on None
+        if no "fields" field is declared in the serializer, no validation
+        to write custom validation for serializers with FieldParseSerializer, simply override validate_fields in the project serializer
+        """
+        project_id = self.context['view'].kwargs['project_pk']
+        project_obj = Project.objects.get(id=project_id)
+        project_fields = set(project_obj.get_elastic_fields(path_list=True))
+        if not value or not set([value]).issubset(project_fields):
+            raise serializers.ValidationError(f'Entered fields not in current project fields: {project_fields}')
+        return value
 
 
     class Meta:

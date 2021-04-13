@@ -46,7 +46,7 @@ ALLOWED_HOSTS = parse_list_env_headers("TEXTA_ALLOWED_HOSTS", ["*"])
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv("TEXTA_MAX_UPLOAD", 1024 * 1024 * 1024))
 
-NAN_TOKEN_KEY = "UNK"
+NAN_LANGUAGE_TOKEN_KEY = "UNK"
 
 # Application definition
 INSTALLED_APPS = [

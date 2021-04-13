@@ -6,7 +6,7 @@ from texta_mlp.mlp import MLP
 
 from toolkit.elastic.tools.document import ElasticDocument
 from toolkit.elastic.tools.searcher import ElasticSearcher
-from toolkit.settings import INFO_LOGGER, NAN_TOKEN_KEY
+from toolkit.settings import INFO_LOGGER, NAN_LANGUAGE_TOKEN_KEY
 
 
 def process_mlp_actions(generator: ElasticSearcher, analyzers: List[str], field_data: List[str], mlp_class: MLP, mlp_id: int):
@@ -60,10 +60,11 @@ def process_lang_actions(generator: ElasticSearcher, field: str, worker_id: int,
             # This will be a list of texts.
             source = item["_source"]
             texts = mlp_class.parse_doc_texts(field, source)
+            texts = texts if texts else [""]
             for text in texts:
                 # This can be either a str or None
                 lang = mlp_class.detect_language(text)
-                lang = lang if lang else NAN_TOKEN_KEY
+                lang = lang if lang else NAN_LANGUAGE_TOKEN_KEY
                 mlp_path = f"{field}_mlp.language.detected"
                 source = Document.edit_doc(source, mlp_path, lang)
 
@@ -72,6 +73,7 @@ def process_lang_actions(generator: ElasticSearcher, field: str, worker_id: int,
                     "_index": item["_index"],
                     "_type": item.get("_type", "_doc"),
                     "_op_type": "update",
+                    "retry_on_conflict": 3,
                     "doc": {**source}
                 }
 
