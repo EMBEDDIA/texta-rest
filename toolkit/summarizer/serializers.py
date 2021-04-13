@@ -1,6 +1,13 @@
 from rest_framework import serializers
-from toolkit.serializer_constants import FieldParseSerializer
+from toolkit.serializer_constants import ProjectResourceUrlSerializer
+from .models import Summarizer
 
 
-class SummarizerSummerizeTextSerializer(FieldParseSerializer, serializers.Serializer):
+class SummarizerSummarizeTextSerializer(serializers.ModelSerializer, ProjectResourceUrlSerializer):
     text = serializers.CharField(required=True, help_text='Text to summarize')
+
+    class Meta:
+        model = Summarizer
+        fields = ('id',
+                  'url',
+                  'text')
