@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     "toolkit.anonymizer",
     "toolkit.docparser",
     "toolkit.evaluator",
+    "toolkit.summarizer",
     # TEXTA Extension Apps
     # "docscraper",
     # THIRD PARTY
