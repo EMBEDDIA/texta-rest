@@ -1,5 +1,5 @@
 import json
-from typing import List
+from typing import List, Optional
 
 from texta_tools.text_processor import TextProcessor
 
@@ -8,41 +8,32 @@ from toolkit.elastic.tools.feedback import Feedback
 from toolkit.elastic.tools.query import Query
 from toolkit.elastic.tools.searcher import ElasticSearcher
 from toolkit.tools.lemmatizer import ElasticLemmatizer
+from .core import ElasticCore
 from ..exceptions import InvalidDataSampleError
 from ...tools.show_progress import ShowProgress
 
 
-# TODO Add ES6/ES7 differences to the mapping.
-LANGUAGE_TRANSLATION_MAPPING = {
-    "et": "estonian",
-    "ar": "arabic",
-    "bn": "bengali",
-    "bg": "bulgarian",
+ES6_SNOWBALL_MAPPING = {
     "ca": "catalan",
-    "cs": "czech",
     "da": "danish",
-    "hu": "hungarian",
-    "hi": "hindi",
-    "el": "greek",
-    "de": "german",
-    "fr": "french",
-    "fi": "finnish",
-    "en": "english",
     "nl": "dutch",
-    "id": "indonesian",
+    "en": "english",
+    "fi": "finnish",
+    "fr": "french",
+    "de": "german",
+    "hu": "hungarian",
     "it": "italian",
-    "lv": "latvian",
     "lt": "lithuanian",
     "no": "norwegian",
-    "fa": "persian",
     "pt": "portuguese",
-    "th": "thai",
-    "tr": "turkish",
-    "sv": "swedish",
-    "es": "spanish",
+    "ro": "romanian",
     "ru": "russian",
-    "ro": "romanian"
+    "es": "spanish",
+    "sv": "swedish",
+    "tr": "turkish",
 }
+
+ES7_SNOWBALL_MAPPING = {"ar": "arabic", "et": "estonian"}
 
 
 class InvalidDataSampleError(Exception):
@@ -106,6 +97,27 @@ class DataSample:
         self.is_binary = True if len(self.data) == 2 else False
 
 
+    @staticmethod
+    def humanize_lang_code(lang_code: str, base_mapping: dict = ES6_SNOWBALL_MAPPING, es7_mapping=ES7_SNOWBALL_MAPPING) -> Optional[str]:
+        """
+        https://www.elastic.co/guide/en/elasticsearch/reference/7.10/analysis-snowball-tokenfilter.html
+
+        :param lang_code: Language string in ISO 639-1 format.
+        :param base_mapping: Dictionary where the keys are ISO 639-1 codes and the values their humanised forms as per Elasticsearch 6 support.
+        :param es7_mapping: Same as base_mapping but only includes new additions from Elasticsearch 7.
+        :return: Humanized form of the language code that is compatible with the built-in Snowball options that Elasticsearch supports or None if it doesn't.
+        """
+        ec = ElasticCore()
+        first, second, third = ec.get_version()
+        if first == 6:
+            humanized = base_mapping.get(lang_code, None)
+            return humanized
+        elif first == 7:
+            full_mapping = {**base_mapping, **es7_mapping}
+            humanized = full_mapping.get(lang_code, None)
+            return humanized
+
+
     def _snowball(self, snowball_language):
         """
         Stems the texts in data sample using Snowball.
@@ -129,10 +141,11 @@ class DataSample:
             processed_examples = []
             for example_doc in examples:
                 for key, value in example_doc.items():
-                    if "_mlp" not in key:
+                    # Use this string to differentiate between original and MLP added fields.
+                    if "_mlp." not in key:
                         lang = example_doc.get(f"{key}_mlp.language.detected", None)
                         if lang is not None:
-                            snowball_language = LANGUAGE_TRANSLATION_MAPPING.get(lang, None)
+                            snowball_language = self.humanize_lang_code(lang)
                             if snowball_language:
                                 example_doc[key] = lemmatizer.lemmatize(example_doc[key], snowball_language)
                 processed_examples.append(example_doc)
@@ -216,7 +229,6 @@ class DataSample:
 
 
     def _get_class_sample(self, query, class_name):
-        print(query)
         """Returns sample for given class"""
         # limit the docs according to max sample size & feedback size
         limit = int(self.tagger_object.maximum_sample_size)

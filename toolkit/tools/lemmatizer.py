@@ -1,11 +1,13 @@
+import logging
+
+import elasticsearch
 from celery.result import allow_join_result
 from elasticsearch.client import IndicesClient
 from texta_tools.text_splitter import TextSplitter
 
 from toolkit.elastic.tools.core import ElasticCore
 from toolkit.mlp.tasks import apply_mlp_on_list
-from toolkit.settings import CELERY_MLP_TASK_QUEUE
-from .exceptions import ElasticSnowballException
+from toolkit.settings import CELERY_MLP_TASK_QUEUE, ERROR_LOGGER
 
 
 class CeleryLemmatizer:
@@ -23,20 +25,20 @@ class CeleryLemmatizer:
 
 class ElasticLemmatizer:
 
-    def __init__(self, language="english"):
+    def __init__(self):
         self.core = ElasticCore()
         self.indices_client = IndicesClient(self.core.es)
         self.splitter = TextSplitter(split_by="WORD_LIMIT")
 
 
-    def lemmatize(self, text, language="english"):
+    def lemmatize(self, text: str, language="english") -> str:
         analyzed_chunks = []
-        # split input if token count greater than 5K
-        # elastic will complain if token count exceeds 10K
+        # Split input if token count greater than 5K.
+        # Elastic will complain if token count exceeds 10K.
         docs = self.splitter.split(text, max_limit=5000)
-        # extract text chunks from docs
+        # Extract text chunks from docs.
         text_chunks = [doc["text"] for doc in docs]
-        # analyze text chunks
+        # Analyze text chunks.
         for text in text_chunks:
             body = {
                 "tokenizer": "standard",
@@ -45,11 +47,17 @@ class ElasticLemmatizer:
             }
             try:
                 analysis = self.indices_client.analyze(body=body)
+                tokens = [token["token"] for token in analysis["tokens"]]
+                token_string = " ".join(tokens)
+                analyzed_chunks.append(token_string)
+            except elasticsearch.exceptions.RequestError as e:
+                reason = e.info["error"]["reason"]
+                if "Invalid stemmer class" in reason:
+                    logging.getLogger(ERROR_LOGGER).warning(e)
+                else:
+                    logging.getLogger(ERROR_LOGGER).exception(e)
             except Exception as e:
-                raise ElasticSnowballException("Snowball failed. Check Connection & payload!")
-            # tokens back to text chunk
-            tokens = [token["token"] for token in analysis["tokens"]]
-            token_string = " ".join(tokens)
-            analyzed_chunks.append(token_string)
-        # return chunks as string
+                logging.getLogger(ERROR_LOGGER).exception(e)
+
+        # Return chunks as string.
         return " ".join(analyzed_chunks)
