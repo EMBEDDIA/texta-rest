@@ -1,6 +1,7 @@
 import rest_framework.filters as drf_filters
 from django_filters import rest_framework as filters
 from rest_framework import permissions, status, viewsets
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from .serializers import SummarizerSummarizeTextSerializer
@@ -27,3 +28,11 @@ class SummarizerViewSet(viewsets.ModelViewSet, BulkDelete):
         # summarize text
         result = ""
         return Response(result, status=status.HTTP_200_OK)
+
+
+class SummarizerSummarize(APIView):
+    pass
+
+
+class SummarizerApplyToIndex(APIView):
+    pass
