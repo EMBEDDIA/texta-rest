@@ -3,6 +3,7 @@ import json
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Avg, Sum
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from toolkit.core.task.serializers import TaskSerializer
 from toolkit.elastic.choices import get_snowball_choices
@@ -162,6 +163,12 @@ class TaggerSerializer(FieldParseSerializer, serializers.ModelSerializer, Projec
                   'num_features', 'num_examples', 'confusion_matrix', 'plot', 'task', 'indices', 'tagger_groups', 'ignore_numbers')
         read_only_fields = ('precision', 'recall', 'f1_score', 'num_features', 'num_examples', 'tagger_groups', 'confusion_matrix')
         fields_to_parse = ('fields',)
+
+
+    def validate(self, attrs):
+        if attrs["detect_lang"] is True and attrs["snowball_language"]:
+            raise ValidationError("Values 'detect_lang' and 'snowball_language' are mutually exclusive, please opt for one!")
+        return attrs
 
 
     def __init__(self, *args, **kwargs):
