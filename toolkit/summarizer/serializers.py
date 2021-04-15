@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from toolkit.serializer_constants import ProjectResourceUrlSerializer
 from .models import Summarizer
+from .values import DefaultSummarizerValues
 
 
 class SummarizerSummarizeTextSerializer(serializers.ModelSerializer, ProjectResourceUrlSerializer):
@@ -14,29 +15,26 @@ class SummarizerSummarizeTextSerializer(serializers.ModelSerializer, ProjectReso
 
 
 class SummarizerSummarizeSerializer(serializers.Serializer):
-    SUPPORTED_ALGORITHMS = (
-        "textrank",
-        "lexrank"
-    )
-    SUPPORTED_RATIOS = (
-        "0",
-        "0.1",
-        "0.2",
-        "0.3",
-        "0.4",
-        "0.5",
-        "0.6",
-        "0.7",
-        "0.8",
-        "0.9",
-        "1"
-    )
     text = serializers.ListField(child=serializers.CharField(), required=True)
     algorithm = serializers.MultipleChoiceField(
-        choices=SUPPORTED_ALGORITHMS,
+        choices=DefaultSummarizerValues.SUPPORTED_ALGORITHMS,
         default=["lexrank"]
     )
     ratio = serializers.MultipleChoiceField(
-        choices=SUPPORTED_RATIOS,
+        choices=DefaultSummarizerValues.SUPPORTED_RATIOS,
+        default=["0.2"]
+    )
+
+
+class SummarizerApplyToIndexSerializer(serializers.Serializer):
+    indices = serializers.ListField(child=serializers.CharField(), required=True)
+    fields = serializers.ListField(child=serializers.CharField(), required=True)
+    query = serializers.CharField(default="")
+    algorithm = serializers.MultipleChoiceField(
+        choices=DefaultSummarizerValues.SUPPORTED_ALGORITHMS,
+        default=["lexrank"]
+    )
+    ratio = serializers.MultipleChoiceField(
+        choices=DefaultSummarizerValues.SUPPORTED_RATIOS,
         default=["0.2"]
     )
