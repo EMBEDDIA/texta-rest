@@ -44,7 +44,10 @@ class SummarizerSummarize(APIView):
         algorithm = list(serializer.validated_data["algorithm"])
         ratio = list(serializer.validated_data["ratio"])
 
-        return text, algorithm, ratio
+        return Response({
+            'text': text,
+            'algorithm': algorithm,
+            'ratio': ratio})
 
 
 class SummarizerApplyToIndex(APIView):
