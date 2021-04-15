@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 import elasticsearch
 from celery.result import allow_join_result
@@ -25,13 +26,14 @@ class CeleryLemmatizer:
 
 class ElasticLemmatizer:
 
-    def __init__(self):
+    def __init__(self, language="english"):
         self.core = ElasticCore()
         self.indices_client = IndicesClient(self.core.es)
         self.splitter = TextSplitter(split_by="WORD_LIMIT")
+        self.language = language
 
 
-    def lemmatize(self, text: str, language="english") -> str:
+    def lemmatize(self, text: str, language: Optional[str] = None) -> str:
         analyzed_chunks = []
         # Split input if token count greater than 5K.
         # Elastic will complain if token count exceeds 10K.
@@ -39,11 +41,16 @@ class ElasticLemmatizer:
         # Extract text chunks from docs.
         text_chunks = [doc["text"] for doc in docs]
         # Analyze text chunks.
+
+        # This line is for allowing stemming based on the language in the document.
+        # Creating the class for every object would be a waste of resources so instead this
+        # workaround allows for both while not breaking existing code.
+        lang = self.language if language is None else language
         for text in text_chunks:
             body = {
                 "tokenizer": "standard",
                 "text": text,
-                "filter": [{"type": "snowball", "language": language}]
+                "filter": [{"type": "snowball", "language": lang}]
             }
             try:
                 analysis = self.indices_client.analyze(body=body)
