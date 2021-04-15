@@ -167,7 +167,8 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
                 'anonymizers',
                 'regex_tagger_groups',
                 'mlp_index',
-                'evaluators'
+                'evaluators',
+                'summarizer'
             )
         elif api_version == 'v1':
             resources = (
@@ -187,13 +188,14 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
                 'anonymizers',
                 'regex_tagger_groups',
                 'mlp_index',
-                'evaluators'
+                'evaluators',
+                'summarizer'
             )
 
         for resource_name in resources:
             resource_dict[resource_name] = f'{base_url}{resource_name}/'
 
-        additional_urls = ['mlp_texts', 'mlp_docs']
+        additional_urls = ['mlp_texts', 'mlp_docs', 'summarizer_summarize', 'summarizer_apply_to_index']
         for item in additional_urls:
             view_url = reverse(f"{api_version}:{item}")
             resource_dict[item] = request.build_absolute_uri(view_url)
