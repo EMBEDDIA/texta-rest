@@ -32,7 +32,7 @@ class SummarizerSummarizeSerializer(serializers.Serializer):
         "1"
     )
     text = serializers.ListField(child=serializers.CharField(), required=True)
-    alogrithms = serializers.MultipleChoiceField(
+    algorithm = serializers.MultipleChoiceField(
         choices=SUPPORTED_ALGORITHMS,
         default=["lexrank"]
     )
