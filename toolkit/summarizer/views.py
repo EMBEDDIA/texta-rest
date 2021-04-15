@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.renderers import BrowsableAPIRenderer, HTMLFormRenderer, JSONRenderer
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .serializers import SummarizerSummarizeTextSerializer, SummarizerSummarizeSerializer
+from .serializers import SummarizerSummarizeTextSerializer, SummarizerSummarizeSerializer, SummarizerApplyToIndexSerializer
 from toolkit.permissions.project_permissions import ProjectResourceAllowed
 from .models import Summarizer
 from toolkit.view_constants import BulkDelete
@@ -51,4 +51,23 @@ class SummarizerSummarize(APIView):
 
 
 class SummarizerApplyToIndex(APIView):
-    pass
+    serializer_class = SummarizerApplyToIndexSerializer
+    renderer_classes = (BrowsableAPIRenderer, JSONRenderer, HTMLFormRenderer)
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request):
+        serializer = SummarizerApplyToIndexSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        indices = list(serializer.validated_data["indices"])
+        fields = list(serializer.validated_data["fields"])
+        query = ""
+        algorithm = list(serializer.validated_data["algorithm"])
+        ratio = list(serializer.validated_data["ratio"])
+
+        return Response({
+            'indices': indices,
+            'fields': fields,
+            'query': query,
+            'algorithm': algorithm,
+            'ratio': ratio})
