@@ -25,6 +25,10 @@ from texta_bert_tagger.tagger import BertTagger
 
 from typing import List, Union, Dict
 
+from nltk.tokenize import sent_tokenize
+from collections import defaultdict
+import numpy as np
+
 @task(name="train_bert_tagger", base=TransactionAwareTask, queue=CELERY_LONG_TERM_TASK_QUEUE)
 def train_bert_tagger(tagger_id, testing=False):
     try:
@@ -150,10 +154,26 @@ def load_tagger(tagger_object: BertTaggerObject) -> BertTagger:
 
 def apply_loaded_tagger(tagger: BertTagger, tagger_object: BertTaggerObject, tagger_input: Union[str, Dict], input_type: str = "text", feedback: bool=False):
     """Apply loaded BERT tagger to doc or text."""
+
     # tag doc or text
     if input_type == 'doc':
         tagger_result = tagger.tag_doc(tagger_input)
     else:
+        """
+        sentences = sent_tokenize(tagger_input)
+        results = defaultdict(list)
+        for sent in sentences:
+            tagger_result_s = tagger.tag_text(sent)
+            results[tagger_result_s["prediction"]].append(tagger_result_s)
+        top_result = sorted(list(results.items()), key = lambda x: len(x[1]), reverse=True)[0]
+        if len(top_result[1]) == 1:
+            top_result = sorted(list(results.items()), key = lambda x: x[1][0]["probability"], reverse=True)[0]
+        print("Results: ", results)
+        print("Top result: ", top_result)
+        probabilities = [res["probability"] for res in top_result[1]]
+        avg_prob = np.mean(probabilities)
+        tagger_result = top_result[1][0]
+        tagger_result["probability"] = avg_prob"""
         tagger_result = tagger.tag_text(tagger_input)
 
     # reform output

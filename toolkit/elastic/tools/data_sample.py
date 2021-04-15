@@ -1,12 +1,16 @@
 from typing import List
 import json
-
+from nltk.tokenize import sent_tokenize
 from toolkit.elastic.tools.searcher import ElasticSearcher
 from toolkit.elastic.tools.aggregator import ElasticAggregator
 from toolkit.elastic.tools.feedback import Feedback
 from toolkit.elastic.tools.query import Query
 from toolkit.tools.lemmatizer import ElasticLemmatizer
 from ..exceptions import InvalidDataSampleError
+
+from random import sample, shuffle
+import numpy as np
+import math
 
 
 class InvalidDataSampleError(Exception):
@@ -130,8 +134,31 @@ class DataSample:
             samples['false'] = self._get_negatives(size)
         return samples
 
+    def _shuffle_sentences(self, doc, field):
+        if "." in field:
+            field_1, field_2 = field.split(".")
+            text = doc[field_1][field_2]
+        else:
+            text = doc[field]
+        sentences = sent_tokenize(text)
+        n = len(sentences)
+        n2 = math.ceil(n/2)
+        #sentences_1 = sentences[:n2]
+        #sentences_2 = sentences[n2:]
+        #sentences = sentences_2 + sentences_1
+        shuffle(sentences)
+        shuffled_text = " ".join(sentences)
 
-    def _get_class_sample(self, query, class_name):
+        if "." in field:
+            field_1, field_2 = field.split(".")
+            doc[field_1][field_2] = shuffled_text
+        else:
+            doc[field] = shuffled_text
+
+        return doc
+
+
+    def _get_class_sample(self, query, class_name, n_samples=5000, shuffle_field="kysimus"):
         print(query)
         """Returns sample for given class"""
         # limit the docs according to max sample size & feedback size
@@ -155,6 +182,16 @@ class DataSample:
             # remove id from doc
             del doc["_id"]
             positive_sample.append(doc)
+        if len(positive_sample) < n_samples:
+
+            n = n_samples - len(positive_sample)
+            print(f"Adding {n} examples for class {class_name}!")
+            additions = list(np.random.choice(positive_sample, size=n, replace=True))
+            #if shuffle_field:
+            #    additions = [self._shuffle_sentences(doc, shuffle_field) for doc in additions]
+            positive_sample.extend(additions)
+            shuffle(positive_sample)
+
         # document doct to value string if asked
         if self.join_fields:
             positive_sample = self._join_fields(positive_sample)
