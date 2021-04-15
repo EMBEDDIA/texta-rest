@@ -1,6 +1,6 @@
+import json
 import pathlib
 import uuid
-import json
 from io import BytesIO
 from time import sleep
 
@@ -8,23 +8,11 @@ from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITransactionTestCase
 
+from toolkit.core.task.models import Task
 from toolkit.elastic.reindexer.models import Reindexer
 from toolkit.elastic.tools.aggregator import ElasticAggregator
 from toolkit.elastic.tools.core import ElasticCore
-
-from toolkit.core.task.models import Task
-
-from toolkit.test_settings import (
-    TEST_FACT_NAME,
-    TEST_FIELD_CHOICE,
-    TEST_INDEX,
-    TEST_VERSION_PREFIX,
-    TEST_KEEP_PLOT_FILES,
-    TEST_QUERY,
-    TEST_TORCH_TAGGER_BINARY_GPU,
-    TEST_TORCH_TAGGER_MULTICLASS_GPU,
-    TEST_TORCH_TAGGER_BINARY_CPU
-    )
+from toolkit.test_settings import (TEST_FACT_NAME, TEST_FIELD_CHOICE, TEST_INDEX, TEST_KEEP_PLOT_FILES, TEST_QUERY, TEST_TORCH_TAGGER_BINARY_CPU, TEST_TORCH_TAGGER_BINARY_GPU, TEST_TORCH_TAGGER_MULTICLASS_GPU, TEST_VERSION_PREFIX)
 from toolkit.tools.utils_for_tests import create_test_user, print_output, project_creation, remove_file
 from toolkit.torchtagger.models import TorchTagger
 from toolkit.torchtagger.torch_models.models import TORCH_MODELS
@@ -251,7 +239,7 @@ class TorchTaggerViewTests(APITransactionTestCase):
         # Check if response is a list
         self.assertTrue(isinstance(response.data, list))
         # Check if first report is not empty
-        self.assertTrue(len(response.data[0])>0)
+        self.assertTrue(len(response.data[0]) > 0)
 
 
     def run_epoch_reports_post(self):
@@ -349,8 +337,7 @@ class TorchTaggerViewTests(APITransactionTestCase):
         print_output("test_apply_binary_torch_tagger_to_index:elastic aggerator results:", results)
 
         # Check if expected number of facts is added
-        self.assertTrue(results[self.new_fact_value] == 25)
-
+        self.assertTrue(results[self.new_fact_value] == 24)
         self.add_cleanup_files(self.test_imported_binary_gpu_tagger_id)
 
 
@@ -385,10 +372,10 @@ class TorchTaggerViewTests(APITransactionTestCase):
 
         # Check if the expected facts with expected number of values is added
         fact_value_1 = "foo"
-        expected_count_1 = 28
+        expected_count_1 = 27
 
         fact_value_2 = "bar"
-        expected_count_2 = 2
+        expected_count_2 = 3
 
         self.assertTrue(fact_value_1 in results)
         self.assertTrue(fact_value_2 in results)
