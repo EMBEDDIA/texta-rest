@@ -40,8 +40,8 @@ class SummarizerSummarize(APIView):
         serializer = SummarizerSummarizeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        text = list(serializer.validated_data["texts"])
-        algorithm = list(serializer.validated_data["analyzers"])
+        text = list(serializer.validated_data["text"])
+        algorithm = list(serializer.validated_data["algorithm"])
         ratio = list(serializer.validated_data["ratio"])
 
         return text, algorithm, ratio
