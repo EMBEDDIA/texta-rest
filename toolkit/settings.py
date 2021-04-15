@@ -48,6 +48,9 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv("TEXTA_MAX_UPLOAD", 1024 * 1024 * 10
 
 NAN_LANGUAGE_TOKEN_KEY = "UNK"
 
+# Directory of a placeholder plot image
+EMPTY_PLOT_DIR = os.path.join(BASE_DIR, "toolkit", "tools", "default_plots", "no_plot.png")
+
 # Application definition
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -269,6 +272,7 @@ CELERY_QUEUES = (
 CELERY_DEFAULT_QUEUE = 'short_term_tasks'
 CELERY_DEFAULT_EXCHANGE = 'short_term_tasks'
 CELERY_DEFAULT_ROUTING_KEY = 'short_term_tasks'
+
 
 ### DATA DIRECTORIES
 
