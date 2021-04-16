@@ -49,7 +49,10 @@ def train_bert_tagger(tagger_id, testing=False):
             indices,
             fields,
             show_progress=show_progress,
-            join_fields=True
+            join_fields=True,
+            balance = tagger_object.balance,
+            use_sentence_shuffle = tagger_object.use_sentence_shuffle,
+            balance_to_max_limit = tagger_object.balance_to_max_limit
         )
         show_progress.update_step('training')
         show_progress.update_view(0.0)
