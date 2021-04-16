@@ -1,9 +1,21 @@
 import os
 from sumy.nlp.stemmers import null_stemmer
+from sumy.parsers.plaintext import PlaintextParser
+
+class SumyTokenizer:
+    """
+    Custom tokenizer for sumy.
+    """
+    @staticmethod
+    def to_sentences(text):
+        return text.split("###")
+
+    @staticmethod
+    def to_words(sentence):
+        return sentence.lower().split()
 
 
 class Sumy:
-
     def get_stop_words(self):
         stop_words = {}
         stop_word_dir = os.path.join(os.path.dirname(__file__), 'stop_words')
@@ -46,3 +58,26 @@ class Sumy:
             summarizer.stop_words = frozenset(self.get_stop_words())
 
         return summarizers
+
+    def run_on_tokenized(self, text, summarizer_names):
+        summarizers = self.get_summarizers(summarizer_names)
+
+        stack = []
+        parser = PlaintextParser.from_string(text, SumyTokenizer())
+
+        summaries = {}
+        for name, summarizer in summarizers.items():
+            try:
+                summarization = summarizer(parser.document, 1)
+            except Exception as e:
+                print(e)
+                continue
+
+            summary = [sent._text for sent in summarization]
+            summary = "\n".join(summary)
+            summaries[name] = summary
+
+        stack.append(summaries)
+
+        return stack
+
