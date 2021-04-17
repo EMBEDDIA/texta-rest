@@ -59,7 +59,7 @@ class Sumy:
 
         return summarizers
 
-    def run_on_tokenized(self, text, summarizer_names):
+    def run_on_tokenized(self, text, summarizer_names, ratio):
         summarizers = self.get_summarizers(summarizer_names)
 
         stack = []
@@ -68,7 +68,7 @@ class Sumy:
         summaries = {}
         for name, summarizer in summarizers.items():
             try:
-                summarization = summarizer(parser.document, 1)
+                summarization = summarizer(parser.document, float(ratio))
             except Exception as e:
                 print(e)
                 continue
