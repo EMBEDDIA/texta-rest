@@ -9,6 +9,7 @@ from .serializers import SummarizerSummarizeTextSerializer, SummarizerSummarizeS
 from toolkit.permissions.project_permissions import ProjectResourceAllowed
 from .models import Summarizer
 from toolkit.view_constants import BulkDelete
+from .sumy import Sumy
 
 
 class SummarizerViewSet(viewsets.ModelViewSet, BulkDelete):
@@ -42,12 +43,13 @@ class SummarizerSummarize(APIView):
 
         text = list(serializer.validated_data["text"])
         algorithm = list(serializer.validated_data["algorithm"])
-        ratio = list(serializer.validated_data["ratio"])
+        ratio = serializer.validated_data["ratio"]
 
-        return Response({
-            'text': text,
-            'algorithm': algorithm,
-            'ratio': ratio})
+        sumy = Sumy()
+
+        results = sumy.run_on_tokenized(text=text, summarizer_names=algorithm, ratio=ratio)
+
+        return Response(results)
 
 
 class SummarizerApplyToIndex(APIView):
