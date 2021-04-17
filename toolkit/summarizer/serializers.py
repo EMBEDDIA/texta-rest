@@ -20,10 +20,7 @@ class SummarizerSummarizeSerializer(serializers.Serializer):
         choices=DefaultSummarizerValues.SUPPORTED_ALGORITHMS,
         default=["lexrank"]
     )
-    ratio = serializers.MultipleChoiceField(
-        choices=DefaultSummarizerValues.SUPPORTED_RATIOS,
-        default=["0.2"]
-    )
+    ratio = serializers.DecimalField(max_digits=2, decimal_places=1, default=0.2)
 
 
 class SummarizerApplyToIndexSerializer(serializers.Serializer):
@@ -34,7 +31,4 @@ class SummarizerApplyToIndexSerializer(serializers.Serializer):
         choices=DefaultSummarizerValues.SUPPORTED_ALGORITHMS,
         default=["lexrank"]
     )
-    ratio = serializers.MultipleChoiceField(
-        choices=DefaultSummarizerValues.SUPPORTED_RATIOS,
-        default=["0.2"]
-    )
+    ratio = serializers.DecimalField(max_digits=2, decimal_places=1, default=0.2)
