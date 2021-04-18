@@ -26,7 +26,7 @@ class SummarizerSummarizeSerializer(serializers.Serializer):
 class SummarizerApplyToIndexSerializer(serializers.Serializer):
     indices = serializers.ListField(child=serializers.CharField(), required=True)
     fields = serializers.ListField(child=serializers.CharField(), required=True)
-    query = serializers.CharField(default="")
+    query = serializers.JSONField(default="{}")
     algorithm = serializers.MultipleChoiceField(
         choices=DefaultSummarizerValues.SUPPORTED_ALGORITHMS,
         default=["lexrank"]
