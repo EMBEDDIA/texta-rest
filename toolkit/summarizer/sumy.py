@@ -81,3 +81,5 @@ class Sumy:
 
         return stack
 
+    def run_on_index(self, indices, fields, query, algorithm, ratio):
+        pass
