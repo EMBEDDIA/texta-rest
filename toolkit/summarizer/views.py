@@ -63,13 +63,12 @@ class SummarizerApplyToIndex(APIView):
 
         indices = list(serializer.validated_data["indices"])
         fields = list(serializer.validated_data["fields"])
-        query = ""
+        query = serializer.validated_data["query"]
         algorithm = list(serializer.validated_data["algorithm"])
-        ratio = list(serializer.validated_data["ratio"])
+        ratio = serializer.validated_data["ratio"]
 
-        return Response({
-            'indices': indices,
-            'fields': fields,
-            'query': query,
-            'algorithm': algorithm,
-            'ratio': ratio})
+        sumy = Sumy()
+
+        results = sumy.run_on_index(indices=indices, fields=fields, query=query, algorithm=algorithm, ratio=ratio)
+
+        return Response(results)
