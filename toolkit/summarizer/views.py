@@ -10,6 +10,7 @@ from toolkit.permissions.project_permissions import ProjectResourceAllowed
 from .models import Summarizer
 from toolkit.view_constants import BulkDelete
 from .sumy import Sumy
+from toolkit.core.project.models import Project
 
 
 class SummarizerViewSet(viewsets.ModelViewSet, BulkDelete):
@@ -23,10 +24,11 @@ class SummarizerViewSet(viewsets.ModelViewSet, BulkDelete):
     def get_queryset(self):
         return Summarizer.objects.filter(project=self.kwargs['project_pk'])
 
-    @action(detail=True, methods=['post'], serializer_class=SummarizerSummarizeTextSerializer)
-    def summarize_text(self, request):
-        serializer = SummarizerSummarizeTextSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+    def perform_create(self, serializer):
+        project = Project.objects.get(id=self.kwargs['project_pk'])
+        indices = [index["name"] for index in serializer.validated_data["indices"]]
+        indices = project.get_available_or_all_project_indices(indices)
+        serializer.validated_data.pop("indices")
         # summarize text
         result = ""
         return Response(result, status=status.HTTP_200_OK)
