@@ -2,16 +2,19 @@ from rest_framework import serializers
 from toolkit.serializer_constants import ProjectResourceUrlSerializer
 from .models import Summarizer
 from .values import DefaultSummarizerValues
+from toolkit.elastic.index.serializers import IndexSerializer
 
 
 class SummarizerSummarizeTextSerializer(serializers.ModelSerializer, ProjectResourceUrlSerializer):
-    text = serializers.CharField(required=True, help_text='Text to summarize')
+    indices = IndexSerializer(many=True, default=[])
+    author_username = serializers.CharField(source='author.username', read_only=True, required=False)
+    description = serializers.CharField()
+    query = serializers.JSONField(help_text='Query in JSON format', required=False)
+    fields = serializers.ListField(required=True)
 
     class Meta:
         model = Summarizer
-        fields = ('id',
-                  'url',
-                  'text')
+        fields = ("id", "url", "author_username", "indices", "description", "query", "fields")
 
 
 class SummarizerSummarizeSerializer(serializers.Serializer):
