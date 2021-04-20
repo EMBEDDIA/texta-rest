@@ -151,6 +151,7 @@ def train_tagger_task(tagger_id: int):
             embedding=embedding,
             ignore_numbers=ignore_numbers,
             custom_stop_words=stop_words,
+            ignore_numbers=ignore_numbers,
             classifier=tagger_object.classifier,
             vectorizer=tagger_object.vectorizer)
         tagger.train(
