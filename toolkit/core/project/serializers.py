@@ -168,7 +168,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
                 'regex_tagger_groups',
                 'mlp_index',
                 'evaluators',
-                'summarizer'
+                'summarizer_index'
             )
         elif api_version == 'v1':
             resources = (
@@ -189,7 +189,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
                 'regex_tagger_groups',
                 'mlp_index',
                 'evaluators',
-                'summarizer'
+                'summarizer_index'
             )
 
         for resource_name in resources:
