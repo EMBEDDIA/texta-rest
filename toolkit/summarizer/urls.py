@@ -1,5 +1,5 @@
 from rest_framework import routers
-from .views import SummarizerViewSet
+from .views import SummarizerIndexViewSet
 
 router = routers.DefaultRouter()
-router.register('summarizer', SummarizerViewSet, basename='summarize')
+router.register('summarizer_index', SummarizerIndexViewSet, basename='summarizer_index')
