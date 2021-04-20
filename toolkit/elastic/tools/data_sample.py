@@ -117,8 +117,7 @@ class DataSample:
         max_class_size = None
         if self.tagger_object.fact_name:
             es_aggregator = ElasticAggregator(indices=self.indices)
-            # Is  it sufficient to use aggs size = 1  as ES already orders the results by frequency? NOT SURE
-            facts = es_aggregator.get_fact_values_distribution(fact_name=self.tagger_object.fact_name, fact_name_size=1, fact_value_size=1)
+            facts = es_aggregator.get_fact_values_distribution(fact_name=self.tagger_object.fact_name, fact_name_size=10, fact_value_size=10)
             logging.getLogger(INFO_LOGGER).info(f"The most frequent class: {facts}")
             max_class_size = max(facts.values())
         return max_class_size
