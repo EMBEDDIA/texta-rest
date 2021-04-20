@@ -1,11 +1,12 @@
+import json
 import rest_framework.filters as drf_filters
 from django_filters import rest_framework as filters
 from rest_framework import permissions, status, viewsets
 from rest_framework.views import APIView
 from rest_framework.renderers import BrowsableAPIRenderer, HTMLFormRenderer, JSONRenderer
 from rest_framework.response import Response
-from rest_framework.decorators import action
-from .serializers import SummarizerSummarizeTextSerializer, SummarizerSummarizeSerializer, SummarizerApplyToIndexSerializer
+from toolkit.elastic.index.models import Index
+from .serializers import SummarizerIndexSerializer, SummarizerSummarizeSerializer, SummarizerApplyToIndexSerializer
 from toolkit.permissions.project_permissions import ProjectResourceAllowed
 from .models import Summarizer
 from toolkit.view_constants import BulkDelete
@@ -13,8 +14,8 @@ from .sumy import Sumy
 from toolkit.core.project.models import Project
 
 
-class SummarizerViewSet(viewsets.ModelViewSet, BulkDelete):
-    serializer_class = SummarizerSummarizeTextSerializer
+class SummarizerIndexViewSet(viewsets.ModelViewSet, BulkDelete):
+    serializer_class = SummarizerIndexSerializer
     filter_backends = (drf_filters.OrderingFilter, filters.DjangoFilterBackend)
     permission_classes = (
         ProjectResourceAllowed,
@@ -30,8 +31,14 @@ class SummarizerViewSet(viewsets.ModelViewSet, BulkDelete):
         indices = project.get_available_or_all_project_indices(indices)
         serializer.validated_data.pop("indices")
         # summarize text
-        result = ""
-        return Response(result, status=status.HTTP_200_OK)
+        worker: Summarizer = serializer.save(
+                author=self.request.user,
+                project=project,
+                fields=serializer.validated_data["fields"],
+            )
+        for index in Index.objects.filter(name__in=indices, is_open=True):
+            worker.indices.add(index)
+        return Response(worker, status=status.HTTP_200_OK)
 
 
 class SummarizerSummarize(APIView):
