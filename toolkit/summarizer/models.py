@@ -16,4 +16,4 @@ class Summarizer(models.Model):
     fields = models.TextField(default=json.dumps([]))
 
     def __str__(self):
-        return self.description
+        return '{0} - {1}'.format(self.pk, self.description)
