@@ -8,7 +8,7 @@ from django.urls import reverse
 
 
 class SummarizerSummarizeSerializer(serializers.Serializer):
-    text = serializers.ListField(child=serializers.CharField(), required=True)
+    text = serializers.CharField(required=True)
     algorithm = serializers.MultipleChoiceField(
         choices=DefaultSummarizerValues.SUPPORTED_ALGORITHMS,
         default=["lexrank"]
