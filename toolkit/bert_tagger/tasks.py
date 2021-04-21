@@ -162,21 +162,6 @@ def apply_loaded_tagger(tagger: BertTagger, tagger_object: BertTaggerObject, tag
     if input_type == 'doc':
         tagger_result = tagger.tag_doc(tagger_input)
     else:
-        """
-        sentences = sent_tokenize(tagger_input)
-        results = defaultdict(list)
-        for sent in sentences:
-            tagger_result_s = tagger.tag_text(sent)
-            results[tagger_result_s["prediction"]].append(tagger_result_s)
-        top_result = sorted(list(results.items()), key = lambda x: len(x[1]), reverse=True)[0]
-        if len(top_result[1]) == 1:
-            top_result = sorted(list(results.items()), key = lambda x: x[1][0]["probability"], reverse=True)[0]
-        print("Results: ", results)
-        print("Top result: ", top_result)
-        probabilities = [res["probability"] for res in top_result[1]]
-        avg_prob = np.mean(probabilities)
-        tagger_result = top_result[1][0]
-        tagger_result["probability"] = avg_prob"""
         tagger_result = tagger.tag_text(tagger_input)
 
     # reform output

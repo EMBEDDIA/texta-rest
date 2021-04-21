@@ -315,7 +315,7 @@ if not os.path.exists(BERT_PRETRAINED_MODEL_DIRECTORY):
 if not os.path.exists(BERT_FINETUNED_MODEL_DIRECTORY):
     os.makedirs(BERT_FINETUNED_MODEL_DIRECTORY)
 
-# create directories for BERT
+# create directories for NLTK resources
 if not os.path.exists(NLTK_DATA_DIRECTORY):
     os.makedirs(NLTK_DATA_DIRECTORY)
 

@@ -309,6 +309,32 @@ class DataSample:
         return doc
 
 
+    def _duplicate_examples(self, positive_sample: List[dict], class_name: str, limit: int):
+        """ Generate addtional examples by duplicating them for underrepresented classes."""
+        # If balancing to max limit is enabled, set the number of samples to max sample size
+        if self.balance_to_max_limit:
+            n_samples = limit
+
+        # Else set the number of samples to max class size if it doesn't exceed the max sample size
+        else:
+            n_samples = min(self.max_class_size, limit)
+
+        if len(positive_sample) < n_samples:
+            n = n_samples - len(positive_sample)
+            logging.getLogger(INFO_LOGGER).info(f"Adding {n} examples for class {class_name}")
+
+            # Generate the required amount of additional documents by sampling with replacements
+            additions = list(np.random.choice(positive_sample, size=n, replace=True))
+
+            # If sentence shuffling is enabled, shuffle the sentences in the additional documents
+            if self.use_sentence_shuffle:
+                logging.getLogger(INFO_LOGGER).info(f"Shuffling sentences in additional examples of class {class_name}")
+                additions = [self._shuffle_content(doc, self.field_data) for doc in additions]
+            positive_sample.extend(additions)
+            shuffle(positive_sample)
+        return positive_sample
+
+
     def _get_class_sample(self, query, class_name):
         """Returns sample for given class"""
         # limit the docs according to max sample size & feedback size
@@ -341,30 +367,7 @@ class DataSample:
 
         # If class balancing is enabled, modify number of required samples
         if self.balance:
-            # If balancing to max limit is enabled, set the number of samples to max sample size
-            if self.balance_to_max_limit:
-                n_samples = limit
-
-            # Else set the number of samples to max class size if it doesn't exceed the max sample size
-            else:
-                n_samples = min(self.max_class_size, limit)
-
-        else:
-            n_samples = len(positive_sample)
-
-        if len(positive_sample) < n_samples:
-            n = n_samples - len(positive_sample)
-            logging.getLogger(INFO_LOGGER).info(f"Adding {n} examples for class {class_name}")
-
-            # Generate the required amount of additional documents by sampling with replacements
-            additions = list(np.random.choice(positive_sample, size=n, replace=True))
-
-            # If sentence shuffling is enabled, shuffle the sentences in the additional documents
-            if self.use_sentence_shuffle:
-                logging.getLogger(INFO_LOGGER).info(f"Shuffling sentences in additional examples of class {class_name}")
-                additions = [self._shuffle_content(doc, self.field_data) for doc in additions]
-            positive_sample.extend(additions)
-            shuffle(positive_sample)
+            positive_sample = self._duplicate_examples(positive_sample, class_name, limit)
 
         # document doct to value string if asked
         if self.join_fields:
