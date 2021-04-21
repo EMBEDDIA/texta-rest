@@ -1,7 +1,9 @@
 import json
 import logging
+import numpy as np
 from nltk.tokenize import sent_tokenize
 from typing import List, Optional
+from random import sample, shuffle
 from toolkit.settings import INFO_LOGGER
 from toolkit.elastic.tools.searcher import ElasticSearcher
 from toolkit.elastic.tools.aggregator import ElasticAggregator
@@ -12,35 +14,9 @@ from toolkit.tools.lemmatizer import ElasticLemmatizer
 from texta_tools.text_processor import TextProcessor
 from copy import deepcopy
 from .core import ElasticCore
+from ..choices import ES6_SNOWBALL_MAPPING, ES7_SNOWBALL_MAPPING
 from ..exceptions import InvalidDataSampleError
 from ...tools.show_progress import ShowProgress
-
-
-ES6_SNOWBALL_MAPPING = {
-    "ca": "catalan",
-    "da": "danish",
-    "nl": "dutch",
-    "en": "english",
-    "fi": "finnish",
-    "fr": "french",
-    "de": "german",
-    "hu": "hungarian",
-    "it": "italian",
-    "lt": "lithuanian",
-    "no": "norwegian",
-    "pt": "portuguese",
-    "ro": "romanian",
-    "ru": "russian",
-    "es": "spanish",
-    "sv": "swedish",
-    "tr": "turkish",
-}
-
-ES7_SNOWBALL_MAPPING = {"ar": "arabic", "et": "estonian"}
-
-from random import sample, shuffle
-import numpy as np
-import math
 
 
 class InvalidDataSampleError(Exception):
