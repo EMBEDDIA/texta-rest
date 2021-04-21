@@ -6,6 +6,13 @@ class SumyTokenizer:
     """
     Custom tokenizer for sumy.
     """
+
+    @staticmethod
+    def sentences_ratio(text, ratio):
+        tkns = text.split("###")
+        count = len(tkns)
+        return count * ratio
+
     @staticmethod
     def to_sentences(text):
         return text.split("###")
@@ -63,12 +70,13 @@ class Sumy:
         summarizers = self.get_summarizers(summarizer_names)
 
         stack = []
+        ratio_count = SumyTokenizer().sentences_ratio(text, float(ratio))
         parser = PlaintextParser.from_string(text, SumyTokenizer())
 
         summaries = {}
         for name, summarizer in summarizers.items():
             try:
-                summarization = summarizer(parser.document, float(ratio))
+                summarization = summarizer(parser.document, float(ratio_count))
             except Exception as e:
                 print(e)
                 continue
