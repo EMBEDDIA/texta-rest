@@ -1,4 +1,3 @@
-import json
 import rest_framework.filters as drf_filters
 from django_filters import rest_framework as filters
 from rest_framework import permissions, status, viewsets

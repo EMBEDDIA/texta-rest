@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from toolkit.serializer_constants import ProjectResourceUrlSerializer
 from .models import Summarizer
 from .values import DefaultSummarizerValues
 from toolkit.elastic.index.serializers import IndexSerializer
