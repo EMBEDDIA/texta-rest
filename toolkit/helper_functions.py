@@ -242,9 +242,10 @@ def reindex_test_dataset(query: dict = None, hex_size=20) -> str:
     """
     from toolkit.elastic.tools.core import ElasticCore
     from toolkit.test_settings import TEST_INDEX
-    print("This has run once!")
     ec = ElasticCore()
     new_test_index_name = f"ttk_test_{uuid.uuid4().hex[:hex_size]}"
+    ec.create_index(index=new_test_index_name)
+    ec.add_texta_facts_mapping(new_test_index_name)
     from_scan = elasticsearch_dsl.Search() if query is None else elasticsearch_dsl.Search.from_dict(query)
     from_scan = from_scan.index(TEST_INDEX).using(ec.es)
     from_scan = from_scan.scan()
@@ -264,14 +265,3 @@ def reindex_test_dataset(query: dict = None, hex_size=20) -> str:
     from elasticsearch.helpers import bulk
     bulk(actions=actions, client=ec.es, refresh="wait_for")
     return new_test_index_name
-
-
-class TestIndexFactory:
-
-    def setUp(self):
-        self.test_index_name = reindex_test_dataset()
-
-
-    def tearDown(self) -> None:
-        from toolkit.elastic.tools.core import ElasticCore
-        ElasticCore().es.delete(self.test_index_name, ignore=[400, 404])
