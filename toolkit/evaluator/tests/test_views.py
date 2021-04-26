@@ -62,7 +62,7 @@ class EvaluatorObjectViewTests(APITransactionTestCase):
 
     def tearDown(self) -> None:
         from toolkit.elastic.tools.core import ElasticCore
-        ElasticCore().es.indices.delete(index=TEST_INDEX_EVALUATOR, ignore=[400, 404])
+        ElasticCore().delete_index(index=TEST_INDEX_EVALUATOR, ignore=[400, 404])
 
 
     def test(self):

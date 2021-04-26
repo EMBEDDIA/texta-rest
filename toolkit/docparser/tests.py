@@ -9,6 +9,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from toolkit.core.project.models import Project
+from toolkit.elastic.tools.core import ElasticCore
 from toolkit.helper_functions import reindex_test_dataset
 from toolkit.test_settings import VERSION_NAMESPACE
 from toolkit.tools.utils_for_tests import create_test_user, print_output, project_creation
@@ -30,11 +31,11 @@ class TestDocparserAPIView(APITestCase):
         self.client.login(username='Owner', password='pw')
         self._basic_pipeline_functionality()
         self.file_path = self._get_file_path()
+        self.ec = ElasticCore()
 
 
     def tearDown(self) -> None:
-        from toolkit.elastic.tools.core import ElasticCore
-        ElasticCore().es.indices.delete(index=self.test_index_name, ignore=[400, 404])
+        self.ec.delete_index(index=self.test_index_name, ignore=[400, 404])
 
 
     def _get_file_path(self):

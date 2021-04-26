@@ -66,8 +66,9 @@ class RegexTaggerViewTests(APITransactionTestCase):
 
 
     def tearDown(self) -> None:
-        res = ElasticCore().delete_index(self.test_index_copy)
-        ElasticCore().es.indices.delete(index=self.test_index_name, ignore=[400, 404])
+        ec = ElasticCore()
+        res = ec.delete_index(self.test_index_copy)
+        ec.delete_index(index=self.test_index_name, ignore=[400, 404])
         print_output(f"Delete [Regex Tagger] apply_taggers test index {self.test_index_copy}", res)
 
 

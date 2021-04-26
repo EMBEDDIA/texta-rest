@@ -37,7 +37,7 @@ class TaggerSnowballStemmerTests(APITransactionTestCase):
 
     def tearDown(self) -> None:
         Tagger.objects.all().delete()
-        ElasticCore().es.indices.delete(index=self.test_index_name, ignore=[400, 404])
+        ElasticCore().delete_index(index=self.test_index_name, ignore=[400, 404])
 
 
     def _apply_lang_detect_to_index(self):

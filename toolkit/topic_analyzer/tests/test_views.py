@@ -60,7 +60,7 @@ class TopicAnalyzerTests(APITransactionTestCase):
 
     def tearDown(self) -> None:
         ClusteringResult.objects.all().delete()
-        ElasticCore().es.indices.delete(index=self.test_index_name, ignore=[400, 404])
+        ElasticCore().delete_index(index=self.test_index_name, ignore=[400, 404])
 
 
     def test_access_to_detail_page(self):

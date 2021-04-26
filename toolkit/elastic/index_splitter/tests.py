@@ -33,7 +33,7 @@ class IndexSplitterViewTests(APITransactionTestCase):
         self.url = f'{TEST_VERSION_PREFIX}/projects/{self.project.id}/index_splitter/'
 
         self.client.login(username=self.default_username, password=self.default_password)
-
+        self.ec = ElasticCore()
         self.FACT = "TEEMA"
 
 
@@ -269,10 +269,10 @@ class IndexSplitterViewTests(APITransactionTestCase):
 
 
     def tearDown(self):
-        ElasticCore().es.indices.delete(index=self.test_index_name, ignore=[400, 404])
-        res = ElasticCore().delete_index(INDEX_SPLITTING_TEST_INDEX)
+        self.ec.delete_index(index=self.test_index_name, ignore=[400, 404])
+        res = self.ec.delete_index(INDEX_SPLITTING_TEST_INDEX)
         print_output('attempt to delete test index:', res)
-        res = ElasticCore().delete_index(INDEX_SPLITTING_TRAIN_INDEX)
+        res = self.ec.delete_index(INDEX_SPLITTING_TRAIN_INDEX)
         print_output('attempt to delete train index:', res)
 
 

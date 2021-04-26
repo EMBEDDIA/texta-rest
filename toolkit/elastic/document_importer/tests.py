@@ -41,7 +41,7 @@ class DocumentImporterAPITestCase(APITestCase):
 
 
     def tearDown(self) -> None:
-        self.ec.es.delete(index=self.test_index_name, id=self.document_id, ignore=[400, 404])
+        self.ec.delete_index(index=self.test_index_name, ignore=[400, 404])
         query = Search().query(Q("exists", field="court_case")).to_dict()
         self.ec.es.delete_by_query(index="*", body=query, wait_for_completion=True)
 

@@ -38,7 +38,7 @@ class EmbeddingViewSnowballTests(TransactionTestCase):
 
 
     def tearDown(self):
-        ElasticCore().es.indices.delete(index=self.test_index_name, ignore=[400, 404])
+        ElasticCore().delete_index(index=self.test_index_name, ignore=[400, 404])
         Embedding.objects.all().delete()
 
 

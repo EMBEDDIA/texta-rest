@@ -45,7 +45,7 @@ class EmbeddingViewTests(TransactionTestCase):
 
     def tearDown(self):
         Embedding.objects.all().delete()
-        ElasticCore().es.indices.delete(index=self.test_index_name, ignore=[400, 404])
+        ElasticCore().delete_index(index=self.test_index_name, ignore=[400, 404])
 
 
     def run_create_default_embedding_training_and_task_signal(self):

@@ -67,7 +67,7 @@ class BertTaggerObjectViewTests(APITransactionTestCase):
         self.test_imported_multiclass_gpu_tagger_id = self.import_test_model(TEST_BERT_TAGGER_MULTICLASS_GPU)
 
         self.test_imported_binary_cpu_tagger_id = self.import_test_model(TEST_BERT_TAGGER_BINARY_CPU)
-
+        self.ec = ElasticCore()
 
     def import_test_model(self, file_path: str):
         """Import fine-tuned models for testing."""
@@ -102,8 +102,8 @@ class BertTaggerObjectViewTests(APITransactionTestCase):
 
 
     def tearDown(self) -> None:
-        res = ElasticCore().delete_index(self.test_index_copy)
-        ElasticCore().es.indices.delete(index=self.test_index_name, ignore=[400, 404])
+        res = self.ec.delete_index(self.test_index_copy)
+        self.ec.delete_index(index=self.test_index_name, ignore=[400, 404])
         print_output(f"Delete apply_bert_taggers test index {self.test_index_copy}", res)
 
 

@@ -150,7 +150,7 @@ class MLPIndexProcessing(APITransactionTestCase):
 
 
     def tearDown(self) -> None:
-        self.ec.es.delete(self.test_index_name, ignore=[400, 404])
+        self.ec.delete_index(self.test_index_name, ignore=[400, 404])
 
 
     def test_index_processing(self):

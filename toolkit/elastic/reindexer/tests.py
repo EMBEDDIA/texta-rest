@@ -30,13 +30,12 @@ class ReindexerViewTests(APITransactionTestCase):
         self.admin.save()
         self.project = project_creation("ReindexerTestProject", self.test_index_name, self.user)
         self.project.users.add(self.user)
-
+        self.ec = ElasticCore()
         self.client.login(username=self.default_username, password=self.default_password)
 
 
     def tearDown(self) -> None:
-        from toolkit.elastic.tools.core import ElasticCore
-        ElasticCore().es.indices.delete(index=self.test_index_name, ignore=[400, 404])
+        self.ec.delete_index(index=self.test_index_name, ignore=[400, 404])
 
 
     def test_run(self):
@@ -128,7 +127,7 @@ class ReindexerViewTests(APITransactionTestCase):
         """ Tests the endpoint for a new Reindexer task, and if a new Task gets created via the signal
            checks if new_index was removed """
         try:
-            ElasticCore().delete_index(TEST_INDEX_REINDEX)
+            self.ec.delete_index(TEST_INDEX_REINDEX)
         except:
             print(f'{TEST_INDEX_REINDEX} was not deleted')
         response = self.client.post(url, payload, format='json')
@@ -159,7 +158,7 @@ class ReindexerViewTests(APITransactionTestCase):
             self.assertEqual(created_reindexer.task.status, Task.STATUS_COMPLETED)
             # self.check_positive_doc_count()
             new_index = response.data['new_index']
-            delete_response = ElasticCore().delete_index(new_index)
+            delete_response = self.ec.delete_index(new_index)
             print_output("Reindexer Test index remove status", delete_response)
 
 
@@ -183,7 +182,7 @@ class ReindexerViewTests(APITransactionTestCase):
 
 
     def validate_fields(self, project, payload):
-        project_fields = ElasticCore().get_fields(project.get_indices())
+        project_fields = self.ec.get_fields(project.get_indices())
         project_field_paths = [field["path"] for field in project_fields]
         for field in payload['fields']:
             if field not in project_field_paths:
