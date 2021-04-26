@@ -1,3 +1,4 @@
+import json
 from rest_framework import serializers
 from .models import Summarizer
 from .values import DefaultSummarizerValues
@@ -32,11 +33,16 @@ class SummarizerIndexSerializer(serializers.ModelSerializer):
     description = serializers.CharField()
     url = serializers.SerializerMethodField()
     query = serializers.JSONField(help_text='Query in JSON format', required=False)
+    algorithm = serializers.MultipleChoiceField(
+        choices=DefaultSummarizerValues.SUPPORTED_ALGORITHMS,
+        default=["lexrank"]
+    )
     fields = serializers.ListField(required=True)
+    ratio = serializers.DecimalField(max_digits=2, decimal_places=1, default=0.2)
 
     class Meta:
         model = Summarizer
-        fields = ("id", "url", "author_username", "indices", "description", "query", "fields")
+        fields = ("id", "url", "author_username", "indices", "description", "query", "fields", "algorithm", "ratio")
 
     def get_url(self, obj):
         default_version = REST_FRAMEWORK.get("DEFAULT_VERSION")
@@ -47,3 +53,9 @@ class SummarizerIndexSerializer(serializers.ModelSerializer):
             return url
         else:
             return None
+
+    def to_representation(self, instance: Summarizer):
+        data = super(SummarizerIndexSerializer, self).to_representation(instance)
+        data["fields"] = instance.fields
+        data["query"] = instance.query
+        return data
