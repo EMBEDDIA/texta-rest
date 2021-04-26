@@ -258,11 +258,13 @@ CELERY_ALWAYS_EAGER = parse_bool_env("TEXTA_CELERY_ALWAYS_EAGER", False)
 CELERY_LONG_TERM_TASK_QUEUE = "long_term_tasks"
 CELERY_SHORT_TERM_TASK_QUEUE = "short_term_tasks"
 CELERY_MLP_TASK_QUEUE = "mlp_queue"
+CELERY_SUMMARIZER_TASK_QUEUE = "summarizer_queue"
 
 CELERY_QUEUES = (
     Queue(CELERY_LONG_TERM_TASK_QUEUE, exchange=CELERY_LONG_TERM_TASK_QUEUE, routing_key=CELERY_LONG_TERM_TASK_QUEUE),
     Queue(CELERY_SHORT_TERM_TASK_QUEUE, exchange=CELERY_SHORT_TERM_TASK_QUEUE, routing_key=CELERY_SHORT_TERM_TASK_QUEUE),
     Queue(CELERY_MLP_TASK_QUEUE, exchange=CELERY_MLP_TASK_QUEUE, routing_key=CELERY_MLP_TASK_QUEUE),
+    Queue(CELERY_SUMMARIZER_TASK_QUEUE, exchange=CELERY_SUMMARIZER_TASK_QUEUE, routing_key=CELERY_SUMMARIZER_TASK_QUEUE),
 )
 
 # By default use the queue for short term tasks, unless specified to use the long term one.
