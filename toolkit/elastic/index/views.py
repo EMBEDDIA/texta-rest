@@ -85,7 +85,7 @@ class IndexViewSet(mixins.CreateModelMixin,
             m._update_from_dict(mapping_dict)
         else:
             return False
-        
+
         try:
             has_texta_facts = isinstance(m[TEXTA_TAGS_KEY], elasticsearch_dsl.Nested)
             return has_texta_facts
@@ -110,8 +110,8 @@ class IndexViewSet(mixins.CreateModelMixin,
             for index in response.data:
                 name = index["name"]
                 is_open = index["is_open"]
-                has_texta_facts_mapping = self._check_for_facts(index_mappings=mappings, index_name=name)
                 if is_open:
+                    has_texta_facts_mapping = self._check_for_facts(index_mappings=mappings, index_name=name)
                     index.update(**stats[name], has_validated_facts=has_texta_facts_mapping)
                 else:
                     # For the sake of courtesy on the front-end, make closed indices values zero.
