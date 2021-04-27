@@ -1,6 +1,8 @@
 import os
+from typing import List
 from sumy.nlp.stemmers import null_stemmer
 from sumy.parsers.plaintext import PlaintextParser
+from pelecanus import PelicanJson
 
 class SumyTokenizer:
     """
@@ -66,6 +68,27 @@ class Sumy:
 
         return summarizers
 
+    def parse_doc_texts(self, doc_path: str, document: dict) -> list:
+        """
+        Function for parsing text values from a nested dictionary given a field path.
+        :param doc_path: Dot separated path of fields to the value we wish to parse.
+        :param document: Document to be worked on.
+        :return: List of text fields that will be processed by MLP.
+        """
+        wrapper = PelicanJson(document)
+        doc_path_as_list = doc_path.split(".")
+        content = wrapper.safe_get_nested_value(doc_path_as_list, default=[])
+        if content and isinstance(content, str):
+            return [content]
+        # Check that content is non-empty list and there are only stings in the list.
+        elif content and isinstance(content, list) and all([isinstance(list_content, str) for list_content in content]):
+            return content
+        # In case the field path is faulty and it gives you a dictionary instead.
+        elif isinstance(content, dict):
+            return []
+        else:
+            return []
+
     def run_on_tokenized(self, text, summarizer_names, ratio):
         summarizers = self.get_summarizers(summarizer_names)
 
@@ -89,5 +112,30 @@ class Sumy:
 
         return stack
 
-    def run_on_index(self, indices, fields, query, algorithm, ratio):
-        pass
+    def run_on_index(self, docs: List[dict], doc_paths: List[str], ratio, algorithm=["lexrank"]):
+        stack = []
+        for document in docs:
+            for doc_path in doc_paths:
+                # Traverse the (possible) nested dicts and extract their text values from it as a list of strings.
+                # Since the nested doc_path could lead to a list there are multiple pieces of text which would be needed to process.
+                doc_texts = self.parse_doc_texts(doc_path, document)
+                for raw_text in doc_texts:
+                    summarizers = self.get_summarizers(algorithm)
+                    ratio_count = SumyTokenizer().sentences_ratio(raw_text, float(ratio))
+                    parser = PlaintextParser.from_string(raw_text, SumyTokenizer())
+
+                    summaries = {}
+                    for name, summarizer in summarizers.items():
+                        try:
+                            summarization = summarizer(parser.document, float(ratio_count))
+                        except Exception as e:
+                            print(e)
+                            continue
+
+                        summary = [sent._text for sent in summarization]
+                        summary = "\n".join(summary)
+                        summaries[name] = summary
+
+            stack.append(summaries)
+
+        return stack
