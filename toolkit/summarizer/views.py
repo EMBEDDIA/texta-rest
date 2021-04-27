@@ -1,6 +1,8 @@
+import json
 import rest_framework.filters as drf_filters
+from django.db import transaction
 from django_filters import rest_framework as filters
-from rest_framework import permissions, status, viewsets
+from rest_framework import permissions, viewsets
 from rest_framework.views import APIView
 from rest_framework.renderers import BrowsableAPIRenderer, HTMLFormRenderer, JSONRenderer
 from rest_framework.response import Response
@@ -16,6 +18,9 @@ from toolkit.core.project.models import Project
 class SummarizerIndexViewSet(viewsets.ModelViewSet, BulkDelete):
     serializer_class = SummarizerIndexSerializer
     filter_backends = (drf_filters.OrderingFilter, filters.DjangoFilterBackend)
+    ordering_fields = (
+    'id', 'author__username', 'description', 'fields', 'task__time_started', 'task__time_completed', 'f1_score',
+    'precision', 'recall', 'task__status')
     permission_classes = (
         ProjectResourceAllowed,
         permissions.IsAuthenticated,
@@ -25,19 +30,21 @@ class SummarizerIndexViewSet(viewsets.ModelViewSet, BulkDelete):
         return Summarizer.objects.filter(project=self.kwargs['project_pk'])
 
     def perform_create(self, serializer):
-        project = Project.objects.get(id=self.kwargs['project_pk'])
-        indices = [index["name"] for index in serializer.validated_data["indices"]]
-        indices = project.get_available_or_all_project_indices(indices)
-        serializer.validated_data.pop("indices")
-        # summarize text
-        worker: Summarizer = serializer.save(
-                author=self.request.user,
-                project=project,
-                fields=serializer.validated_data["fields"],
-            )
-        for index in Index.objects.filter(name__in=indices, is_open=True):
-            worker.indices.add(index)
-        return Response(worker, status=status.HTTP_200_OK)
+        with transaction.atomic():
+            project = Project.objects.get(id=self.kwargs['project_pk'])
+            indices = [index["name"] for index in serializer.validated_data["indices"]]
+            indices = project.get_available_or_all_project_indices(indices)
+            serializer.validated_data.pop("indices")
+            # summarize text
+            worker: Summarizer = serializer.save(
+                    author=self.request.user,
+                    project=project,
+                    fields=json.dumps(serializer.validated_data["fields"]),
+                )
+            for index in Index.objects.filter(name__in=indices, is_open=True):
+                worker.indices.add(index)
+            worker.process()
+            #return Response(worker, status=status.HTTP_200_OK)
 
 
 class SummarizerSummarize(APIView):
