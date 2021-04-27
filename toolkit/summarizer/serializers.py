@@ -2,6 +2,7 @@ import json
 from rest_framework import serializers
 from .models import Summarizer
 from .values import DefaultSummarizerValues
+from toolkit.core.task.serializers import TaskSerializer
 from toolkit.elastic.index.serializers import IndexSerializer
 from toolkit.settings import REST_FRAMEWORK
 from django.urls import reverse
@@ -31,6 +32,7 @@ class SummarizerIndexSerializer(serializers.ModelSerializer):
     indices = IndexSerializer(many=True, default=[])
     author_username = serializers.CharField(source='author.username', read_only=True, required=False)
     description = serializers.CharField()
+    task = TaskSerializer(read_only=True, required=False)
     url = serializers.SerializerMethodField()
     query = serializers.JSONField(help_text='Query in JSON format', required=False)
     algorithm = serializers.MultipleChoiceField(
@@ -42,7 +44,7 @@ class SummarizerIndexSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Summarizer
-        fields = ("id", "url", "author_username", "indices", "description", "query", "fields", "algorithm", "ratio")
+        fields = ("id", "url", "author_username", "indices", "description", "task", "query", "fields", "algorithm", "ratio")
 
     def get_url(self, obj):
         default_version = REST_FRAMEWORK.get("DEFAULT_VERSION")
@@ -56,6 +58,7 @@ class SummarizerIndexSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance: Summarizer):
         data = super(SummarizerIndexSerializer, self).to_representation(instance)
-        data["fields"] = instance.fields
+        data["fields"] = json.loads(instance.fields)
         data["query"] = instance.query
+        data["algorithm"] = instance.algorithm
         return data
