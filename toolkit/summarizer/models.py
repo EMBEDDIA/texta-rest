@@ -6,7 +6,7 @@ from toolkit.core.task.models import Task
 from toolkit.constants import MAX_DESC_LEN
 from toolkit.elastic.index.models import Index
 from toolkit.elastic.tools.searcher import EMPTY_QUERY
-from toolkit.settings import CELERY_SUMMARIZER_TASK_QUEUE
+from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE
 
 
 class Summarizer(models.Model):
@@ -35,4 +35,4 @@ class Summarizer(models.Model):
         self.save()
 
         chain = start_summarizer_worker.s() | apply_summarizer_on_index.s() | end_summarizer_task.s()
-        transaction.on_commit(lambda: chain.apply_async(args=(self.pk,), queue=CELERY_SUMMARIZER_TASK_QUEUE))
+        transaction.on_commit(lambda: chain.apply_async(args=(self.pk,), queue=CELERY_LONG_TERM_TASK_QUEUE))

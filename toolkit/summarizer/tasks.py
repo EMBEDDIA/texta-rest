@@ -8,7 +8,7 @@ from toolkit.elastic.tools.document import ElasticDocument
 from toolkit.elastic.tools.searcher import ElasticSearcher
 from toolkit.summarizer.helpers import process_actions
 from toolkit.summarizer.models import Summarizer
-from toolkit.settings import CELERY_SUMMARIZER_TASK_QUEUE, INFO_LOGGER, ERROR_LOGGER
+from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, INFO_LOGGER, ERROR_LOGGER
 from toolkit.tools.show_progress import ShowProgress
 from toolkit.summarizer.sumy import Sumy
 
@@ -21,7 +21,7 @@ def load_sumy():
     if sumy is None:
         sumy = Sumy()
 
-@task(name="start_summarizer_worker", base=TransactionAwareTask, queue=CELERY_SUMMARIZER_TASK_QUEUE, bind=True)
+@task(name="start_summarizer_worker", base=TransactionAwareTask, queue=CELERY_LONG_TERM_TASK_QUEUE, bind=True)
 def start_summarizer_worker(self, summarizer_id: int):
     logging.getLogger(INFO_LOGGER).info(f"Starting applying summarizer on the index for model ID: {summarizer_id}")
     summarizer_object = Summarizer.objects.get(pk=summarizer_id)
@@ -30,7 +30,7 @@ def start_summarizer_worker(self, summarizer_id: int):
     show_progress.update_view(0)
     return summarizer_id
 
-@task(name="apply_summarizer_on_index", base=TransactionAwareTask, queue=CELERY_SUMMARIZER_TASK_QUEUE, bind=True)
+@task(name="apply_summarizer_on_index", base=TransactionAwareTask, queue=CELERY_LONG_TERM_TASK_QUEUE, bind=True)
 def apply_summarizer_on_index(self, summarizer_id: int):
     summarizer_object = Summarizer.objects.get(pk=summarizer_id)
     task_object = summarizer_object.task
@@ -71,7 +71,7 @@ def apply_summarizer_on_index(self, summarizer_id: int):
         raise e
 
 
-@task(name="end_summarizer_task", base=TransactionAwareTask, queue=CELERY_SUMMARIZER_TASK_QUEUE, bind=True)
+@task(name="end_summarizer_task", base=TransactionAwareTask, queue=CELERY_LONG_TERM_TASK_QUEUE, bind=True)
 def end_summarizer_task(self, summarizer_id):
     logging.getLogger(INFO_LOGGER).info(f"Finished applying summarizer on the index for model ID: {summarizer_id}")
     summarizer_object = Summarizer.objects.get(pk=summarizer_id)
