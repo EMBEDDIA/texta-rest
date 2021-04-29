@@ -82,8 +82,10 @@ class IndexViewSet(mixins.CreateModelMixin,
         mapping_dict = index_mappings[index_name]["mappings"]
         mapping_dict = self._resolve_cluster_differences(mapping_dict)
         if mapping_dict:
-            print(index_name, index_mappings, mapping_dict)
-            m._update_from_dict(mapping_dict)
+            try:
+                m._update_from_dict(mapping_dict)
+            except:
+                print(index_name, mapping_dict)
         else:
             return False
 
