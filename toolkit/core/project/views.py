@@ -433,7 +433,8 @@ class ProjectViewSet(viewsets.ModelViewSet, FeedbackIndexView):
             'num_dataset_importers': proj.datasetimport_set.count(),
             'num_bert_taggers': proj.berttagger_set.count(),
             'num_index_splitters': proj.indexsplitter_set.count(),
-            'num_evaluators': proj.evaluator_set.count()
+            'num_evaluators': proj.evaluator_set.count(),
+            'num_summarizers': proj.summarizer_set.count()
         }
 
         return Response(response, status=status.HTTP_200_OK)
