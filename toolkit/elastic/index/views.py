@@ -1,3 +1,6 @@
+import logging
+from typing import Optional
+
 import elasticsearch_dsl
 import rest_framework.filters as drf_filters
 from django.db import transaction
@@ -16,7 +19,7 @@ from toolkit.elastic.index.serializers import (
 )
 from toolkit.elastic.tools.core import ElasticCore
 from toolkit.permissions.project_permissions import IsSuperUser
-from toolkit.settings import TEXTA_TAGS_KEY
+from toolkit.settings import ERROR_LOGGER, TEXTA_TAGS_KEY
 
 
 class IndicesFilter(filters.FilterSet):
@@ -65,16 +68,16 @@ class IndexViewSet(mixins.CreateModelMixin,
     )
 
 
-    def _resolve_cluster_differences(self, mapping_dict: dict):
+    def _resolve_cluster_differences(self, mapping_dict: dict) -> Optional[dict]:
         # Trying to support ES6 and ES7 mapping structure.
-        keys = list(mapping_dict.keys())
-        mapping_key = keys[0] if keys else None
-        if mapping_key:
-            mapping_dict = mapping_dict if "properties" in mapping_dict else mapping_dict[mapping_key]
+        has_properties = True if "properties" in mapping_dict else False
+        if has_properties:
             return mapping_dict
         # In this case, the mapping is a a plain dictionary because no fields exist.
         else:
-            return None
+            for key in mapping_dict.keys():
+                if "properties" in mapping_dict[key]:
+                    return mapping_dict[key]
 
 
     def _check_for_facts(self, index_mappings: dict, index_name: str):
@@ -84,8 +87,9 @@ class IndexViewSet(mixins.CreateModelMixin,
         if mapping_dict:
             try:
                 m._update_from_dict(mapping_dict)
-            except:
-                print(index_name, mapping_dict)
+            except Exception as e:
+                logging.getLogger(ERROR_LOGGER).exception(e)
+                return False
         else:
             return False
 
