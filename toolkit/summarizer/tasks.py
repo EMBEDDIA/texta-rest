@@ -42,6 +42,8 @@ def apply_summarizer_on_index(self, summarizer_id: int):
         # Get the necessary fields.
         indices: List[str] = summarizer_object.get_indices()
         field_data: List[str] = json.loads(summarizer_object.fields)
+        ratio_data: float[str] = summarizer_object.ratio
+        algorithm_data: List[str] = summarizer_object.algorithm
 
         scroll_size = 100
         searcher = ElasticSearcher(
@@ -54,10 +56,10 @@ def apply_summarizer_on_index(self, summarizer_id: int):
             scroll_timeout="30m"
         )
 
-        for index in indices:
-            searcher.core.add_texta_facts_mapping(index=index)
+        #for index in indices:
+        #    searcher.core.add_texta_facts_mapping(index=index)
 
-        actions = process_actions(searcher, field_data, summarizer_class=sumy, summarizer_id=summarizer_id)
+        actions = process_actions(searcher, field_data, ratio_data, algorithm=algorithm_data, summarizer_class=sumy, summarizer_id=summarizer_id)
 
         # Send the data towards Elasticsearch
         ed = ElasticDocument("_all")
