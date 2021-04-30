@@ -16,3 +16,6 @@ class DefaultSummarizerValues:
             "0.9",
             "1"
         )
+    DEFAULT_ALGORITHM = (
+        "lexrank"
+    )
