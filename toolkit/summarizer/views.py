@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from rest_framework.renderers import BrowsableAPIRenderer, HTMLFormRenderer, JSONRenderer
 from rest_framework.response import Response
 from toolkit.elastic.index.models import Index
-from .serializers import SummarizerIndexSerializer, SummarizerSummarizeSerializer, SummarizerApplyToIndexSerializer
+from .serializers import SummarizerIndexSerializer, SummarizerSummarizeSerializer
 from toolkit.permissions.project_permissions import ProjectResourceAllowed
 from .models import Summarizer
 from toolkit.view_constants import BulkDelete
@@ -40,6 +40,7 @@ class SummarizerIndexViewSet(viewsets.ModelViewSet, BulkDelete):
                     author=self.request.user,
                     project=project,
                     fields=json.dumps(serializer.validated_data["fields"]),
+                    algorithm=list(serializer.validated_data["algorithm"]),
                 )
             for index in Index.objects.filter(name__in=indices, is_open=True):
                 worker.indices.add(index)
@@ -63,27 +64,5 @@ class SummarizerSummarize(APIView):
         sumy = Sumy()
 
         results = sumy.run_on_tokenized(text=text, summarizer_names=algorithm, ratio=ratio)
-
-        return Response(results)
-
-
-class SummarizerApplyToIndex(APIView):
-    serializer_class = SummarizerApplyToIndexSerializer
-    renderer_classes = (BrowsableAPIRenderer, JSONRenderer, HTMLFormRenderer)
-    permission_classes = (permissions.IsAuthenticated,)
-
-    def post(self, request):
-        serializer = SummarizerApplyToIndexSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        indices = list(serializer.validated_data["indices"])
-        fields = list(serializer.validated_data["fields"])
-        query = serializer.validated_data["query"]
-        algorithm = list(serializer.validated_data["algorithm"])
-        ratio = serializer.validated_data["ratio"]
-
-        sumy = Sumy()
-
-        results = sumy.run_on_index(indices=indices, fields=fields, query=query, algorithm=algorithm, ratio=ratio)
 
         return Response(results)
