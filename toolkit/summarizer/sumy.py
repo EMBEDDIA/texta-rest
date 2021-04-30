@@ -97,8 +97,8 @@ class Sumy:
         summarizers = self.get_summarizers(algorithm)
         for document in docs:
             for doc_path in doc_paths:
-                ratio_count = SumyTokenizer().sentences_ratio(document[doc_path.get("name")], float(ratio))
-                parser = PlaintextParser.from_string(document[doc_path.get("name")], SumyTokenizer())
+                ratio_count = SumyTokenizer().sentences_ratio(document[doc_path], float(ratio))
+                parser = PlaintextParser.from_string(document[doc_path], SumyTokenizer())
 
                 summaries = {}
                 for name, summarizer in summarizers.items():
