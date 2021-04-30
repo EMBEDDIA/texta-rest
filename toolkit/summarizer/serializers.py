@@ -17,17 +17,6 @@ class SummarizerSummarizeSerializer(serializers.Serializer):
     ratio = serializers.DecimalField(max_digits=2, decimal_places=1, default=0.2)
 
 
-class SummarizerApplyToIndexSerializer(serializers.Serializer):
-    indices = serializers.ListField(child=serializers.CharField(), required=True)
-    fields = serializers.ListField(child=serializers.CharField(), required=True)
-    query = serializers.JSONField(default="{}")
-    algorithm = serializers.MultipleChoiceField(
-        choices=DefaultSummarizerValues.SUPPORTED_ALGORITHMS,
-        default=["lexrank"]
-    )
-    ratio = serializers.DecimalField(max_digits=2, decimal_places=1, default=0.2)
-
-
 class SummarizerIndexSerializer(serializers.ModelSerializer):
     indices = IndexSerializer(many=True, default=[])
     author_username = serializers.CharField(source='author.username', read_only=True, required=False)

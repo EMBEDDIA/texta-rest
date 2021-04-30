@@ -195,7 +195,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
         for resource_name in resources:
             resource_dict[resource_name] = f'{base_url}{resource_name}/'
 
-        additional_urls = ['mlp_texts', 'mlp_docs', 'summarizer_summarize', 'summarizer_apply_to_index']
+        additional_urls = ['mlp_texts', 'mlp_docs', 'summarizer_summarize']
         for item in additional_urls:
             view_url = reverse(f"{api_version}:{item}")
             resource_dict[item] = request.build_absolute_uri(view_url)

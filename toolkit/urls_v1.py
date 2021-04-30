@@ -33,7 +33,7 @@ from toolkit.elastic.face_analyzer.views import FaceAnalyzerViewSet
 from toolkit.embedding.urls import embedding_router
 from toolkit.mlp.urls import mlp_router
 from toolkit.mlp.views import MLPListProcessor, MlpDocsProcessor
-from toolkit.summarizer.views import SummarizerSummarize, SummarizerApplyToIndex
+from toolkit.summarizer.views import SummarizerSummarize
 from toolkit.regex_tagger.urls import router as regex_tagger_router
 from toolkit.tagger.urls import router as tagger_router
 from toolkit.tools.swagger import schema_view
@@ -98,7 +98,6 @@ urlpatterns = [
 
     # summarizer
     path("summarizer/summarize", SummarizerSummarize.as_view(), name="summarizer_summarize"),
-    path("summarizer/apply_to_index", SummarizerApplyToIndex.as_view(), name="summarizer_apply_to_index"),
     # routers
     url(r'^', include(router.urls)),
     path("", include(index_router.urls), name="index"),
