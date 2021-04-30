@@ -45,7 +45,6 @@ class SummarizerIndexViewSet(viewsets.ModelViewSet, BulkDelete):
             for index in Index.objects.filter(name__in=indices, is_open=True):
                 worker.indices.add(index)
             worker.process()
-            #return Response(worker, status=status.HTTP_200_OK)
 
 
 class SummarizerSummarize(APIView):
