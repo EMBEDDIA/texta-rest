@@ -36,7 +36,7 @@ class SummarizerIndexSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
     query = serializers.JSONField(help_text='Query in JSON format', required=False)
     algorithm = serializers.MultipleChoiceField(
-        choices=DefaultSummarizerValues.SUPPORTED_ALGORITHMS,
+        choices=list(DefaultSummarizerValues.SUPPORTED_ALGORITHMS),
         default=["lexrank"]
     )
     fields = serializers.ListField(required=True)
