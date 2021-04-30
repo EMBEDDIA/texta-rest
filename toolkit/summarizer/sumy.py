@@ -1,4 +1,5 @@
 import os
+import ast
 from typing import List
 from sumy.nlp.stemmers import null_stemmer
 from sumy.parsers.plaintext import PlaintextParser
@@ -34,11 +35,9 @@ class Sumy:
 
         return stop_words
 
-    def get_summarizers(self, names: List[str]):
-        print(names)
+    def get_summarizers(self, names):
         summarizers = {}
         for name in names:
-            print(name)
             if name == "random":
                 from sumy.summarizers.random import RandomSummarizer
                 summarizers["random"] = RandomSummarizer(null_stemmer)
@@ -94,6 +93,7 @@ class Sumy:
 
     def run_on_index(self, docs: List[dict], doc_paths: List[str], ratio, algorithm: List[str]):
         stack = []
+        algorithm = ast.literal_eval(algorithm)
         summarizers = self.get_summarizers(algorithm)
         for document in docs:
             for doc_path in doc_paths:
@@ -104,7 +104,6 @@ class Sumy:
                 for name, summarizer in summarizers.items():
                     try:
                         summarization = summarizer(parser.document, float(ratio_count))
-                        print(summarization)
                     except Exception as e:
                         print(e)
                         continue
