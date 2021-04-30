@@ -26,6 +26,12 @@ class SumyTokenizer:
 
 class Sumy:
     def get_stop_words(self):
+        """Retrieves stop words needed for summarizers
+
+            Returns:
+            dict:stop_words
+
+        """
         stop_words = {}
         stop_word_dir = os.path.join(os.path.dirname(__file__), 'stop_words')
         for f in os.listdir(stop_word_dir):
@@ -36,6 +42,15 @@ class Sumy:
         return stop_words
 
     def get_summarizers(self, names):
+        """Retrieves sumy summarizers algorithms
+
+            Parameters:
+            names (list): list of summarizer algorithm names
+
+            Returns:
+            dict:summarizers
+
+        """
         summarizers = {}
         for name in names:
             if name == "random":
@@ -69,6 +84,17 @@ class Sumy:
         return summarizers
 
     def run_on_tokenized(self, text, summarizer_names, ratio):
+        """Generate summary based on tokenized text
+
+            Parameters:
+            text (str): plain text
+            summarizer_names (list): list of summarizer algorithms to use
+            ratio (float): ratio to use for summarization
+
+            Returns:
+            list:stack
+
+        """
         summarizers = self.get_summarizers(summarizer_names)
 
         stack = []
@@ -92,6 +118,18 @@ class Sumy:
         return stack
 
     def run_on_index(self, docs: List[dict], doc_paths: List[str], ratio, algorithm: List[str]):
+        """Generate summary based on tokenized text retrieved from es fields
+
+            Parameters:
+            docs (list): list of documents
+            doc_paths (list): list of fields
+            ratio (float): ratio to use for summarization
+            algorithm (list): list of algorithms for sumy
+
+            Returns:
+            list:stack
+
+        """
         stack = []
         algorithm = ast.literal_eval(algorithm)
         summarizers = self.get_summarizers(algorithm)
