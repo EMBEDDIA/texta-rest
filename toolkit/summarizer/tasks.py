@@ -56,9 +56,6 @@ def apply_summarizer_on_index(self, summarizer_id: int):
             scroll_timeout="30m"
         )
 
-        #for index in indices:
-        #    searcher.core.add_texta_facts_mapping(index=index)
-
         actions = process_actions(searcher, field_data, ratio_data, algorithm=algorithm_data, summarizer_class=sumy, summarizer_id=summarizer_id)
 
         # Send the data towards Elasticsearch
