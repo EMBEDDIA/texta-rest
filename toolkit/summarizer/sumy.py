@@ -1,8 +1,8 @@
-import os
 import ast
 from typing import List
 from sumy.nlp.stemmers import null_stemmer
 from sumy.parsers.plaintext import PlaintextParser
+from texta_tools.text_processor import StopWords
 
 class SumyTokenizer:
     """
@@ -25,21 +25,8 @@ class SumyTokenizer:
 
 
 class Sumy:
-    def get_stop_words(self):
-        """Retrieves stop words needed for summarizers
-
-            Returns:
-            dict:stop_words
-
-        """
-        stop_words = {}
-        stop_word_dir = os.path.join(os.path.dirname(__file__), 'stop_words')
-        for f in os.listdir(stop_word_dir):
-            with open('{0}/{1}'.format(stop_word_dir, f), encoding="utf8") as fh:
-                for stop_word in fh.read().strip().split('\n'):
-                    stop_words[stop_word] = True
-
-        return stop_words
+    def __init__(self):
+        self.stop_words = StopWords()
 
     def get_summarizers(self, names):
         """Retrieves sumy summarizers algorithms
@@ -79,7 +66,7 @@ class Sumy:
                 summarizers["reduction"] = ReductionSummarizer(null_stemmer)
 
         for _, summarizer in summarizers.items():
-            summarizer.stop_words = frozenset(self.get_stop_words())
+            summarizer.stop_words = frozenset(self.stop_words._get_stop_words(custom_stop_words=[]))
 
         return summarizers
 
