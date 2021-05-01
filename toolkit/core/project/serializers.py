@@ -167,6 +167,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
                 'anonymizers',
                 'regex_tagger_groups',
                 'mlp_index',
+                'lang_index',
                 'evaluators',
                 'summarizer_index'
             )
@@ -188,6 +189,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
                 'anonymizers',
                 'regex_tagger_groups',
                 'mlp_index',
+                'lang_index',
                 'evaluators',
                 'summarizer_index'
             )

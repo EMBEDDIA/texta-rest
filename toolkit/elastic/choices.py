@@ -1,20 +1,51 @@
+import logging
+
+from toolkit.settings import ELASTIC_CLUSTER_VERSION, INFO_LOGGER
+
+
 LABEL_DISTRIBUTION = (
     ("random", "random"),
     ("original", "original"),
     ("equal", "equal"),
     ("custom", "custom")
 )
+
+ES6_SNOWBALL_MAPPING = {
+    "ca": "catalan",
+    "da": "danish",
+    "nl": "dutch",
+    "en": "english",
+    "fi": "finnish",
+    "fr": "french",
+    "de": "german",
+    "hu": "hungarian",
+    "it": "italian",
+    "lt": "lithuanian",
+    "no": "norwegian",
+    "pt": "portuguese",
+    "ro": "romanian",
+    "ru": "russian",
+    "es": "spanish",
+    "sv": "swedish",
+    "tr": "turkish",
+}
+
+ES7_SNOWBALL_MAPPING = {"ar": "arabic", "et": "estonian"}
+DEFAULT_SNOWBALL_LANGUAGE = None
+
+
 def get_snowball_choices():
-   elastic_langs = [
-      'estonian', 'english', 'arabic', 'armenian', 'basque', 'bengali', 'brazilian',
-      'bulgarian', 'catalan', 'czech', 'danish', 'dutch', 'finnish', 'french', 'galician', 
-      'german', 'greek', 'hindi', 'hungarian', 'indonesian', 'irish', 'italian', 'latvian', 
-      'lithuanian', 'norwegian', 'persian', 'portuguese', 'romanian', 'russian',
-      'spanish', 'swedish', 'turkish', 'thai']
-   
-   choices = [(None, None)]
+    default_choices = [(DEFAULT_SNOWBALL_LANGUAGE, DEFAULT_SNOWBALL_LANGUAGE)]
+    if ELASTIC_CLUSTER_VERSION == 7:
+        languages = {**ES7_SNOWBALL_MAPPING, **ES6_SNOWBALL_MAPPING}
+    elif ELASTIC_CLUSTER_VERSION == 6:
+        languages = ES6_SNOWBALL_MAPPING
+    else:
+        # Just in case, default to the most minimal options.
+        languages = ES6_SNOWBALL_MAPPING
+        logging.getLogger(INFO_LOGGER).warning("Unspecified Elastic cluster version when determining Snowball options!")
 
-   for lang in elastic_langs:
-      choices.append((lang, lang))
+    for key, value in languages.items():
+        default_choices.append((value, value))
 
-   return choices
+    return default_choices

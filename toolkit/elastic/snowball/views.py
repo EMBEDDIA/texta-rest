@@ -1,7 +1,8 @@
 from rest_auth import views
+from rest_framework import permissions, status
 from rest_framework.response import Response
-from rest_framework import permissions
 
+from toolkit.elastic.choices import get_snowball_choices
 from toolkit.elastic.snowball.serializers import SnowballSerializer
 from toolkit.tools.lemmatizer import ElasticLemmatizer
 
@@ -9,6 +10,7 @@ from toolkit.tools.lemmatizer import ElasticLemmatizer
 class SnowballProcessor(views.APIView):
     serializer_class = SnowballSerializer
     permission_classes = (permissions.IsAuthenticated,)
+
 
     def post(self, request):
         serializer = SnowballSerializer(data=request.data)
@@ -21,3 +23,9 @@ class SnowballProcessor(views.APIView):
         lemmatized = lemmatizer.lemmatize(text)
 
         return Response({"text": lemmatized})
+
+
+    def get(self, request):
+        languages = get_snowball_choices()
+        languages = [key for key, value in languages]
+        return Response(languages, status=status.HTTP_200_OK)

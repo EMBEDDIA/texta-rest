@@ -1,12 +1,22 @@
-from typing import List
 import json
-
+import logging
+import numpy as np
+from nltk.tokenize import sent_tokenize
+from typing import List, Optional
+from random import sample, shuffle
+from toolkit.settings import INFO_LOGGER
 from toolkit.elastic.tools.searcher import ElasticSearcher
 from toolkit.elastic.tools.aggregator import ElasticAggregator
 from toolkit.elastic.tools.feedback import Feedback
 from toolkit.elastic.tools.query import Query
+from toolkit.elastic.tools.searcher import ElasticSearcher
 from toolkit.tools.lemmatizer import ElasticLemmatizer
+from texta_tools.text_processor import TextProcessor
+from copy import deepcopy
+from .core import ElasticCore
+from ..choices import ES6_SNOWBALL_MAPPING, ES7_SNOWBALL_MAPPING
 from ..exceptions import InvalidDataSampleError
+from ...tools.show_progress import ShowProgress
 
 
 class InvalidDataSampleError(Exception):
@@ -16,16 +26,48 @@ class InvalidDataSampleError(Exception):
 
 class DataSample:
     """Re-usable object for handling positive and negative data samples for Taggers and TorchTaggers."""
-    def __init__(self, model_object, indices: List[str], field_data: List[str], show_progress=None, join_fields=False, text_processor=None, add_negative_sample=False, snowball_language=None):
+
+
+    def __init__(self,
+                 model_object,
+                 indices: List[str],
+                 field_data: List[str],
+                 show_progress: ShowProgress = None,
+                 join_fields: bool = False,
+                 text_processor: TextProcessor = None,
+                 add_negative_sample: bool = False,
+                 snowball_language: str = None,
+                 detect_lang: bool = False,
+                 balance: bool = False,
+                 use_sentence_shuffle: bool = False,
+                 balance_to_max_limit: bool = False):
+        """
+        :param model_object:
+        :param indices: List of Elasticsearch index names where the documents will be pulled from.
+        :param field_data: List of field names from the JSON document to process.
+        :param show_progress: Callback object used to store the progress inside the database.
+        :param join_fields:
+        :param text_processor:
+        :param add_negative_sample:
+        :param snowball_language: Which language stemmer to use on the document. Based on internal Elasticsearch values.
+        :param detect_lang: Whether to apply the stemmer based on the pre-detected values in the document itself.
+        """
         self.tagger_object = model_object
         self.show_progress = show_progress
         self.indices = indices
         self.field_data = field_data
+        self.fields_with_language = [f"{field}_mlp.language.detected" for field in field_data] + field_data
         self.join_fields = join_fields
         self.text_processor = text_processor
         self.add_negative_sample = add_negative_sample
+        self.detect_lang = detect_lang
+        self.balance = balance
+        self.use_sentence_shuffle = use_sentence_shuffle
+        self.balance_to_max_limit = balance_to_max_limit
+        self.max_class_size = self._get_max_class_size()
         self.class_names, self.queries = self._prepare_class_names_with_queries()
         self.ignore_ids = set()
+
 
         # retrive feedback
         self.feedback = self._get_feedback()
@@ -35,25 +77,82 @@ class DataSample:
         self.data = {**self.feedback, **self.data}
 
         # use Snowball stemmer
-        self._snowball(snowball_language)
+        if detect_lang is False:
+            self._snowball(snowball_language)
+        else:
+            self._snowball_from_doc()
 
         # validate resulting data sample
         self._validate()
 
         self.is_binary = True if len(self.data) == 2 else False
 
+
+    def _get_max_class_size(self) -> int:
+        """Aggregates over values of the selected fact and returns the size of the largest class."""
+        max_class_size = None
+        if self.tagger_object.fact_name:
+            es_aggregator = ElasticAggregator(indices=self.indices)
+            facts = es_aggregator.get_fact_values_distribution(fact_name=self.tagger_object.fact_name, fact_name_size=10, fact_value_size=10)
+            logging.getLogger(INFO_LOGGER).info(f"The most frequent class: {facts}")
+            max_class_size = max(facts.values())
+        return max_class_size
+
+
+    @staticmethod
+    def humanize_lang_code(lang_code: str, base_mapping: dict = ES6_SNOWBALL_MAPPING, es7_mapping=ES7_SNOWBALL_MAPPING) -> Optional[str]:
+        """
+        https://www.elastic.co/guide/en/elasticsearch/reference/7.10/analysis-snowball-tokenfilter.html
+
+        :param lang_code: Language string in ISO 639-1 format.
+        :param base_mapping: Dictionary where the keys are ISO 639-1 codes and the values their humanised forms as per Elasticsearch 6 support.
+        :param es7_mapping: Same as base_mapping but only includes new additions from Elasticsearch 7.
+        :return: Humanized form of the language code that is compatible with the built-in Snowball options that Elasticsearch supports or None if it doesn't.
+        """
+        ec = ElasticCore()
+        first, second, third = ec.get_version()
+        if first == 6:
+            humanized = base_mapping.get(lang_code, None)
+            return humanized
+        elif first == 7:
+            full_mapping = {**base_mapping, **es7_mapping}
+            humanized = full_mapping.get(lang_code, None)
+            return humanized
+
+
     def _snowball(self, snowball_language):
         """
         Stems the texts in data sample using Snowball.
         """
         if snowball_language:
-            lemmatizer = ElasticLemmatizer(language=snowball_language)
+            lemmatizer = ElasticLemmatizer()
             for cl, examples in self.data.items():
                 processed_examples = []
                 for example_doc in examples:
-                    new_example_doc = {k: lemmatizer.lemmatize(v) for k, v in example_doc.items()}
+                    new_example_doc = {k: lemmatizer.lemmatize(v, language=snowball_language) for k, v in example_doc.items()}
                     processed_examples.append(new_example_doc)
                 self.data[cl] = processed_examples
+
+
+    def _snowball_from_doc(self):
+        """
+        Stems the texts in data sample using Snowball.
+        """
+        lemmatizer = ElasticLemmatizer()
+        for cl, examples in self.data.items():
+            processed_examples = []
+            for example_doc in examples:
+                for key, value in example_doc.items():
+                    # Use this string to differentiate between original and MLP added fields.
+                    if "_mlp." not in key:
+                        lang = example_doc.get(f"{key}_mlp.language.detected", None)
+                        if lang is not None:
+                            snowball_language = self.humanize_lang_code(lang)
+                            if snowball_language:
+                                example_doc[key] = lemmatizer.lemmatize(example_doc[key], snowball_language)
+                processed_examples.append(example_doc)
+
+            self.data[cl] = processed_examples
 
 
     @staticmethod
@@ -130,19 +229,103 @@ class DataSample:
             samples['false'] = self._get_negatives(size)
         return samples
 
+    @staticmethod
+    def _extract_content(doc: dict, field: str) -> str:
+        """Extracts content from a potentially nested field."""
+        # If field is not nested
+        if field in doc:
+            content = doc[field]
+        else:
+            content = doc
+            # Retrieve text from potentially nested field
+            subfields = field.split(".")
+            for subfield in subfields:
+                try:
+                    content = content[subfield]
+                except Exception as e:
+                    content = ""
+        return content
+
+
+    @staticmethod
+    def _update_content(doc: dict, field: str, content: str) -> dict:
+        """Updates content of a potentially nested field."""
+        # If field is not nested
+        if field in doc:
+            doc[field] = content
+        else:
+            branch = doc
+            # Retrieve text from potentially nested field
+            subfields = field.split(".")
+            depth = len(subfields)
+            for i, subfield in enumerate(subfields):
+                # If reached to the deepest level, add content
+                if i+1 == depth:
+                    branch[subfield] = content
+                else:
+                    branch = branch[subfield]
+        return doc
+
+
+    @staticmethod
+    def _shuffle_sentences(text: str) -> str:
+        """Extracts and shuffles sentences."""
+        sentences = sent_tokenize(text)
+        shuffle(sentences)
+        shuffled_text = " ".join(sentences)
+        return shuffled_text
+
+
+    def _shuffle_content(self, doc: dict, fields_to_shuffle: List[str]) -> dict:
+        """Shuffle sentences in field `field_to_shuffle`."""
+        for field_to_shuffle in fields_to_shuffle:
+            content = self._extract_content(doc, field_to_shuffle)
+            shuffled_content = self._shuffle_sentences(content)
+            doc = self._update_content(doc, field_to_shuffle, shuffled_content)
+        return doc
+
+
+    def _duplicate_examples(self, positive_sample: List[dict], class_name: str, limit: int):
+        """ Generate addtional examples by duplicating them for underrepresented classes."""
+        # If balancing to max limit is enabled, set the number of samples to max sample size
+        if self.balance_to_max_limit:
+            n_samples = limit
+
+        # Else set the number of samples to max class size if it doesn't exceed the max sample size
+        else:
+            n_samples = min(self.max_class_size, limit)
+
+        if len(positive_sample) < n_samples:
+            n = n_samples - len(positive_sample)
+            logging.getLogger(INFO_LOGGER).info(f"Adding {n} examples for class {class_name}")
+
+            # Generate the required amount of additional documents by sampling with replacements
+            additions = list(np.random.choice(positive_sample, size=n, replace=True))
+
+            # If sentence shuffling is enabled, shuffle the sentences in the additional documents
+            if self.use_sentence_shuffle:
+                logging.getLogger(INFO_LOGGER).info(f"Shuffling sentences in additional examples of class {class_name}")
+                additions = [self._shuffle_content(doc, self.field_data) for doc in additions]
+            positive_sample.extend(additions)
+            shuffle(positive_sample)
+        return positive_sample
+
 
     def _get_class_sample(self, query, class_name):
-        print(query)
         """Returns sample for given class"""
         # limit the docs according to max sample size & feedback size
         limit = int(self.tagger_object.maximum_sample_size)
+
+
         if class_name in self.feedback:
             limit = limit - len(self.feedback[class_name])
+
+        logging.getLogger(INFO_LOGGER).info(f"Collecting examples for class {class_name} (max limit = {limit})...")
         # iterator for retrieving positive sample by query
         positive_sample_iterator = ElasticSearcher(
             query=query,
             indices=self.indices,
-            field_data=self.field_data,
+            field_data=self.fields_with_language,
             output=ElasticSearcher.OUT_DOC_WITH_ID,
             callback_progress=self.show_progress,
             scroll_limit=limit,
@@ -155,6 +338,13 @@ class DataSample:
             # remove id from doc
             del doc["_id"]
             positive_sample.append(doc)
+
+        logging.getLogger(INFO_LOGGER).info(f"Found {len(positive_sample)} examples for {class_name}...")
+
+        # If class balancing is enabled, modify number of required samples
+        if self.balance:
+            positive_sample = self._duplicate_examples(positive_sample, class_name, limit)
+
         # document doct to value string if asked
         if self.join_fields:
             positive_sample = self._join_fields(positive_sample)
@@ -195,11 +385,11 @@ class DataSample:
         # iterator for retrieving negative examples
         negative_sample_iterator = ElasticSearcher(
             indices=self.indices,
-            field_data=json.loads(self.tagger_object.fields),
+            field_data=self.fields_with_language,
             output=ElasticSearcher.OUT_DOC,
             callback_progress=self.show_progress,
             text_processor=self.text_processor,
-            scroll_limit=size*int(self.tagger_object.negative_multiplier),
+            scroll_limit=size * int(self.tagger_object.negative_multiplier),
             ignore_ids=self.ignore_ids,
         )
         # iterator to list
