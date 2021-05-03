@@ -1,7 +1,6 @@
 from django.urls import reverse
 from rest_framework.test import APITestCase
 from toolkit.tools.utils_for_tests import create_test_user, print_output
-from toolkit.test_settings import TEST_VERSION_PREFIX
 from rest_framework import status
 
 

@@ -3,7 +3,6 @@ import json
 from django.urls import reverse
 from rest_framework.test import APITestCase
 from toolkit.tools.utils_for_tests import create_test_user, project_creation, print_output
-from toolkit.test_settings import TEST_INDEX, VERSION_NAMESPACE
 from toolkit.elastic.tools.document import ElasticDocument
 from rest_framework import status
 
