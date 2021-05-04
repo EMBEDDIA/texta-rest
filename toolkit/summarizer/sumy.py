@@ -1,8 +1,11 @@
 import ast
+import logging
 from typing import List
 from sumy.nlp.stemmers import null_stemmer
 from sumy.parsers.plaintext import PlaintextParser
 from texta_tools.text_processor import StopWords
+from toolkit.settings import ERROR_LOGGER
+
 
 class SumyTokenizer:
     """
@@ -93,7 +96,7 @@ class Sumy:
             try:
                 summarization = summarizer(parser.document, float(ratio_count))
             except Exception as e:
-                print(e)
+                logging.getLogger(ERROR_LOGGER).exception(e)
                 continue
 
             summary = [sent._text for sent in summarization]
@@ -130,7 +133,7 @@ class Sumy:
                     try:
                         summarization = summarizer(parser.document, float(ratio_count))
                     except Exception as e:
-                        print(e)
+                        logging.getLogger(ERROR_LOGGER).exception(e)
                         continue
 
                     summary = [sent._text for sent in summarization]
