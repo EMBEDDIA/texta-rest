@@ -102,10 +102,14 @@ class DataSample:
 
         # if fact_name is present in tagger group related to the tagger object
         else:
-            tagger_groups = json.loads(self.tagger_object.tagger_groups)
-            fact_names = [tg.get("fact_name") for tg in tagger_groups]
-            if fact_names:
-                fact_name = fact_names[0]
+            try:
+                tagger_groups = json.loads(self.tagger_object.tagger_groups)
+                fact_names = [tg.get("fact_name") for tg in tagger_groups]
+                if fact_names:
+                    fact_name = fact_names[0]
+            # If tagger group doesn't exist in the object (e.g. Bert, Torch)
+            except:
+                pass
         return fact_name
 
 
@@ -240,7 +244,13 @@ class DataSample:
         """ Sets a class display name for logger messages as a plain class name ("true")
         is uniformative for taggers related to a Tagger Group.
         """
-        if json.loads(self.tagger_object.tagger_groups):
+        try:
+            tagger_groups = json.loads(self.tagger_object.tagger_groups)
+        # If tagger group doesn't exist in the object (e.g. Bert, Torch)
+        except:
+            tagger_groups = []
+
+        if tagger_groups:
             self.class_display_name = self.tagger_object.description
         else:
             self.class_display_name = class_name
