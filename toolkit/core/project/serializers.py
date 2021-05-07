@@ -155,6 +155,8 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
                 'elastic/index_splitter',
                 'elastic/dataset_imports',
                 'elastic/face_analyzer',
+                'elastic/search_tagger_query',
+                'elastic/search_tagger_fields',
                 'elastic/scroll',
                 'searches',
                 'embeddings',
@@ -175,6 +177,8 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
             resources = (
                 'lexicons',
                 'reindexer',
+                'search_tagger_query',
+                'search_tagger_fields',
                 'index_splitter',
                 'dataset_imports',
                 'searches',
