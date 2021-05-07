@@ -7,9 +7,9 @@ from rest_framework import serializers
 from toolkit.core import choices as choices
 from toolkit.core.project.models import Project
 from toolkit.core.project.validators import check_if_in_elastic
+from toolkit.elastic.index.serializers import IndexSerializer
 from toolkit.elastic.tools.core import ElasticCore
 from toolkit.elastic.tools.searcher import EMPTY_QUERY
-from toolkit.elastic.index.serializers import IndexSerializer
 
 
 class ExportSearcherResultsSerializer(serializers.Serializer):
@@ -156,6 +156,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
                 'elastic/dataset_imports',
                 'elastic/face_analyzer',
                 'elastic/scroll',
+                'elastic/apply_snowball'
                 'searches',
                 'embeddings',
                 'topic_analyzer',
@@ -191,7 +192,8 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
                 'mlp_index',
                 'lang_index',
                 'evaluators',
-                'summarizer_index'
+                'summarizer_index',
+                'apply_snowball'
             )
 
         for resource_name in resources:
