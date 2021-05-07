@@ -12,20 +12,37 @@ from rest_framework.views import APIView
 from texta_mlp.mlp import MLP
 
 from toolkit.core.project.models import Project
+from toolkit.elastic.choices import ES6_SNOWBALL_MAPPING, ES7_SNOWBALL_MAPPING
 from toolkit.elastic.index.models import Index
 from toolkit.mlp.exceptions import CouldNotDetectLanguageException
 from toolkit.mlp.models import ApplyLangWorker, MLPWorker
 from toolkit.mlp.serializers import ApplyLangOnIndicesSerializer, LangDetectSerializer, MLPDocsSerializer, MLPListSerializer, MLPWorkerSerializer
-from toolkit.mlp.tasks import apply_mlp_on_list, apply_mlp_on_docs
+from toolkit.mlp.tasks import apply_mlp_on_docs, apply_mlp_on_list
 from toolkit.permissions.project_permissions import ProjectResourceAllowed
 from toolkit.settings import CELERY_MLP_TASK_QUEUE
 from toolkit.view_constants import BulkDelete
 
 
 class LangDetectView(APIView):
+    """
+    Given any input text it returns the ISO 639-1 two letter language code and a more humanized
+    version of the language if that language is supported by Elasticsearch Snowball Stemmer, otherwise
+    it will be null.
+    """
     serializer_class = LangDetectSerializer
     renderer_classes = (BrowsableAPIRenderer, JSONRenderer, HTMLFormRenderer)
     permission_classes = (permissions.IsAuthenticated,)
+
+
+    def _enrich_language_info(self, language: str):
+        mapping = {**ES6_SNOWBALL_MAPPING, **ES7_SNOWBALL_MAPPING}
+        result = {
+            "short": language,
+            "long": None
+        }
+        if language in mapping:
+            result["long"] = mapping.get(language, None)
+        return result
 
 
     def post(self, request):
@@ -34,7 +51,8 @@ class LangDetectView(APIView):
         text = serializer.validated_data["text"]
         language = MLP.detect_language("", text)
         if language:
-            return Response(language, status=status.HTTP_200_OK)
+            result = self._enrich_language_info(language)
+            return Response(result, status=status.HTTP_200_OK)
         else:
             raise CouldNotDetectLanguageException()
 
