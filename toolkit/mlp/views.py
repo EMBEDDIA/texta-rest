@@ -5,19 +5,38 @@ import rest_framework.filters as drf_filters
 from celery.result import allow_join_result
 from django.db import transaction
 from django_filters import rest_framework as filters
-from rest_framework import permissions, viewsets
+from rest_framework import permissions, status, viewsets
 from rest_framework.renderers import BrowsableAPIRenderer, HTMLFormRenderer, JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from texta_mlp.mlp import MLP
 
 from toolkit.core.project.models import Project
 from toolkit.elastic.index.models import Index
+from toolkit.mlp.exceptions import CouldNotDetectLanguageException
 from toolkit.mlp.models import ApplyLangWorker, MLPWorker
-from toolkit.mlp.serializers import ApplyLangOnIndicesSerializer, MLPDocsSerializer, MLPListSerializer, MLPWorkerSerializer
+from toolkit.mlp.serializers import ApplyLangOnIndicesSerializer, LangDetectSerializer, MLPDocsSerializer, MLPListSerializer, MLPWorkerSerializer
 from toolkit.mlp.tasks import apply_mlp_on_list, apply_mlp_on_docs
 from toolkit.permissions.project_permissions import ProjectResourceAllowed
 from toolkit.settings import CELERY_MLP_TASK_QUEUE
 from toolkit.view_constants import BulkDelete
+
+
+class LangDetectView(APIView):
+    serializer_class = LangDetectSerializer
+    renderer_classes = (BrowsableAPIRenderer, JSONRenderer, HTMLFormRenderer)
+    permission_classes = (permissions.IsAuthenticated,)
+
+
+    def post(self, request):
+        serializer = LangDetectSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        text = serializer.validated_data["text"]
+        language = MLP.detect_language("", text)
+        if language:
+            return Response(language, status=status.HTTP_200_OK)
+        else:
+            raise CouldNotDetectLanguageException()
 
 
 class MlpDocsProcessor(APIView):
