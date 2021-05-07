@@ -37,11 +37,11 @@ class LangDetectView(APIView):
     def _enrich_language_info(self, language: str):
         mapping = {**ES6_SNOWBALL_MAPPING, **ES7_SNOWBALL_MAPPING}
         result = {
-            "short": language,
-            "long": None
+            "language_code": language,
+            "language": None
         }
         if language in mapping:
-            result["long"] = mapping.get(language, None)
+            result["language"] = mapping.get(language, None)
         return result
 
 

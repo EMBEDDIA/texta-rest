@@ -125,7 +125,7 @@ class TestLangDetectView(APITransactionTestCase):
         response = self.client.post(self.url, data={"text": self.text}, format="json")
         print_output("test_normal_endpoint:response.data", response.data)
         self.assertTrue(response.status_code == status.HTTP_200_OK)
-        self.assertTrue(response.data["long"] == "estonian")
+        self.assertTrue(response.data["language"] == "estonian")
 
 
     def test_faulty_text_content(self):
@@ -148,7 +148,7 @@ class TestLangDetectView(APITransactionTestCase):
         response = self.client.post(self.url, data={"text": self.text}, format="json")
         print_output("test_that_normal_users_have_access:response.data", response.data)
         self.assertTrue(response.status_code == status.HTTP_200_OK)
-        self.assertTrue(response.data["long"] == "estonian")
+        self.assertTrue(response.data["language"] == "estonian")
 
 
     def test_blank_user_input(self):
@@ -161,4 +161,4 @@ class TestLangDetectView(APITransactionTestCase):
         response = self.client.post(self.url, data={"text": "音読み"}, format="json")
         print_output("test_that_unsupported_snowball_lang_gets_long_as_null:response.data", response.data)
         self.assertTrue(response.status_code == status.HTTP_200_OK)
-        self.assertTrue(response.data["long"] is None)
+        self.assertTrue(response.data["language"] is None)
