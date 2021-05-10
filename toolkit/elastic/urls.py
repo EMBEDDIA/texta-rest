@@ -16,5 +16,5 @@ splitter_router = routers.DefaultRouter()
 splitter_router.register('index_splitter', index_splitter_views.IndexSplitterViewSet, basename='index_splitter')
 
 search_tagger_router = routers.DefaultRouter()
-search_tagger_router.register('search_tagger_query', search_tagger_views.SearchTaggerQueryViewSet, basename='search_tagger_query')
-search_tagger_router.register('search_tagger_fields', search_tagger_views.SearchTaggerFieldsViewSet, basename='search_tagger_fields')
+search_tagger_router.register('search_query_tagger', search_tagger_views.SearchQueryTaggerViewSet, basename='search_query_tagger')
+search_tagger_router.register('search_fields_tagger', search_tagger_views.SearchFieldsTaggerViewSet, basename='search_fields_tagger')
