@@ -1,18 +1,18 @@
 import json
 from toolkit.view_constants import BulkDelete
-from .serializers import SearchTaggerQuerySerializer, SearchTaggerFieldsSerializer
+from .serializers import SearchQueryTaggerSerializer, SearchFieldsTaggerSerializer
 from rest_framework import permissions, viewsets
 import rest_framework.filters as drf_filters
 from django_filters import rest_framework as filters
 from toolkit.permissions.project_permissions import ProjectResourceAllowed
-from .models import SearchTagger
+from .models import SearchQueryTagger, SearchFieldsTagger
 from django.db import transaction
 from toolkit.core.project.models import Project
 from toolkit.elastic.index.models import Index
 
 
-class SearchTaggerQueryViewSet(viewsets.ModelViewSet, BulkDelete):
-    serializer_class = SearchTaggerQuerySerializer
+class SearchQueryTaggerViewSet(viewsets.ModelViewSet, BulkDelete):
+    serializer_class = SearchQueryTaggerSerializer
     filter_backends = (drf_filters.OrderingFilter, filters.DjangoFilterBackend)
     ordering_fields = (
     'id', 'author__username', 'description', 'fields', 'task__time_started', 'task__time_completed', 'f1_score',
@@ -23,7 +23,7 @@ class SearchTaggerQueryViewSet(viewsets.ModelViewSet, BulkDelete):
     )
 
     def get_queryset(self):
-        return SearchTagger.objects.filter(project=self.kwargs['project_pk'])
+        return SearchQueryTagger.objects.filter(project=self.kwargs['project_pk'])
 
     def perform_create(self, serializer):
         with transaction.atomic():
@@ -32,7 +32,7 @@ class SearchTaggerQueryViewSet(viewsets.ModelViewSet, BulkDelete):
             indices = project.get_available_or_all_project_indices(indices)
             serializer.validated_data.pop("indices")
 
-            worker: SearchTagger = serializer.save(
+            worker: SearchQueryTagger = serializer.save(
                     author=self.request.user,
                     project=project,
                     fields=json.dumps(serializer.validated_data["fields"]),
@@ -42,8 +42,8 @@ class SearchTaggerQueryViewSet(viewsets.ModelViewSet, BulkDelete):
             worker.process()
 
 
-class SearchTaggerFieldsViewSet(viewsets.ModelViewSet, BulkDelete):
-    serializer_class = SearchTaggerFieldsSerializer
+class SearchFieldsTaggerViewSet(viewsets.ModelViewSet, BulkDelete):
+    serializer_class = SearchFieldsTaggerSerializer
     filter_backends = (drf_filters.OrderingFilter, filters.DjangoFilterBackend)
     ordering_fields = (
         'id', 'author__username', 'description', 'fields', 'task__time_started', 'task__time_completed', 'f1_score',
@@ -54,7 +54,7 @@ class SearchTaggerFieldsViewSet(viewsets.ModelViewSet, BulkDelete):
     )
 
     def get_queryset(self):
-        return SearchTagger.objects.filter(project=self.kwargs['project_pk'])
+        return SearchFieldsTagger.objects.filter(project=self.kwargs['project_pk'])
 
     def perform_create(self, serializer):
         with transaction.atomic():
@@ -63,7 +63,7 @@ class SearchTaggerFieldsViewSet(viewsets.ModelViewSet, BulkDelete):
             indices = project.get_available_or_all_project_indices(indices)
             serializer.validated_data.pop("indices")
 
-            worker: SearchTagger = serializer.save(
+            worker: SearchFieldsTagger = serializer.save(
                 author=self.request.user,
                 project=project,
                 fields=json.dumps(serializer.validated_data["fields"]),
