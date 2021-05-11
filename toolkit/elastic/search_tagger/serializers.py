@@ -1,3 +1,4 @@
+import json
 from .models import SearchQueryTagger, SearchFieldsTagger
 from rest_framework import serializers
 from toolkit.core.task.serializers import TaskSerializer
@@ -13,14 +14,14 @@ class SearchQueryTaggerSerializer(FieldParseSerializer, serializers.ModelSeriali
     description = serializers.CharField()
     task = TaskSerializer(read_only=True, required=False)
     url = serializers.SerializerMethodField()
-    query = serializers.JSONField(help_text='Query in JSON format', required=False)
-    mapping_field = serializers.CharField(required=True)
-    fact_name = serializers.CharField()
-    fact_value = serializers.CharField()
+    query = serializers.JSONField(help_text='Query in JSON format', required=True)
+    fields = serializers.ListField(child=serializers.CharField(), required=True)
+    fact_name = serializers.CharField(required=True)
+    fact_value = serializers.CharField(required=True)
 
     class Meta:
         model = SearchQueryTagger
-        fields = ("id", "url", "author_username", "indices", "description", "task", "query", "mapping_field", "fact_name", "fact_value")
+        fields = ("id", "url", "author_username", "indices", "description", "task", "query", "fields", "fact_name", "fact_value")
         fields_to_parse = ['fields']
 
     def get_url(self, obj):
@@ -32,6 +33,12 @@ class SearchQueryTaggerSerializer(FieldParseSerializer, serializers.ModelSeriali
             return url
         else:
             return None
+
+    def to_representation(self, instance: SearchQueryTagger):
+        data = super(SearchQueryTaggerSerializer, self).to_representation(instance)
+        data["fields"] = json.loads(instance.fields)
+        data["query"] = instance.query
+        return data
 
 
 class SearchFieldsTaggerSerializer(FieldParseSerializer, serializers.ModelSerializer):
@@ -48,3 +55,19 @@ class SearchFieldsTaggerSerializer(FieldParseSerializer, serializers.ModelSerial
         model = SearchFieldsTagger
         fields = ("id", "url", "author_username", "indices", "description", "task", "query", "fields", "fact_name")
         fields_to_parse = ['fields']
+
+    def get_url(self, obj):
+        default_version = REST_FRAMEWORK.get("DEFAULT_VERSION")
+        index = reverse(f"{default_version}:search_fields_tagger-detail", kwargs={"project_pk": obj.project.pk, "pk": obj.pk})
+        if "request" in self.context:
+            request = self.context["request"]
+            url = request.build_absolute_uri(index)
+            return url
+        else:
+            return None
+
+    def to_representation(self, instance: SearchFieldsTagger):
+        data = super(SearchFieldsTaggerSerializer, self).to_representation(instance)
+        data["fields"] = json.loads(instance.fields)
+        data["query"] = instance.query
+        return data
