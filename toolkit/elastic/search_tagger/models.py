@@ -16,8 +16,8 @@ class SearchQueryTagger(models.Model):
     indices = models.ManyToManyField(Index)
     query = models.TextField(default=json.dumps(EMPTY_QUERY))
     fields = models.TextField(default=json.dumps([]))
-    fact_name = models.TextField(default=json.dumps([]))
-    fact_value = models.TextField(default=json.dumps([]))
+    fact_name = models.TextField()
+    fact_value = models.TextField()
     task = models.OneToOneField(Task, on_delete=models.SET_NULL, null=True)
 
     def get_indices(self):
@@ -44,7 +44,7 @@ class SearchFieldsTagger(models.Model):
     indices = models.ManyToManyField(Index)
     query = models.TextField(default=json.dumps(EMPTY_QUERY))
     fields = models.TextField(default=json.dumps([]))
-    fact_name = models.TextField(default=json.dumps([]))
+    fact_name = models.TextField()
     task = models.OneToOneField(Task, on_delete=models.SET_NULL, null=True)
 
     def get_indices(self):
