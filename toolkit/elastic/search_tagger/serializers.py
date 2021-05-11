@@ -3,12 +3,12 @@ from .models import SearchQueryTagger, SearchFieldsTagger
 from rest_framework import serializers
 from toolkit.core.task.serializers import TaskSerializer
 from toolkit.elastic.index.serializers import IndexSerializer
-from toolkit.serializer_constants import FieldParseSerializer
+from toolkit.serializer_constants import FieldValidationSerializer
 from toolkit.settings import REST_FRAMEWORK
 from django.urls import reverse
 
 
-class SearchQueryTaggerSerializer(FieldParseSerializer, serializers.ModelSerializer):
+class SearchQueryTaggerSerializer(serializers.ModelSerializer, FieldValidationSerializer):
     indices = IndexSerializer(many=True, default=[])
     author_username = serializers.CharField(source='author.username', read_only=True, required=False)
     description = serializers.CharField()
@@ -22,7 +22,7 @@ class SearchQueryTaggerSerializer(FieldParseSerializer, serializers.ModelSeriali
     class Meta:
         model = SearchQueryTagger
         fields = ("id", "url", "author_username", "indices", "description", "task", "query", "fields", "fact_name", "fact_value")
-        fields_to_parse = ['fields']
+        #fields_to_parse = ['fields']
 
     def get_url(self, obj):
         default_version = REST_FRAMEWORK.get("DEFAULT_VERSION")
@@ -37,11 +37,11 @@ class SearchQueryTaggerSerializer(FieldParseSerializer, serializers.ModelSeriali
     def to_representation(self, instance: SearchQueryTagger):
         data = super(SearchQueryTaggerSerializer, self).to_representation(instance)
         data["fields"] = json.loads(instance.fields)
-        data["query"] = instance.query
+        data["query"] = json.loads(instance.query)
         return data
 
 
-class SearchFieldsTaggerSerializer(FieldParseSerializer, serializers.ModelSerializer):
+class SearchFieldsTaggerSerializer(serializers.ModelSerializer, FieldValidationSerializer):
     indices = IndexSerializer(many=True, default=[])
     author_username = serializers.CharField(source='author.username', read_only=True, required=False)
     description = serializers.CharField()
@@ -54,7 +54,7 @@ class SearchFieldsTaggerSerializer(FieldParseSerializer, serializers.ModelSerial
     class Meta:
         model = SearchFieldsTagger
         fields = ("id", "url", "author_username", "indices", "description", "task", "query", "fields", "fact_name")
-        fields_to_parse = ['fields']
+        #fields_to_parse = ['fields']
 
     def get_url(self, obj):
         default_version = REST_FRAMEWORK.get("DEFAULT_VERSION")
@@ -69,5 +69,5 @@ class SearchFieldsTaggerSerializer(FieldParseSerializer, serializers.ModelSerial
     def to_representation(self, instance: SearchFieldsTagger):
         data = super(SearchFieldsTaggerSerializer, self).to_representation(instance)
         data["fields"] = json.loads(instance.fields)
-        data["query"] = instance.query
+        data["query"] = json.loads(instance.query)
         return data
