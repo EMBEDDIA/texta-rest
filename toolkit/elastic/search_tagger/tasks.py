@@ -5,7 +5,7 @@ from toolkit.core.task.models import Task
 from toolkit.base_tasks import TransactionAwareTask
 from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, INFO_LOGGER, ERROR_LOGGER
 from typing import List, Union, Dict
-from toolkit.elastic.search_tagger.models import SearchQueryTagger
+from toolkit.elastic.search_tagger.models import SearchQueryTagger, SearchFieldsTagger
 from toolkit.tools.show_progress import ShowProgress
 from toolkit.elastic.tools.core import ElasticCore
 from toolkit.elastic.tools.searcher import ElasticSearcher
@@ -85,12 +85,19 @@ def update_generator(generator: ElasticSearcher, ec: ElasticCore, fields: List[s
 
 
 @task(name="apply_search_query_tagger_on_index", base=TransactionAwareTask, queue=CELERY_LONG_TERM_TASK_QUEUE)
-def apply_search_query_tagger_on_index(object_id: int, indices: List[str], fields: List[str], fact_name: str, fact_value: str, query: dict, bulk_size: int, max_chunk_bytes: int, es_timeout: int):
+def apply_search_query_tagger_on_index(object_id: int):
+    search_query_tagger = SearchQueryTagger.objects.get(pk=object_id)
+    task_object = search_query_tagger.task
     """Apply Search Query Tagger to index."""
     try:
-        tagger_object = SearchQueryTagger.objects.get(pk=object_id)
+        progress = ShowProgress(task_object)
+        progress.update_step('scrolling search query')
 
-        progress = ShowProgress(tagger_object.task)
+        # Get the necessary fields.
+        indices: List[str] = search_query_tagger.get_indices()
+        fields: List[str] = json.loads(search_query_tagger.fields)
+        fact_name: List[str] = search_query_tagger.fact_name
+        fact_value: List[str] = search_query_tagger.fact_value
 
         ec = ElasticCore()
         [ec.add_texta_facts_mapping(index) for index in indices]
@@ -98,23 +105,60 @@ def apply_search_query_tagger_on_index(object_id: int, indices: List[str], field
         searcher = ElasticSearcher(
             indices=indices,
             field_data=fields + ["texta_facts"],  # Get facts to add upon existing ones.
-            query=query,
+            query=json.loads(search_query_tagger.query),
             output=ElasticSearcher.OUT_RAW,
-            timeout=f"{es_timeout}m",
+            scroll_timeout="30m",
             callback_progress=progress,
-            scroll_size=bulk_size
+            scroll_size=100
         )
 
-        actions = update_generator(generator=searcher, ec=ec, fields=fields, fact_name=fact_name, fact_value=fact_value, tagger_object=tagger_object)
-        for success, info in streaming_bulk(client=ec.es, actions=actions, refresh="wait_for", chunk_size=bulk_size, max_chunk_bytes=max_chunk_bytes, max_retries=3):
-            if not success:
-                logging.getLogger(ERROR_LOGGER).exception(json.dumps(info))
-
-        tagger_object.task.complete()
-        return True
+        actions = update_generator(generator=searcher, ec=ec, fields=fields, fact_name=fact_name, fact_value=fact_value, tagger_object=search_query_tagger)
+        # Send the data towards Elasticsearch
+        ed = ElasticDocument("_all")
+        elastic_response = ed.bulk_update(actions=actions)
+        return object_id
 
     except Exception as e:
         logging.getLogger(ERROR_LOGGER).exception(e)
-        error_message = f"{str(e)[:100]}..."  # Take first 100 characters in case the error message is massive.
-        tagger_object.task.add_error(error_message)
-        tagger_object.task.update_status(Task.STATUS_FAILED)
+        task_object.add_error(str(e))
+        task_object.update_status(Task.STATUS_FAILED)
+        raise e
+
+@task(name="apply_search_fields_tagger_on_index", base=TransactionAwareTask, queue=CELERY_LONG_TERM_TASK_QUEUE)
+def apply_search_fields_tagger_on_index(object_id: int):
+    search_fields_tagger = SearchFieldsTagger.objects.get(pk=object_id)
+    task_object = search_fields_tagger.task
+    """Apply Search Fields Tagger to index."""
+    try:
+        progress = ShowProgress(task_object)
+        progress.update_step('scrolling search fields')
+
+        # Get the necessary fields.
+        indices: List[str] = search_fields_tagger.get_indices()
+        fields: List[str] = json.loads(search_fields_tagger.fields)
+        fact_name: List[str] = search_fields_tagger.fact_name
+
+        ec = ElasticCore()
+        [ec.add_texta_facts_mapping(index) for index in indices]
+
+        searcher = ElasticSearcher(
+            indices=indices,
+            field_data=fields + ["texta_facts"],  # Get facts to add upon existing ones.
+            query=json.loads(search_fields_tagger.query),
+            output=ElasticSearcher.OUT_RAW,
+            scroll_timeout="30m",
+            callback_progress=progress,
+            scroll_size=100
+        )
+
+        actions = update_generator(generator=searcher, ec=ec, fields=fields, fact_name=fact_name, tagger_object=search_fields_tagger)
+        # Send the data towards Elasticsearch
+        ed = ElasticDocument("_all")
+        elastic_response = ed.bulk_update(actions=actions)
+        return object_id
+
+    except Exception as e:
+        logging.getLogger(ERROR_LOGGER).exception(e)
+        task_object.add_error(str(e))
+        task_object.update_status(Task.STATUS_FAILED)
+        raise e
