@@ -36,6 +36,7 @@ class SearchQueryTaggerViewSet(viewsets.ModelViewSet, BulkDelete):
                     author=self.request.user,
                     project=project,
                     fields=json.dumps(serializer.validated_data["fields"]),
+                    query=json.dumps(serializer.validated_data["query"], ensure_ascii=False),
                 )
             for index in Index.objects.filter(name__in=indices, is_open=True):
                 worker.indices.add(index)
@@ -67,6 +68,7 @@ class SearchFieldsTaggerViewSet(viewsets.ModelViewSet, BulkDelete):
                 author=self.request.user,
                 project=project,
                 fields=json.dumps(serializer.validated_data["fields"]),
+                query=json.dumps(serializer.validated_data["query"], ensure_ascii=False),
             )
             for index in Index.objects.filter(name__in=indices, is_open=True):
                 worker.indices.add(index)
