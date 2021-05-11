@@ -24,18 +24,28 @@ def apply_snowball_on_indices(self, worker_id: int):
 
         # Get the necessary fields.
         indices: List[str] = worker_object.get_indices()
+        field = worker_object.stemmer_field
+        detect_lang = worker_object.detect_lang
+        snowball_language = worker_object.stemmer_lang
 
         scroll_size = 100
         searcher = ElasticSearcher(
             query=json.loads(worker_object.query),
             indices=indices,
+            field_data=[field],
             output=ElasticSearcher.OUT_RAW,
             callback_progress=show_progress,
             scroll_size=scroll_size,
             scroll_timeout="15m"
         )
 
-        actions = process_stemmer_actions(generator=searcher, worker=worker_object)
+        actions = process_stemmer_actions(
+            generator=searcher,
+            worker=worker_object,
+            detect_lang=detect_lang,
+            snowball_language=snowball_language,
+            field_to_parse=field
+        )
 
         # Send the data towards Elasticsearch
         ed = ElasticDocument("_all")

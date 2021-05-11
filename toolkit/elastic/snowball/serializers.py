@@ -2,6 +2,7 @@ import json
 
 from django.urls import reverse
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from .models import ApplyStemmerWorker
 from ..choices import DEFAULT_SNOWBALL_LANGUAGE, get_snowball_choices
@@ -21,6 +22,15 @@ class ApplySnowballSerializer(serializers.ModelSerializer):
     task = TaskSerializer(read_only=True, required=False)
     url = serializers.SerializerMethodField()
     query = serializers.JSONField(help_text='Query in JSON format', required=False)
+    stemmer_lang = serializers.ChoiceField(choices=get_snowball_choices(), default=DEFAULT_SNOWBALL_LANGUAGE, help_text="Which language stemmer to apply on the text.")
+    stemmer_field = serializers.CharField(required=True, help_text="Which field to stem.")
+    detect_lang = serializers.BooleanField(help_text="Whether to detect the language for the stemming on the fly.", default=False)
+
+
+    def validate(self, attrs):
+        if "stemmer_lang" in attrs and "detect_lang" in attrs and attrs["detect_lang"] is True:
+            raise ValidationError("Fields 'stemmer_lang' and 'detect_lang' are mutually exclusive, please choose one!")
+        return attrs
 
 
     def get_url(self, obj):
@@ -42,4 +52,4 @@ class ApplySnowballSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ApplyStemmerWorker
-        fields = ("id", "url", "author_username", "indices", "description", "task", "query",)
+        fields = ("id", "url", "author_username", "indices", "stemmer_lang", "stemmer_field", "detect_lang", "description", "task", "query",)

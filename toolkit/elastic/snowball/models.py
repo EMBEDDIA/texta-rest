@@ -17,6 +17,9 @@ class ApplyStemmerWorker(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     query = models.TextField(default=json.dumps(EMPTY_QUERY))
+    stemmer_lang = models.CharField(max_length=MAX_DESC_LEN)
+    stemmer_field = models.TextField()
+    detect_lang = models.BooleanField()
     indices = models.ManyToManyField(Index)
     task = models.OneToOneField(Task, on_delete=models.SET_NULL, null=True)
 
@@ -24,7 +27,7 @@ class ApplyStemmerWorker(models.Model):
     def process(self):
         from toolkit.elastic.snowball.tasks import apply_snowball_on_indices
 
-        new_task = Task.objects.create(applylangworker=self, status='created')
+        new_task = Task.objects.create(applystemmerworker=self, status='created')
         self.task = new_task
         self.save()
 
