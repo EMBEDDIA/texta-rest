@@ -15,7 +15,7 @@ class SearchQueryTagger(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     indices = models.ManyToManyField(Index)
     query = models.TextField(default=json.dumps(EMPTY_QUERY))
-    mapping_field = models.TextField(default=json.dumps([]))
+    fields = models.TextField(default=json.dumps([]))
     fact_name = models.TextField(default=json.dumps([]))
     fact_value = models.TextField(default=json.dumps([]))
     task = models.OneToOneField(Task, on_delete=models.SET_NULL, null=True)
@@ -29,7 +29,7 @@ class SearchQueryTagger(models.Model):
     def process(self):
         from toolkit.elastic.search_tagger.tasks import apply_search_query_tagger_on_index
 
-        new_task = Task.objects.create(search_tagger=self, status='created')
+        new_task = Task.objects.create(searchquerytagger=self, status='created')
         self.task = new_task
         self.save()
 
@@ -56,7 +56,7 @@ class SearchFieldsTagger(models.Model):
     def process(self):
         from toolkit.elastic.search_tagger.tasks import apply_search_fields_tagger_on_index
 
-        new_task = Task.objects.create(search_tagger=self, status='created')
+        new_task = Task.objects.create(searchfieldstagger=self, status='created')
         self.task = new_task
         self.save()
 
