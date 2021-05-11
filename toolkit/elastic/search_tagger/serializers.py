@@ -22,7 +22,6 @@ class SearchQueryTaggerSerializer(serializers.ModelSerializer, FieldValidationSe
     class Meta:
         model = SearchQueryTagger
         fields = ("id", "url", "author_username", "indices", "description", "task", "query", "fields", "fact_name", "fact_value")
-        #fields_to_parse = ['fields']
 
     def get_url(self, obj):
         default_version = REST_FRAMEWORK.get("DEFAULT_VERSION")
@@ -54,7 +53,6 @@ class SearchFieldsTaggerSerializer(serializers.ModelSerializer, FieldValidationS
     class Meta:
         model = SearchFieldsTagger
         fields = ("id", "url", "author_username", "indices", "description", "task", "query", "fields", "fact_name")
-        #fields_to_parse = ['fields']
 
     def get_url(self, obj):
         default_version = REST_FRAMEWORK.get("DEFAULT_VERSION")
