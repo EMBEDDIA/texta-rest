@@ -14,7 +14,7 @@ from elasticsearch.helpers import streaming_bulk
 
 
 def to_texta_facts(tagger_result: List[Dict[str, Union[str, int, bool]]], field: str, fact_name: str, fact_value: str):
-    """ Format tagger predictions as texta facts."""
+    """ Format search tagger as texta facts."""
     if tagger_result["result"] == "false":
         return []
 
@@ -69,7 +69,7 @@ def update_search_query_generator(generator: ElasticSearcher, ec: ElasticCore, f
 
 def update_search_fields_generator(generator: ElasticSearcher, ec: ElasticCore, fields: List[str], fact_name: str, tagger_object: SearchQueryTagger):
     for i, scroll_batch in enumerate(generator):
-        logging.getLogger(INFO_LOGGER).info(f"Appyling Search Query Tagger with ID {tagger_object.id}...")
+        logging.getLogger(INFO_LOGGER).info(f"Appyling Search Fields Tagger with ID {tagger_object.id}...")
         for raw_doc in scroll_batch:
             hit = raw_doc["_source"]
             flat_hit = ec.flatten(hit)
