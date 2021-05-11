@@ -27,25 +27,6 @@ def to_texta_facts(tagger_result: List[Dict[str, Union[str, int, bool]]], field:
     return [new_fact]
 
 
-def apply_loaded_tagger(tagger_object: SearchQueryTagger, tagger_input: Union[str, Dict], input_type: str = "text"):
-    """Apply loaded Search Query tagger to doc or text."""
-
-    # tag doc or text
-    #if input_type == 'doc':
-    #    tagger_result = tagger_object.tag_doc(tagger_input)
-    #else:
-    #    tagger_result = tagger_object.tag_text(tagger_input)
-    tagger_result = tagger_object.fact_name
-    # reform output
-    prediction = {
-        'tagger_id': tagger_object.id,
-        'result': tagger_result
-    }
-
-    logging.getLogger(INFO_LOGGER).info(f"Prediction: {prediction}")
-    return prediction
-
-
 def update_search_query_generator(generator: ElasticSearcher, ec: ElasticCore, fields: List[str], fact_name: str, fact_value: str, tagger_object: SearchQueryTagger):
     for i, scroll_batch in enumerate(generator):
         logging.getLogger(INFO_LOGGER).info(f"Appyling Search Query Tagger with ID {tagger_object.id}...")
@@ -58,7 +39,10 @@ def update_search_query_generator(generator: ElasticSearcher, ec: ElasticCore, f
                 text = flat_hit.get(field, None)
                 if text and isinstance(text, str):
 
-                    result = apply_loaded_tagger(tagger_object, text, input_type="text")
+                    result = {
+                                'tagger_id': tagger_object.id,
+                                'result': tagger_object.fact_name
+                                }
 
                     if result["result"] in ["true", "false"]:
                         if not fact_value:
@@ -95,7 +79,10 @@ def update_search_fields_generator(generator: ElasticSearcher, ec: ElasticCore, 
                 text = flat_hit.get(field, None)
                 if text and isinstance(text, str):
 
-                    result = apply_loaded_tagger(tagger_object, text, input_type="text")
+                    result = {
+                                'tagger_id': tagger_object.id,
+                                'result': tagger_object.fact_name
+                                }
 
                     if result["result"] in ["true", "false"]:
                         if not fact_value:
