@@ -31,16 +31,15 @@ def apply_loaded_tagger(tagger_object: SearchQueryTagger, tagger_input: Union[st
     """Apply loaded Search Query tagger to doc or text."""
 
     # tag doc or text
-    if input_type == 'doc':
-        tagger_result = tagger_object.tag_doc(tagger_input)
-    else:
-        tagger_result = tagger_object.tag_text(tagger_input)
-
+    #if input_type == 'doc':
+    #    tagger_result = tagger_object.tag_doc(tagger_input)
+    #else:
+    #    tagger_result = tagger_object.tag_text(tagger_input)
+    tagger_result = tagger_object.fact_name
     # reform output
     prediction = {
-        'probability': tagger_result['probability'],
         'tagger_id': tagger_object.id,
-        'result': tagger_result['prediction']
+        'result': tagger_result
     }
 
     logging.getLogger(INFO_LOGGER).info(f"Prediction: {prediction}")
@@ -101,6 +100,8 @@ def apply_search_query_tagger_on_index(object_id: int):
 
         ec = ElasticCore()
         [ec.add_texta_facts_mapping(index) for index in indices]
+
+        print(json.loads(search_query_tagger.query))
 
         searcher = ElasticSearcher(
             indices=indices,
