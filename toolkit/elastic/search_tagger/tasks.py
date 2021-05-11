@@ -46,7 +46,44 @@ def apply_loaded_tagger(tagger_object: SearchQueryTagger, tagger_input: Union[st
     return prediction
 
 
-def update_generator(generator: ElasticSearcher, ec: ElasticCore, fields: List[str], fact_name: str, fact_value: str, tagger_object: SearchQueryTagger):
+def update_search_query_generator(generator: ElasticSearcher, ec: ElasticCore, fields: List[str], fact_name: str, fact_value: str, tagger_object: SearchQueryTagger):
+    for i, scroll_batch in enumerate(generator):
+        logging.getLogger(INFO_LOGGER).info(f"Appyling Search Query Tagger with ID {tagger_object.id}...")
+        for raw_doc in scroll_batch:
+            hit = raw_doc["_source"]
+            flat_hit = ec.flatten(hit)
+            existing_facts = hit.get("texta_facts", [])
+
+            for field in fields:
+                text = flat_hit.get(field, None)
+                if text and isinstance(text, str):
+
+                    result = apply_loaded_tagger(tagger_object, text, input_type="text")
+
+                    if result["result"] in ["true", "false"]:
+                        if not fact_value:
+                            fact_value = tagger_object.description
+
+                    else:
+                        fact_value = result["result"]
+
+                    new_facts = to_texta_facts(result, field, fact_name, fact_value)
+                    existing_facts.extend(new_facts)
+
+            if existing_facts:
+                # Remove duplicates to avoid adding the same facts with repetitive use.
+                existing_facts = ElasticDocument.remove_duplicate_facts(existing_facts)
+
+            yield {
+                "_index": raw_doc["_index"],
+                "_id": raw_doc["_id"],
+                "_type": raw_doc.get("_type", "_doc"),
+                "_op_type": "update",
+                "_source": {"doc": {"texta_facts": existing_facts}}
+            }
+
+
+def update_search_fields_generator(generator: ElasticSearcher, ec: ElasticCore, fields: List[str], fact_name: str, tagger_object: SearchQueryTagger):
     for i, scroll_batch in enumerate(generator):
         logging.getLogger(INFO_LOGGER).info(f"Appyling Search Query Tagger with ID {tagger_object.id}...")
         for raw_doc in scroll_batch:
@@ -113,7 +150,7 @@ def apply_search_query_tagger_on_index(object_id: int):
             scroll_size=100
         )
 
-        actions = update_generator(generator=searcher, ec=ec, fields=fields, fact_name=fact_name, fact_value=fact_value, tagger_object=search_query_tagger)
+        actions = update_search_query_generator(generator=searcher, ec=ec, fields=fields, fact_name=fact_name, fact_value=fact_value, tagger_object=search_query_tagger)
         # Send the data towards Elasticsearch
         ed = ElasticDocument("_all")
         elastic_response = ed.bulk_update(actions=actions)
@@ -152,7 +189,7 @@ def apply_search_fields_tagger_on_index(object_id: int):
             scroll_size=100
         )
 
-        actions = update_generator(generator=searcher, ec=ec, fields=fields, fact_name=fact_name, tagger_object=search_fields_tagger)
+        actions = update_search_fields_generator(generator=searcher, ec=ec, fields=fields, fact_name=fact_name, tagger_object=search_fields_tagger)
         # Send the data towards Elasticsearch
         ed = ElasticDocument("_all")
         elastic_response = ed.bulk_update(actions=actions)
