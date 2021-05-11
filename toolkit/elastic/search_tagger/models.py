@@ -1,8 +1,10 @@
 import json
 from django.db import models, transaction
 from toolkit.constants import MAX_DESC_LEN
+from django.contrib.auth.models import User
 from toolkit.core.project.models import Project
 from toolkit.elastic.tools.searcher import EMPTY_QUERY
+from toolkit.elastic.index.models import Index
 from toolkit.core.task.models import Task
 from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE
 
@@ -10,7 +12,8 @@ from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE
 class SearchQueryTagger(models.Model):
     description = models.CharField(max_length=MAX_DESC_LEN, default="")
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    indices = models.TextField(default=json.dumps([]))
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    indices = models.ManyToManyField(Index)
     query = models.TextField(default=json.dumps(EMPTY_QUERY))
     mapping_field = models.TextField(default=json.dumps([]))
     fact_name = models.TextField(default=json.dumps([]))
@@ -24,20 +27,21 @@ class SearchQueryTagger(models.Model):
         return self.description
 
     def process(self):
-        from toolkit.summarizer.tasks import apply_searchtagger_on_index, start_searchtagger_worker, end_searchtagger_task
+        from toolkit.elastic.search_tagger.tasks import apply_search_query_tagger_on_index
 
         new_task = Task.objects.create(search_tagger=self, status='created')
         self.task = new_task
         self.save()
 
-        chain = start_searchtagger_worker.s() | apply_searchtagger_on_index.s() | end_searchtagger_task.s()
+        chain = apply_search_query_tagger_on_index.s()
         transaction.on_commit(lambda: chain.apply_async(args=(self.pk,), queue=CELERY_LONG_TERM_TASK_QUEUE))
 
 
 class SearchFieldsTagger(models.Model):
     description = models.CharField(max_length=MAX_DESC_LEN, default="")
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    indices = models.TextField(default=json.dumps([]))
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    indices = models.ManyToManyField(Index)
     query = models.TextField(default=json.dumps(EMPTY_QUERY))
     fields = models.TextField(default=json.dumps([]))
     fact_name = models.TextField(default=json.dumps([]))
@@ -50,11 +54,11 @@ class SearchFieldsTagger(models.Model):
         return self.description
 
     def process(self):
-        from toolkit.summarizer.tasks import apply_searchtagger_on_index, start_searchtagger_worker, end_searchtagger_task
+        from toolkit.elastic.search_tagger.tasks import apply_search_fields_tagger_on_index
 
         new_task = Task.objects.create(search_tagger=self, status='created')
         self.task = new_task
         self.save()
 
-        chain = start_searchtagger_worker.s() | apply_searchtagger_on_index.s() | end_searchtagger_task.s()
+        chain = apply_search_fields_tagger_on_index.s()
         transaction.on_commit(lambda: chain.apply_async(args=(self.pk,), queue=CELERY_LONG_TERM_TASK_QUEUE))
