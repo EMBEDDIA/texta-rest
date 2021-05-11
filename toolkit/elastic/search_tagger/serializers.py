@@ -3,6 +3,8 @@ from rest_framework import serializers
 from toolkit.core.task.serializers import TaskSerializer
 from toolkit.elastic.index.serializers import IndexSerializer
 from toolkit.serializer_constants import FieldParseSerializer
+from toolkit.settings import REST_FRAMEWORK
+from django.urls import reverse
 
 
 class SearchQueryTaggerSerializer(FieldParseSerializer, serializers.ModelSerializer):
@@ -19,6 +21,17 @@ class SearchQueryTaggerSerializer(FieldParseSerializer, serializers.ModelSeriali
     class Meta:
         model = SearchQueryTagger
         fields = ("id", "url", "author_username", "indices", "description", "task", "query", "mapping_field", "fact_name", "fact_value")
+        fields_to_parse = ['fields']
+
+    def get_url(self, obj):
+        default_version = REST_FRAMEWORK.get("DEFAULT_VERSION")
+        index = reverse(f"{default_version}:search_query_tagger-detail", kwargs={"project_pk": obj.project.pk, "pk": obj.pk})
+        if "request" in self.context:
+            request = self.context["request"]
+            url = request.build_absolute_uri(index)
+            return url
+        else:
+            return None
 
 
 class SearchFieldsTaggerSerializer(FieldParseSerializer, serializers.ModelSerializer):
