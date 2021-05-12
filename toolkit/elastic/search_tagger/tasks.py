@@ -78,18 +78,14 @@ def update_search_fields_generator(generator: ElasticSearcher, ec: ElasticCore, 
             for field in fields:
                 text = flat_hit.get(field, None)
                 if text and isinstance(text, str):
-
-                    result = {
-                                'tagger_id': tagger_object.id,
-                                'result': tagger_object.fact_name
-                                }
-
-                    if result["result"] in ["true", "false"]:
-                        if not fact_value:
-                            fact_value = tagger_object.description
-
-                    else:
+                    if len(text) <= 100:
+                        result = {
+                                    'tagger_id': tagger_object.id,
+                                    'result': text
+                                    }
                         fact_value = result["result"]
+                    else:
+                        continue
 
                     new_facts = to_texta_facts(result, field, fact_name, fact_value)
                     existing_facts.extend(new_facts)
