@@ -10,7 +10,6 @@ from toolkit.tools.show_progress import ShowProgress
 from toolkit.elastic.tools.core import ElasticCore
 from toolkit.elastic.tools.searcher import ElasticSearcher
 from toolkit.elastic.tools.document import ElasticDocument
-from elasticsearch.helpers import streaming_bulk
 
 
 def to_texta_facts(tagger_result: List[Dict[str, Union[str, int, bool]]], field: str, fact_name: str, fact_value: str):
@@ -44,7 +43,7 @@ def update_search_query_generator(generator: ElasticSearcher, ec: ElasticCore, f
                                 'result': tagger_object.fact_name
                                 }
 
-                    if result["result"] in ["true", "false"]:
+                    if result["result"]:
                         if not fact_value:
                             fact_value = tagger_object.description
 
