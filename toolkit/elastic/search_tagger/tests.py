@@ -25,8 +25,6 @@ class SearchFieldsTaggerIndexViewTests(APITestCase):
 
         cls.ed.add(cls.document)
 
-        cls.summarizer_id = None
-
     def setUp(self):
         self.client.login(username='user', password='pw')
 
@@ -34,10 +32,7 @@ class SearchFieldsTaggerIndexViewTests(APITestCase):
         from toolkit.elastic.tools.core import ElasticCore
         ElasticCore().delete_index(index="test_search_fields_tagger_index", ignore=[400, 404])
 
-    def test(self):
-        self.run_test_search_fields_tagger()
-
-    def run_test_search_fields_tagger(self):
+    def test_search_fields_tagger(self):
         payload = {
                     "indices": [{"name": "test_search_fields_tagger_index"}],
                     "description": "test",
@@ -71,8 +66,6 @@ class SearchQueryTaggerIndexViewTests(APITestCase):
 
         cls.ed.add(cls.document)
 
-        cls.summarizer_id = None
-
     def setUp(self):
         self.client.login(username='user', password='pw')
 
@@ -80,10 +73,7 @@ class SearchQueryTaggerIndexViewTests(APITestCase):
         from toolkit.elastic.tools.core import ElasticCore
         ElasticCore().delete_index(index="test_search_query_tagger_index", ignore=[400, 404])
 
-    def test(self):
-        self.run_test_search_query_tagger()
-
-    def run_test_search_query_tagger(self):
+    def test_search_query_tagger(self):
         payload = {
                     "indices": [{
                         "name": "test_search_query_tagger_index"
