@@ -6,6 +6,7 @@ import pathlib
 import secrets
 import tempfile
 import zipfile
+from typing import List
 
 from django.contrib.auth.models import User
 from django.core import serializers
@@ -43,6 +44,7 @@ class Tagger(models.Model):
     classifier = models.CharField(default=choices.DEFAULT_CLASSIFIER, max_length=MAX_DESC_LEN)
     negative_multiplier = models.FloatField(default=choices.DEFAULT_NEGATIVE_MULTIPLIER, blank=True)
     maximum_sample_size = models.IntegerField(default=choices.DEFAULT_MAX_SAMPLE_SIZE, blank=True)
+    minimum_sample_size = models.IntegerField(default=choices.DEFAULT_MIN_SAMPLE_SIZE, blank=True)
     score_threshold = models.FloatField(default=choices.DEFAULT_SCORE_THRESHOLD, blank=True)
     snowball_language = models.CharField(choices=get_snowball_choices(), default=DEFAULT_SNOWBALL_LANGUAGE, null=True, max_length=MAX_DESC_LEN)
     detect_lang = models.BooleanField(default=False)
@@ -59,9 +61,28 @@ class Tagger(models.Model):
     plot = models.FileField(upload_to="data/media", null=True, verbose_name="")
     task = models.OneToOneField(Task, on_delete=models.SET_NULL, null=True)
 
+    tagger_groups = models.TextField(default="[]", null=True, blank=True)
+
     balance = models.BooleanField(default=choices.DEFAULT_BALANCE)
     balance_to_max_limit = models.BooleanField(default=choices.DEFAULT_BALANCE_TO_MAX_LIMIT)
 
+
+    def get_available_or_all_indices(self, indices: List[str] = None) -> List[str]:
+        """
+        Used in views where the user can select the indices they wish to use.
+        Returns a list of index names from the ones that are in the project
+        and in the indices parameter or all of the indices if it's None or empty.
+        """
+        if indices:
+            indices = self.indices.filter(name__in=indices, is_open=True)
+            if not indices:
+                indices = self.project.indices.all()
+        else:
+            indices = self.indices.all()
+
+        indices = [index.name for index in indices]
+        indices = list(set(indices))  # Leave only unique names just in case.
+        return indices
 
 
     def get_indices(self):

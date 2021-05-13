@@ -141,6 +141,7 @@ class TaggerSerializer(FieldParseSerializer, serializers.ModelSerializer, Projec
     classifier = serializers.ChoiceField(choices=choices.get_classifier_choices(), default=choices.DEFAULT_CLASSIFIER, help_text=f'Classification algorithm used in the model.')
     negative_multiplier = serializers.IntegerField(default=choices.DEFAULT_NEGATIVE_MULTIPLIER, help_text=f'Multiplies the size of positive samples to determine negative example set size. Default: {choices.DEFAULT_NEGATIVE_MULTIPLIER}')
     maximum_sample_size = serializers.IntegerField(default=choices.DEFAULT_MAX_SAMPLE_SIZE, help_text=f'Maximum number of documents used to build a model. Default: {choices.DEFAULT_MAX_SAMPLE_SIZE}')
+    minimum_sample_size = serializers.IntegerField(default=choices.DEFAULT_MIN_SAMPLE_SIZE, help_text=f'Minimum number of documents required to train a model. Default: {choices.DEFAULT_MIN_SAMPLE_SIZE}')    
     score_threshold = serializers.FloatField(default=choices.DEFAULT_SCORE_THRESHOLD,
                                              help_text=f'Elasticsearch score threshold for filtering out irrelevant examples. All examples below first document\'s score * score threshold are ignored. Float between 0 and 1. Default: {choices.DEFAULT_SCORE_THRESHOLD}')
     snowball_language = serializers.ChoiceField(choices=get_snowball_choices(), default=DEFAULT_SNOWBALL_LANGUAGE, help_text=f'Uses Snowball stemmer with specified language to normalize the texts. Default: {DEFAULT_SNOWBALL_LANGUAGE}')
@@ -163,7 +164,7 @@ class TaggerSerializer(FieldParseSerializer, serializers.ModelSerializer, Projec
     class Meta:
         model = Tagger
         fields = ('id', 'url', 'author_username', 'description', 'query', 'fact_name', 'fields', 'detect_lang', 'embedding', 'vectorizer', 'classifier', 'stop_words',
-                  'maximum_sample_size', 'score_threshold', 'negative_multiplier', 'precision', 'recall', 'f1_score', 'snowball_language', 'scoring_function',
+                  'maximum_sample_size', 'minimum_sample_size', 'score_threshold', 'negative_multiplier', 'precision', 'recall', 'f1_score', 'snowball_language', 'scoring_function',
                   'num_features', 'num_examples', 'confusion_matrix', 'plot', 'task', 'indices', 'tagger_groups', 'ignore_numbers', 'balance', 'balance_to_max_limit')
         read_only_fields = ('precision', 'recall', 'f1_score', 'num_features', 'num_examples', 'tagger_groups', 'confusion_matrix')
         fields_to_parse = ('fields',)
@@ -190,9 +191,7 @@ class TaggerSerializer(FieldParseSerializer, serializers.ModelSerializer, Projec
 
 
     def get_tagger_groups(self, value: Tagger):
-        tgs = TaggerGroup.objects.filter(taggers__project_id=value.project.pk, taggers__id=value.pk)
-        descriptions = [tgs.description for tgs in tgs]
-        return descriptions
+        return json.loads(value.tagger_groups)
 
 
 class TaggerGroupSerializer(serializers.ModelSerializer, ProjectResourceUrlSerializer):
@@ -200,7 +199,7 @@ class TaggerGroupSerializer(serializers.ModelSerializer, ProjectResourceUrlSeria
     description = serializers.CharField(help_text=f'Description for the Tagger Group.')
     minimum_sample_size = serializers.IntegerField(default=choices.DEFAULT_MIN_SAMPLE_SIZE, help_text=f'Minimum number of documents required to train a model. Default: {choices.DEFAULT_MIN_SAMPLE_SIZE}')
     fact_name = serializers.CharField(default=choices.DEFAULT_TAGGER_GROUP_FACT_NAME, help_text=f'Fact name used to filter tags (fact values). Default: {choices.DEFAULT_TAGGER_GROUP_FACT_NAME}')
-    tagger = TaggerSerializer(write_only=True, remove_fields=['description', 'query', 'fact_name'])
+    tagger = TaggerSerializer(write_only=True, remove_fields=['description', 'query', 'fact_name', 'minimum_sample_size'])
     num_tags = serializers.IntegerField(read_only=True)
     tagger_status = serializers.SerializerMethodField()
     tagger_statistics = serializers.SerializerMethodField()

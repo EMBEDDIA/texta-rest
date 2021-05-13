@@ -5,6 +5,7 @@ import pathlib
 import secrets
 import tempfile
 import zipfile
+from typing import List
 
 from django.contrib.auth.models import User
 from django.core import serializers
@@ -12,13 +13,13 @@ from django.db import models, transaction
 from django.dispatch import receiver
 from django.http import HttpResponse
 
+from toolkit.bert_tagger import choices
 from toolkit.constants import MAX_DESC_LEN
 from toolkit.core.project.models import Project
 from toolkit.core.task.models import Task
 from toolkit.elastic.index.models import Index
 from toolkit.elastic.tools.searcher import EMPTY_QUERY
-from toolkit.settings import BASE_DIR, CELERY_LONG_TERM_TASK_QUEUE, RELATIVE_MODELS_PATH, BERT_PRETRAINED_MODEL_DIRECTORY, BERT_FINETUNED_MODEL_DIRECTORY
-from toolkit.bert_tagger import choices
+from toolkit.settings import BASE_DIR, BERT_FINETUNED_MODEL_DIRECTORY, CELERY_LONG_TERM_TASK_QUEUE
 
 
 class BertTagger(models.Model):
@@ -35,7 +36,6 @@ class BertTagger(models.Model):
     fact_name = models.CharField(max_length=MAX_DESC_LEN, null=True)
     minimum_sample_size = models.IntegerField(default=choices.DEFAULT_MIN_SAMPLE_SIZE)
     negative_multiplier = models.FloatField(default=choices.DEFAULT_NEGATIVE_MULTIPLIER)
-    split_ratio = models.FloatField(default=choices.DEFAULT_TRAINING_SPLIT)
     num_examples = models.TextField(default=json.dumps({}), null=True)
 
     # BERT params
@@ -68,6 +68,24 @@ class BertTagger(models.Model):
     plot = models.FileField(upload_to='data/media', null=True, verbose_name='')
 
     task = models.OneToOneField(Task, on_delete=models.SET_NULL, null=True)
+
+
+    def get_available_or_all_indices(self, indices: List[str] = None) -> List[str]:
+        """
+        Used in views where the user can select the indices they wish to use.
+        Returns a list of index names from the ones that are in the project
+        and in the indices parameter or all of the indices if it's None or empty.
+        """
+        if indices:
+            indices = self.indices.filter(name__in=indices, is_open=True)
+            if not indices:
+                indices = self.project.indices.all()
+        else:
+            indices = self.indices.all()
+
+        indices = [index.name for index in indices]
+        indices = list(set(indices))  # Leave only unique names just in case.
+        return indices
 
 
     def get_indices(self):
@@ -144,7 +162,7 @@ class BertTagger(models.Model):
         Returns: Full and relative file paths, full for saving the model object and relative for actual DB storage.
         """
         model_file_name = f'{name}_{str(self.pk)}_{secrets.token_hex(10)}'
-        full_path = pathlib.Path(BASE_DIR) / BERT_FINETUNED_MODEL_DIRECTORY/ model_file_name
+        full_path = pathlib.Path(BASE_DIR) / BERT_FINETUNED_MODEL_DIRECTORY / model_file_name
         relative_path = pathlib.Path(BERT_FINETUNED_MODEL_DIRECTORY) / model_file_name
         return str(full_path), str(relative_path)
 
@@ -165,7 +183,7 @@ class BertTagger(models.Model):
         return {"plot": self.plot.path, "model": self.model.path}
 
 
-@receiver(models.signals.post_delete, sender = BertTagger)
+@receiver(models.signals.post_delete, sender=BertTagger)
 def auto_delete_bert_tagger_on_delete(sender, instance: BertTagger, **kwargs):
     """
     Delete resources on the file-system upon BertTagger deletion.
