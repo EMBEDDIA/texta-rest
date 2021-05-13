@@ -139,7 +139,7 @@ class Sumy:
 
                     summary = [sent._text for sent in summarization]
                     summary = "\n".join(summary)
-                    summaries[name] = summary
+                    summaries[doc_path + "_" + name] = summary
 
                 stack.append(summaries)
 
