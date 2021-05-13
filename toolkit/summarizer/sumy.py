@@ -1,3 +1,4 @@
+import re
 import ast
 import logging
 from typing import List
@@ -20,7 +21,7 @@ class SumyTokenizer:
 
     @staticmethod
     def to_sentences(text):
-        return filter(bool, text.split("."))
+        return filter(bool, re.split(r'(?<=\.) ', text))
 
     @staticmethod
     def to_words(sentence):
