@@ -62,7 +62,8 @@ def update_search_query_generator(generator: ElasticSearcher, ec: ElasticCore, f
                 "_id": raw_doc["_id"],
                 "_type": raw_doc.get("_type", "_doc"),
                 "_op_type": "update",
-                "_source": {"doc": {"texta_facts": existing_facts}}
+                "_source": {"doc": {"texta_facts": existing_facts}},
+                "retry_on_conflict": 3
             }
 
 
