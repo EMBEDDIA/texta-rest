@@ -35,7 +35,7 @@ from toolkit.elastic.search_tagger.views import SearchQueryTaggerViewSet, Search
 from toolkit.elastic.face_analyzer.views import FaceAnalyzerViewSet
 from toolkit.embedding.urls import embedding_router
 from toolkit.mlp.urls import mlp_router
-from toolkit.mlp.views import MLPListProcessor, MlpDocsProcessor
+from toolkit.mlp.views import LangDetectView, MLPListProcessor, MlpDocsProcessor
 from toolkit.summarizer.views import SummarizerSummarize
 from toolkit.regex_tagger.urls import router as regex_tagger_router
 from toolkit.tagger.urls import router as tagger_router
@@ -73,12 +73,10 @@ project_router.register('elastic/index_splitter', IndexSplitterViewSet, basename
 project_router.register('elastic/search_query_tagger', SearchQueryTaggerViewSet, basename='search_query_tagger')
 project_router.register('elastic/search_fields_tagger', SearchFieldsTaggerViewSet, basename='search_fields_tagger')
 
-
 # TODO Look for putting this into a better place.
 project_router.register(r'topic_analyzer', TopicAnalyzerViewset, basename='topic_analyzer')
 clustering_router = routers.NestedSimpleRouter(project_router, r'topic_analyzer', lookup='topic_analyzer')
 clustering_router.register("clusters", ClusterViewSet, basename="cluster")
-
 
 app_name = 'toolkit_v2'
 
@@ -97,6 +95,7 @@ urlpatterns = [
     # mlp
     path("mlp/texts/", MLPListProcessor.as_view(), name="mlp_texts"),
     path("mlp/docs/", MlpDocsProcessor.as_view(), name="mlp_docs"),
+    path("mlp/detect_lang/", LangDetectView.as_view(), name="mlp_detect_lang"),
     # summarizer
     path("summarizer/summarize", SummarizerSummarize.as_view(), name="summarizer_summarize"),
     # routers
