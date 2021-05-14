@@ -41,10 +41,38 @@ class SearchFieldsTaggerIndexViewTests(APITestCase):
                     "fact_name": "test_name"
                 }
 
-        response = self.client.post(self.url, payload)
+        response = self.client.post(self.url, payload, format="json")
         print_output('test_search_fields_tagger:response', response)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_search_fields_tagger_index(self):
+        payload = {
+                    "indices": [{"name": "test_search_fields_tagger_index_none"}],
+                    "description": "test",
+                    "query": json.dumps({}),
+                    "fields": ["Field_1"],
+                    "fact_name": "test_name"
+                }
+
+        response = self.client.post(self.url, payload, format="json")
+        print_output('test_search_fields_tagger_index:response', response)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_search_fields_tagger_fields(self):
+        payload = {
+                    "indices": [{"name": "test_search_fields_tagger_index"}],
+                    "description": "test",
+                    "query": json.dumps({}),
+                    "fields": ["Field_4"],
+                    "fact_name": "test_name"
+                }
+
+        response = self.client.post(self.url, payload, format="json")
+        print_output('test_search_fields_tagger_fields:response', response)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
 class SearchQueryTaggerIndexViewTests(APITestCase):
@@ -93,7 +121,57 @@ class SearchQueryTaggerIndexViewTests(APITestCase):
                     "fact_value": "test_value"
                 }
 
-        response = self.client.post(self.url, payload)
+        response = self.client.post(self.url, payload, format="json")
         print_output('test_search_query_tagger:response', response)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_search_query_tagger_index(self):
+        payload = {
+                    "indices": [{
+                        "name": "test_search_query_tagger_index_none"
+                    }],
+                    "description": "test",
+                    "query": json.dumps({
+                        "query": {
+                            "match": {
+                                "Field_3": {
+                                    "query": "This is test data."
+                                }
+                            }
+                        }
+                    }),
+                    "fields": ["Field_1"],
+                    "fact_name": "test_name",
+                    "fact_value": "test_value"
+                }
+
+        response = self.client.post(self.url, payload, format="json")
+        print_output('test_search_query_tagger_fields:response', response)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_search_query_tagger_fields(self):
+        payload = {
+                    "indices": [{
+                        "name": "test_search_query_tagger_index"
+                    }],
+                    "description": "test",
+                    "query": json.dumps({
+                        "query": {
+                            "match": {
+                                "Field_3": {
+                                    "query": "This is test data."
+                                }
+                            }
+                        }
+                    }),
+                    "fields": ["Field_4"],
+                    "fact_name": "test_name",
+                    "fact_value": "test_value"
+                }
+
+        response = self.client.post(self.url, payload, format="json")
+        print_output('test_search_query_tagger_fields:response', response)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
