@@ -101,17 +101,6 @@ def train_torchtagger(tagger_id, testing=False):
         raise
 
 
-def load_tagger(tagger_object: TorchTaggerObject):
-    """Load tagger from disc."""
-    # load embedding & phraser
-    embedding = W2VEmbedding()
-    embedding.load_django(tagger_object.embedding)
-    # retrieve model
-    tagger = TorchTagger(embedding)
-    tagger.load_django(tagger_object)
-    return tagger
-
-
 def apply_loaded_tagger(tagger: TorchTagger, tagger_object: TorchTaggerObject, tagger_input: Union[str, Dict], input_type: str = 'text', feedback: bool = False):
     """Predict with loaded tagger."""
     # tag text
@@ -138,7 +127,7 @@ def apply_loaded_tagger(tagger: TorchTagger, tagger_object: TorchTaggerObject, t
 def apply_tagger(tagger_object: TorchTaggerObject, tagger_input: Union[str, Dict], input_type: str = 'text', feedback: bool = False):
     """Load tagger from the disc and predict with it. Wraps function load_tagger and apply_loaded_tagger."""
     # Load tagger
-    tagger = load_tagger(tagger_object)
+    tagger = tagger_object.load_tagger()
     # Predict with the loaded tagger
     prediction = apply_loaded_tagger(tagger, tagger_object, tagger_input, input_type, feedback)
     return prediction
@@ -204,7 +193,7 @@ def apply_tagger_to_index(object_id: int, indices: List[str], fields: List[str],
     """Apply Torch Tagger to index."""
     try:
         tagger_object = TorchTaggerObject.objects.get(pk=object_id)
-        tagger = load_tagger(tagger_object)
+        tagger = tagger_object.load_tagger()
 
         progress = ShowProgress(tagger_object.task)
 

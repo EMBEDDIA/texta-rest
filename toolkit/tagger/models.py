@@ -14,6 +14,9 @@ from django.db import models, transaction
 from django.dispatch import receiver
 from django.http import HttpResponse
 
+from texta_tools.embedding import W2VEmbedding
+from texta_tagger.tagger import Tagger as TextTagger
+
 from toolkit.constants import MAX_DESC_LEN
 from toolkit.core.lexicon.models import Lexicon
 from toolkit.core.project.models import Project
@@ -23,6 +26,8 @@ from toolkit.elastic.index.models import Index
 from toolkit.elastic.tools.searcher import EMPTY_QUERY
 from toolkit.embedding.models import Embedding
 from toolkit.settings import BASE_DIR, CELERY_LONG_TERM_TASK_QUEUE, INFO_LOGGER, RELATIVE_MODELS_PATH
+from toolkit.helper_functions import load_stop_words
+from toolkit.tools.lemmatizer import CeleryLemmatizer, ElasticLemmatizer
 from toolkit.tagger import choices
 
 
@@ -190,6 +195,34 @@ class Tagger(models.Model):
         logging.getLogger(INFO_LOGGER).info(f"Celery: Starting task for training of tagger: {self.to_json()}")
         chain = start_tagger_task.s() | train_tagger_task.s() | save_tagger_results.s()
         transaction.on_commit(lambda: chain.apply_async(args=(self.pk,), queue=CELERY_LONG_TERM_TASK_QUEUE))
+
+
+    def load_tagger(self, lemmatize: bool = False, use_logger: bool = True):
+        """Loading tagger model from disc."""
+        #if use_logger:
+        #    logging.getLogger(INFO_LOGGER).info(f"Loading tagger with ID: {tagger_id} with params (lemmatize: {lemmatize})")
+        # get lemmatizer/stemmer
+        if self.snowball_language:
+            lemmatizer = ElasticLemmatizer(language=self.snowball_language)
+        elif lemmatize:
+            lemmatizer = CeleryLemmatizer()
+        else:
+            lemmatizer = None
+        # Load stop words
+        stop_words = load_stop_words(self.stop_words)
+        # load embedding
+        if self.embedding:
+            embedding = W2VEmbedding()
+            embedding.load_django(self.embedding)
+        else:
+            embedding = False
+        # load tagger
+        tagger = TextTagger(embedding=embedding, mlp=lemmatizer, custom_stop_words=stop_words)
+        tagger_loaded = tagger.load_django(self)
+        # check if tagger gets loaded
+        if not tagger_loaded:
+            return None
+        return tagger
 
 
 @receiver(models.signals.post_delete, sender=Tagger)

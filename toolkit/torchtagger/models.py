@@ -13,6 +13,9 @@ from django.db import models, transaction
 from django.dispatch import receiver
 from django.http import HttpResponse
 
+from texta_tools.embedding import W2VEmbedding
+from texta_torch_tagger.tagger import TorchTagger as TextTorchTagger
+
 from toolkit.constants import MAX_DESC_LEN
 from toolkit.core.project.models import Project
 from toolkit.core.task.models import Task
@@ -201,6 +204,17 @@ class TorchTagger(models.Model):
 
     def get_resource_paths(self):
         return {"plot": self.plot.path, "model": self.model.path}
+
+
+    def load_tagger(self):
+        """Load tagger from disc."""
+        # load embedding & phraser
+        embedding = W2VEmbedding()
+        embedding.load_django(self.embedding)
+        # retrieve model
+        tagger = TextTorchTagger(embedding)
+        tagger.load_django(self)
+        return tagger
 
 
 @receiver(models.signals.post_delete, sender=TorchTagger)

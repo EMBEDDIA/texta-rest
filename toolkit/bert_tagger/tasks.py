@@ -133,28 +133,6 @@ def train_bert_tagger(tagger_id, testing=False):
         raise
 
 
-def load_tagger(tagger_object: BertTaggerObject) -> BertTagger:
-    """Load BERT tagger from disc."""
-
-    # NB! Saving pretrained models must be disabled!
-    tagger = BertTagger(
-        allow_standard_output = choices.DEFAULT_ALLOW_STANDARD_OUTPUT,
-        save_pretrained = False,
-        pretrained_models_dir = BERT_PRETRAINED_MODEL_DIRECTORY,
-        use_gpu = choices.DEFAULT_USE_GPU,
-        logger = logging.getLogger(INFO_LOGGER),
-        cache_dir = BERT_CACHE_DIR
-    )
-    tagger.load(tagger_object.model.path)
-
-    # use state dict for binary taggers
-    if tagger.config.n_classes == 2:
-        tagger.config.use_state_dict = True
-    else:
-        tagger.config.use_state_dict = False
-    return tagger
-
-
 def apply_loaded_tagger(tagger: BertTagger, tagger_object: BertTaggerObject, tagger_input: Union[str, Dict], input_type: str = "text", feedback: bool=False):
     """Apply loaded BERT tagger to doc or text."""
 
@@ -186,7 +164,7 @@ def apply_tagger(tagger_object: BertTaggerObject, tagger_input: Union[str, Dict]
     """ Apply BERT tagger on a text or a document. Wraps functions load_tagger and apply_loaded_tagger."""
 
     # Load tagger
-    tagger = load_tagger(tagger_object)
+    tagger = tagger_object.load_tagger()
 
     # Predict with the loaded tagger
     prediction = apply_loaded_tagger(tagger, tagger_object, tagger_input, input_type, feedback)
@@ -252,7 +230,7 @@ def apply_tagger_to_index(object_id: int, indices: List[str], fields: List[str],
     """Apply BERT Tagger to index."""
     try:
         tagger_object = BertTaggerObject.objects.get(pk=object_id)
-        tagger = load_tagger(tagger_object)
+        tagger = tagger_object.load_tagger()
 
         progress = ShowProgress(tagger_object.task)
 
