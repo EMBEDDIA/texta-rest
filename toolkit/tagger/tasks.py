@@ -310,52 +310,6 @@ def get_tag_candidates(tagger_group_id: int, text: str, ignore_tags: List[str] =
     return tag_candidates
 
 
-def apply_loaded_tagger(tagger_object: Tagger, tagger: TextTagger, content: Union[str, Dict[str, str]], input_type: str = "text", feedback: bool = False, use_logger: bool = True):
-    """Applying loaded tagger."""
-    # check input type
-    if input_type == 'doc':
-        if use_logger:
-            logging.getLogger(INFO_LOGGER).info(f"Tagging document with content: {content}!")
-        tagger_result = tagger.tag_doc(content)
-    else:
-        if use_logger:
-            logging.getLogger(INFO_LOGGER).info(f"Tagging text with content: {content}!")
-        tagger_result = tagger.tag_text(content)
-
-    # Result is false if binary tagger's prediction is false, but true otherwise
-    # (for multiclass, the result is always true as one of the classes is always predicted)
-    result = False if tagger_result["prediction"] == "false" else True
-
-    # Use tagger description as tag for binary taggers and tagger prediction as tag for multiclass taggers
-    tag = tagger.description if tagger_result["prediction"] in {"true", "false"} else tagger_result["prediction"]
-
-    if use_logger:
-        logging.getLogger(INFO_LOGGER).info(f"Tagger description: {tagger_object.description}")
-        logging.getLogger(INFO_LOGGER).info(f"Tagger result: {tagger_result['prediction']}")
-
-    tagger_id = tagger_object.pk
-    # create output dict
-    prediction = {
-        'tag': tag,
-        'probability': tagger_result['probability'],
-        'tagger_id': tagger_id,
-        'result': result
-    }
-    # add feedback if asked
-    if feedback:
-        logging.getLogger(INFO_LOGGER).info(f"Adding feedback for Tagger id: {tagger_object.pk}")
-        project_pk = tagger_object.project.pk
-        feedback_object = Feedback(project_pk, model_object=tagger_object)
-        processed_text = tagger.text_processor.process(content)[0]
-        feedback_id = feedback_object.store(processed_text, prediction)
-        feedback_url = f'/projects/{project_pk}/taggers/{tagger_object.pk}/feedback/'
-        prediction['feedback'] = {'id': feedback_id, 'url': feedback_url}
-
-    if use_logger:
-        logging.getLogger(INFO_LOGGER).info(f"Completed task 'apply_tagger' for tagger with ID: {tagger_id}!")
-    return prediction
-
-
 @task(name="apply_tagger", base=BaseTask)
 def apply_tagger(tagger_id: int, content: Union[str, Dict[str, str]], input_type='text', lemmatize=False, feedback=None, use_logger=True):
     """Task for applying tagger to text. Wraps functions load_tagger and apply_loaded_tagger."""
@@ -365,10 +319,10 @@ def apply_tagger(tagger_id: int, content: Union[str, Dict[str, str]], input_type
     tagger_object = Tagger.objects.get(pk=tagger_id)
 
     # Load tagger model from the disc
-    tagger = tagger_object.load_tagger(lemmatize=lemmatize, use_logger=use_logger)
+    tagger = tagger_object.load_tagger(lemmatize=lemmatize)
 
     # Use the loaded model for predicting
-    prediction = apply_loaded_tagger(tagger_object=tagger_object, tagger=tagger, content=content, input_type=input_type, feedback=feedback, use_logger=use_logger)
+    prediction = tagger_object.apply_loaded_tagger(tagger=tagger, content=content, input_type=input_type, feedback=feedback)
 
     return prediction
 
@@ -440,7 +394,7 @@ def update_generator(generator: ElasticSearcher, ec: ElasticCore, fields: List[s
                 text = flat_hit.get(field, None)
                 if text and isinstance(text, str):
                     if object_type == "tagger":
-                        result = apply_loaded_tagger(tagger_object, tagger, text, input_type="text", feedback=None, use_logger=False)
+                        result = tagger_object.apply_loaded_tagger(tagger, text, input_type="text", feedback=None)
                         if result:
                             tags = [result]
                         else:

@@ -5,7 +5,7 @@ import pathlib
 import secrets
 import tempfile
 import zipfile
-from typing import List
+from typing import Union, List, Dict
 
 from django.contrib.auth.models import User
 from django.core import serializers
@@ -24,6 +24,7 @@ from toolkit.elastic.tools.searcher import EMPTY_QUERY
 from toolkit.embedding.models import Embedding
 from toolkit.settings import BASE_DIR, CELERY_LONG_TERM_TASK_QUEUE, RELATIVE_MODELS_PATH
 from toolkit.torchtagger import choices
+from toolkit.elastic.tools.feedback import Feedback
 
 
 class TorchTagger(models.Model):
@@ -215,6 +216,30 @@ class TorchTagger(models.Model):
         tagger = TextTorchTagger(embedding)
         tagger.load_django(self)
         return tagger
+
+
+    def apply_loaded_tagger(self, tagger: TextTorchTagger, tagger_input: Union[str, Dict], input_type: str = 'text', feedback: bool = False):
+        """Predict with loaded tagger."""
+        # tag text
+        if input_type == 'doc':
+            tagger_result = tagger.tag_doc(tagger_input)
+        else:
+            tagger_result = tagger.tag_text(tagger_input)
+        # reform output
+        prediction = {
+            'probability': tagger_result['probability'],
+            'tagger_id': self.pk,
+            'result': tagger_result['prediction']
+        }
+        # add optional feedback
+        if feedback:
+            project_pk = self.project.pk
+            feedback_object = Feedback(project_pk, model_object=self)
+            feedback_id = feedback_object.store(tagger_input, prediction['result'])
+            feedback_url = f'/projects/{project_pk}/torchtaggers/{self.pk}/feedback/'
+            prediction['feedback'] = {'id': feedback_id, 'url': feedback_url}
+        return prediction
+
 
 
 @receiver(models.signals.post_delete, sender=TorchTagger)

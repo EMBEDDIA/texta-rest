@@ -133,33 +133,6 @@ def train_bert_tagger(tagger_id, testing=False):
         raise
 
 
-def apply_loaded_tagger(tagger: BertTagger, tagger_object: BertTaggerObject, tagger_input: Union[str, Dict], input_type: str = "text", feedback: bool=False):
-    """Apply loaded BERT tagger to doc or text."""
-
-    # tag doc or text
-    if input_type == 'doc':
-        tagger_result = tagger.tag_doc(tagger_input)
-    else:
-        tagger_result = tagger.tag_text(tagger_input)
-
-    # reform output
-    prediction = {
-        'probability': tagger_result['probability'],
-        'tagger_id': tagger_object.id,
-        'result': tagger_result['prediction']
-    }
-    # add optional feedback
-    if feedback:
-        project_pk = tagger_object.project.pk
-        feedback_object = Feedback(project_pk, model_object=tagger_object)
-        feedback_id = feedback_object.store(tagger_input, prediction['result'])
-        feedback_url = f'/projects/{project_pk}/bert_taggers/{tagger_object.pk}/feedback/'
-        prediction['feedback'] = {'id': feedback_id, 'url': feedback_url}
-
-    logging.getLogger(INFO_LOGGER).info(f"Prediction: {prediction}")
-    return prediction
-
-
 def apply_tagger(tagger_object: BertTaggerObject, tagger_input: Union[str, Dict], input_type: str='text', feedback: bool=False):
     """ Apply BERT tagger on a text or a document. Wraps functions load_tagger and apply_loaded_tagger."""
 
@@ -167,7 +140,7 @@ def apply_tagger(tagger_object: BertTaggerObject, tagger_input: Union[str, Dict]
     tagger = tagger_object.load_tagger()
 
     # Predict with the loaded tagger
-    prediction = apply_loaded_tagger(tagger, tagger_object, tagger_input, input_type, feedback)
+    prediction = tagger_object.apply_loaded_tagger(tagger, tagger_input, input_type, feedback)
 
     return prediction
 
@@ -198,7 +171,7 @@ def update_generator(generator: ElasticSearcher, ec: ElasticCore, fields: List[s
                 text = flat_hit.get(field, None)
                 if text and isinstance(text, str):
 
-                    result = apply_loaded_tagger(tagger, tagger_object, text, input_type = "text", feedback = False)
+                    result = tagger_object.apply_loaded_tagger(tagger, text, input_type = "text", feedback = False)
 
                     # If tagger is binary and fact value is not specified by the user, use tagger description as fact value
                     if result["result"] in ["true", "false"]:

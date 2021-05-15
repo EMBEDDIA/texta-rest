@@ -5,7 +5,7 @@ import pathlib
 import secrets
 import tempfile
 import zipfile
-from typing import List
+from typing import List, Union, Dict
 
 from django.contrib.auth.models import User
 from django.core import serializers
@@ -28,6 +28,7 @@ from toolkit.settings import (
     BERT_PRETRAINED_MODEL_DIRECTORY,
     BERT_CACHE_DIR
 )
+from toolkit.elastic.tools.feedback import Feedback
 
 
 class BertTagger(models.Model):
@@ -209,6 +210,29 @@ class BertTagger(models.Model):
         else:
             tagger.config.use_state_dict = False
         return tagger
+
+
+    def apply_loaded_tagger(self, tagger: TextBertTagger, tagger_input: Union[str, Dict], input_type: str = "text", feedback: bool=False):
+        """Apply loaded BERT tagger to doc or text."""
+        # tag doc or text
+        if input_type == 'doc':
+            tagger_result = tagger.tag_doc(tagger_input)
+        else:
+            tagger_result = tagger.tag_text(tagger_input)
+        # reform output
+        prediction = {
+            'probability': tagger_result['probability'],
+            'tagger_id': self.id,
+            'result': tagger_result['prediction']
+        }
+        # add optional feedback
+        if feedback:
+            project_pk = self.project.pk
+            feedback_object = Feedback(project_pk, model_object=self)
+            feedback_id = feedback_object.store(tagger_input, prediction['result'])
+            feedback_url = f'/projects/{project_pk}/bert_taggers/{self.pk}/feedback/'
+            prediction['feedback'] = {'id': feedback_id, 'url': feedback_url}
+        return prediction
 
 
 @receiver(models.signals.post_delete, sender=BertTagger)

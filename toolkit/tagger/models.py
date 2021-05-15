@@ -6,7 +6,7 @@ import pathlib
 import secrets
 import tempfile
 import zipfile
-from typing import List
+from typing import List, Union, Dict
 
 from django.contrib.auth.models import User
 from django.core import serializers
@@ -29,6 +29,7 @@ from toolkit.settings import BASE_DIR, CELERY_LONG_TERM_TASK_QUEUE, INFO_LOGGER,
 from toolkit.helper_functions import load_stop_words
 from toolkit.tools.lemmatizer import CeleryLemmatizer, ElasticLemmatizer
 from toolkit.tagger import choices
+from toolkit.elastic.tools.feedback import Feedback
 
 
 class Tagger(models.Model):
@@ -223,6 +224,37 @@ class Tagger(models.Model):
         if not tagger_loaded:
             return None
         return tagger
+
+
+    def apply_loaded_tagger(self, tagger: TextTagger, content: Union[str, Dict[str, str]], input_type: str = "text", feedback: bool = False):
+        """Applying loaded tagger."""
+        # check input type
+        if input_type == 'doc':
+            tagger_result = tagger.tag_doc(content)
+        else:
+            tagger_result = tagger.tag_text(content)
+        # Result is false if binary tagger's prediction is false, but true otherwise
+        # (for multiclass, the result is always true as one of the classes is always predicted)
+        result = False if tagger_result["prediction"] == "false" else True
+        # Use tagger description as tag for binary taggers and tagger prediction as tag for multiclass taggers
+        tag = tagger.description if tagger_result["prediction"] in {"true", "false"} else tagger_result["prediction"]
+        # create output dict
+        prediction = {
+            'tag': tag,
+            'probability': tagger_result['probability'],
+            'tagger_id': self.pk,
+            'result': result
+        }
+        # add feedback if asked
+        if feedback:
+            logging.getLogger(INFO_LOGGER).info(f"Adding feedback for Tagger id: {self.pk}")
+            project_pk = self.project.pk
+            feedback_object = Feedback(project_pk, model_object=self)
+            processed_text = tagger.text_processor.process(content)[0]
+            feedback_id = feedback_object.store(processed_text, prediction)
+            feedback_url = f'/projects/{project_pk}/taggers/{self.pk}/feedback/'
+            prediction['feedback'] = {'id': feedback_id, 'url': feedback_url}
+        return prediction
 
 
 @receiver(models.signals.post_delete, sender=Tagger)
