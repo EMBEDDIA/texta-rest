@@ -4,7 +4,6 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from toolkit.elastic.tools.document import ElasticDocument
 from toolkit.tools.utils_for_tests import create_test_user, project_creation, print_output
-from toolkit.test_settings import TEST_VERSION_PREFIX
 
 
 class SearchFieldsTaggerIndexViewTests(APITestCase):
@@ -14,8 +13,7 @@ class SearchFieldsTaggerIndexViewTests(APITestCase):
         cls.user = create_test_user('user', 'my@email.com', 'pw')
         cls.project = project_creation("SearchFieldsTaggerTestProject", "test_search_fields_tagger_index", cls.user)
         cls.project.users.add(cls.user)
-        #cls.url = f'{TEST_VERSION_PREFIX}/projects/{cls.project.id}/search_fields_tagger/'
-        cls.url = reverse("v2:elastic/search_fields_tagger-list", kwargs={"project_pk": cls.project.pk})
+        cls.url = reverse("v1:search_fields_tagger-list", kwargs={"project_pk": cls.project.pk})
 
         cls.uuid = "adasda-5874856a-das4das98f6"
         cls.document = {"Field_1": "This is sentence1. This is sentence2. This is sentence3. This is sentence4. This is sentence5.",
@@ -87,8 +85,7 @@ class SearchQueryTaggerIndexViewTests(APITestCase):
         cls.user = create_test_user('user', 'my@email.com', 'pw')
         cls.project = project_creation("SearchQueryTaggerTestProject", "test_search_query_tagger_index", cls.user)
         cls.project.users.add(cls.user)
-        #cls.url = f'{TEST_VERSION_PREFIX}/projects/{cls.project.id}/search_query_tagger/'
-        cls.url = reverse("v2:elastic/search_query_tagger-list", kwargs={"project_pk": cls.project.pk})
+        cls.url = reverse("v1:search_query_tagger-list", kwargs={"project_pk": cls.project.pk})
 
         cls.uuid = "adasda-5874856a-das4das98f5"
         cls.document = {"Field_1": "This is sentence1. This is sentence2. This is sentence3. This is sentence4. This is sentence5.",
