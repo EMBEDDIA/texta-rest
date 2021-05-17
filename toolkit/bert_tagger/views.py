@@ -157,12 +157,11 @@ class BertTaggerViewSet(viewsets.ModelViewSet, BulkDelete, FeedbackModelView):
         text = serializer.validated_data['text']
         feedback = serializer.validated_data['feedback_enabled']
         persistent = serializer.validated_data['persistent']
-
+        # decide whether to store the model in cache
         if not persistent:
             prediction = apply_tagger(tagger_object, text, feedback=feedback)
         else:
             prediction = apply_persistent_bert_tagger.s(text, tagger_object.pk, feedback=feedback).apply_async().get()
-
         prediction = add_finite_url_to_feedback(prediction, request)
         return Response(prediction, status=status.HTTP_200_OK)
 
