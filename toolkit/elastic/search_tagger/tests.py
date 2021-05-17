@@ -28,7 +28,7 @@ class SearchFieldsTaggerIndexViewTests(APITestCase):
     def setUp(self):
         self.client.login(username='user', password='pw')
 
-    def tearDown(self) -> None:
+    def tearDownClass(self) -> None:
         from toolkit.elastic.tools.core import ElasticCore
         ElasticCore().delete_index(index="test_search_fields_tagger_index", ignore=[400, 404])
 
@@ -100,7 +100,7 @@ class SearchQueryTaggerIndexViewTests(APITestCase):
     def setUp(self):
         self.client.login(username='user', password='pw')
 
-    def tearDown(self) -> None:
+    def tearDownClass(self) -> None:
         from toolkit.elastic.tools.core import ElasticCore
         ElasticCore().delete_index(index="test_search_query_tagger_index", ignore=[400, 404])
 
