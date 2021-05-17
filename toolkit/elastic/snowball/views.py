@@ -1,3 +1,5 @@
+import json
+
 import rest_framework.filters as drf_filters
 from django_filters import rest_framework as filters
 from rest_auth import views
@@ -42,7 +44,7 @@ class ApplySnowballOnIndices(viewsets.ModelViewSet, BulkDelete):
     serializer_class = ApplySnowballSerializer
 
     filter_backends = (drf_filters.OrderingFilter, filters.DjangoFilterBackend)
-    ordering_fields = ('id', 'author__username', 'description', 'detect_lang', 'stemmer_lang', 'task__time_started', 'task__time_completed', 'task__status')
+    ordering_fields = ('id', 'author__username', 'description', 'detect_lang', 'fields', 'task__time_started', 'task__time_completed', 'task__status')
 
     permission_classes = (
         ProjectResourceAllowed,
@@ -64,6 +66,7 @@ class ApplySnowballOnIndices(viewsets.ModelViewSet, BulkDelete):
         worker: ApplyStemmerWorker = serializer.save(
             author=self.request.user,
             project=project,
+            fields=json.dumps(serializer.validated_data["fields"], ensure_ascii=False),
         )
 
         for index in Index.objects.filter(name__in=indices, is_open=True):

@@ -8,6 +8,7 @@ from .models import ApplyStemmerWorker
 from ..choices import DEFAULT_SNOWBALL_LANGUAGE, get_snowball_choices
 from ..index.serializers import IndexSerializer
 from ...core.task.serializers import TaskSerializer
+from ...serializer_constants import FieldValidationSerializer
 
 
 class SnowballSerializer(serializers.Serializer):
@@ -15,7 +16,7 @@ class SnowballSerializer(serializers.Serializer):
     language = serializers.ChoiceField(choices=get_snowball_choices(), default=DEFAULT_SNOWBALL_LANGUAGE)
 
 
-class ApplySnowballSerializer(serializers.ModelSerializer):
+class ApplySnowballSerializer(serializers.ModelSerializer, FieldValidationSerializer):
     description = serializers.CharField()
     indices = IndexSerializer(many=True, default=[])
     author_username = serializers.CharField(source='author.username', read_only=True, required=False)
@@ -23,13 +24,19 @@ class ApplySnowballSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
     query = serializers.JSONField(help_text='Query in JSON format', required=False)
     stemmer_lang = serializers.ChoiceField(choices=get_snowball_choices(), default=DEFAULT_SNOWBALL_LANGUAGE, help_text="Which language stemmer to apply on the text.")
-    stemmer_field = serializers.CharField(required=True, help_text="Which field to stem.")
+    fields = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=False, help_text="Which field to stem.")
     detect_lang = serializers.BooleanField(help_text="Whether to detect the language for the stemming on the fly.", default=False)
 
 
     def validate(self, attrs):
-        if "stemmer_lang" in attrs and "detect_lang" in attrs and attrs["detect_lang"] is True:
+        stemmer_lang_exists = "stemmer_lang" in attrs and attrs["stemmer_lang"]
+        detect_lang_exists = "detect_lang" in attrs and attrs["detect_lang"]
+        if stemmer_lang_exists and detect_lang_exists:
             raise ValidationError("Fields 'stemmer_lang' and 'detect_lang' are mutually exclusive, please choose one!")
+
+        if not stemmer_lang_exists and not detect_lang_exists:
+            raise ValidationError("Please choose at least one of the fields 'stemmer_lang' or 'detect_lang'!")
+
         return attrs
 
 
@@ -47,9 +54,10 @@ class ApplySnowballSerializer(serializers.ModelSerializer):
     def to_representation(self, instance: ApplyStemmerWorker):
         data = super(ApplySnowballSerializer, self).to_representation(instance)
         data["query"] = json.loads(instance.query)
+        data["fields"] = json.loads(instance.fields)
         return data
 
 
     class Meta:
         model = ApplyStemmerWorker
-        fields = ("id", "url", "author_username", "indices", "stemmer_lang", "stemmer_field", "detect_lang", "description", "task", "query",)
+        fields = ("id", "url", "author_username", "indices", "stemmer_lang", "fields", "detect_lang", "description", "task", "query",)

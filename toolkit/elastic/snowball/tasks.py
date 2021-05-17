@@ -24,7 +24,7 @@ def apply_snowball_on_indices(self, worker_id: int):
 
         # Get the necessary fields.
         indices: List[str] = worker_object.get_indices()
-        field = worker_object.stemmer_field
+        fields = json.loads(worker_object.fields)
         detect_lang = worker_object.detect_lang
         snowball_language = worker_object.stemmer_lang
 
@@ -32,7 +32,7 @@ def apply_snowball_on_indices(self, worker_id: int):
         searcher = ElasticSearcher(
             query=json.loads(worker_object.query),
             indices=indices,
-            field_data=[field],
+            field_data=fields,
             output=ElasticSearcher.OUT_RAW,
             callback_progress=show_progress,
             scroll_size=scroll_size,
@@ -44,12 +44,12 @@ def apply_snowball_on_indices(self, worker_id: int):
             worker=worker_object,
             detect_lang=detect_lang,
             snowball_language=snowball_language,
-            field_to_parse=field
+            fields_to_parse=fields
         )
 
         # Send the data towards Elasticsearch
         ed = ElasticDocument("_all")
-        elastic_response = ed.bulk_update(actions=actions)
+        ed.bulk_update(actions=actions)
 
         worker_object.task.complete()
 
