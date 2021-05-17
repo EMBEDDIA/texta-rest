@@ -9,7 +9,7 @@ from elasticsearch.helpers import streaming_bulk
 from toolkit.core.task.models import Task
 
 from toolkit.bert_tagger.models import BertTagger as BertTaggerObject
-from toolkit.base_tasks import TransactionAwareTask
+from toolkit.base_tasks import BaseTask, TransactionAwareTask
 from toolkit.elastic.tools.data_sample import DataSample
 from toolkit.elastic.tools.feedback import Feedback
 from toolkit.elastic.tools.searcher import ElasticSearcher
@@ -28,6 +28,29 @@ from typing import List, Union, Dict
 from nltk.tokenize import sent_tokenize
 from collections import defaultdict
 import numpy as np
+
+# Global object for the worker so tagger models won't get reloaded on each task
+# Essentially an indefinite cache
+PERSISTENT_BERT_TAGGERS = {}
+
+@task(name="apply_persistent_bert_tagger", base=BaseTask)
+def apply_persistent_bert_tagger(tagger_input: Union[str, Dict], tagger_id: int, input_type: str='text', feedback: bool=False):
+    """
+    Task to use Bert models stored in memory for fast re-use.
+    Stores models in dict.
+    """
+    global PERSISTENT_BERT_TAGGERS
+    tagger_object = BertTaggerObject.objects.get(id=tagger_id)
+    try:
+        # load tagger object into cache if not there
+        if tagger_id not in PERSISTENT_BERT_TAGGERS:
+            PERSISTENT_BERT_TAGGERS[tagger_id] = tagger_object.load_tagger()
+        # select loaded tagger from cache
+        loaded_tagger = PERSISTENT_BERT_TAGGERS[tagger_id]
+        return tagger_object.apply_loaded_tagger(loaded_tagger, tagger_input, input_type=input_type, feedback=feedback)
+    except Exception as e:
+        raise
+
 
 @task(name="train_bert_tagger", base=TransactionAwareTask, queue=CELERY_LONG_TERM_TASK_QUEUE)
 def train_bert_tagger(tagger_id, testing=False):
@@ -135,13 +158,10 @@ def train_bert_tagger(tagger_id, testing=False):
 
 def apply_tagger(tagger_object: BertTaggerObject, tagger_input: Union[str, Dict], input_type: str='text', feedback: bool=False):
     """ Apply BERT tagger on a text or a document. Wraps functions load_tagger and apply_loaded_tagger."""
-
     # Load tagger
     tagger = tagger_object.load_tagger()
-
     # Predict with the loaded tagger
     prediction = tagger_object.apply_loaded_tagger(tagger, tagger_input, input_type, feedback)
-
     return prediction
 
 
