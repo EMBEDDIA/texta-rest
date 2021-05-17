@@ -32,6 +32,7 @@ from toolkit.elastic.urls import index_router, reindexer_router, splitter_router
 from toolkit.embedding.urls import embedding_router
 from toolkit.evaluator.urls import router as evaluator_router
 from toolkit.mlp.urls import mlp_router
+from toolkit.mlp.views import LangDetectView, MLPListProcessor, MlpDocsProcessor
 from toolkit.mlp.views import MLPListProcessor, MlpDocsProcessor
 from toolkit.regex_tagger.urls import router as regex_tagger_router
 from toolkit.summarizer.urls import router as summarizer_router
@@ -95,6 +96,7 @@ urlpatterns = [
     # mlp
     path("mlp/texts/", MLPListProcessor.as_view(), name="mlp_texts"),
     path("mlp/docs/", MlpDocsProcessor.as_view(), name="mlp_docs"),
+    path("mlp/detect_lang/", LangDetectView.as_view(), name="mlp_detect_lang"),
     url(r'^get_indices', ElasticGetIndices.as_view(), name="get_indices_for_project_creation"),
 
     # summarizer
