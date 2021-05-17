@@ -33,10 +33,9 @@ from toolkit.elastic.urls import index_router
 from toolkit.embedding.urls import embedding_router
 from toolkit.evaluator.urls import router as evaluator_router
 from toolkit.mlp.urls import mlp_router
-from toolkit.mlp.views import MLPListProcessor, MlpDocsProcessor
+from toolkit.mlp.views import LangDetectView, MLPListProcessor, MlpDocsProcessor
 from toolkit.regex_tagger.urls import router as regex_tagger_router
 from toolkit.summarizer.urls import router as summarizer_router
-from toolkit.mlp.views import LangDetectView, MLPListProcessor, MlpDocsProcessor
 from toolkit.summarizer.views import SummarizerSummarize
 from toolkit.tagger.urls import router as tagger_router
 from toolkit.tools.swagger import schema_view
@@ -70,7 +69,6 @@ project_router.register('elastic/face_analyzer', FaceAnalyzerViewSet, basename='
 project_router.register('elastic/reindexer', ReindexerViewSet, basename='reindexer')
 project_router.register('elastic/dataset_imports', DatasetImportViewSet, basename='dataset_import')
 project_router.register('elastic/index_splitter', IndexSplitterViewSet, basename='index_splitter')
-
 project_router.register('elastic/apply_snowball', ApplySnowballOnIndices, basename='apply_snowball')
 
 # TODO Look for putting this into a better place.
