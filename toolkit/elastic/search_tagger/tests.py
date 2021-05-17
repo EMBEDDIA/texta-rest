@@ -42,6 +42,7 @@ class SearchFieldsTaggerIndexViewTests(APITestCase):
                 }
 
         response = self.client.post(self.url, payload, format="json")
+        print_output('test_search_fields_tagger:url', self.url)
         print_output('test_search_fields_tagger:response', response)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -56,6 +57,7 @@ class SearchFieldsTaggerIndexViewTests(APITestCase):
                 }
 
         response = self.client.post(self.url, payload, format="json")
+        print_output('test_search_fields_tagger_index:url', self.url)
         print_output('test_search_fields_tagger_index:response', response)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -70,6 +72,7 @@ class SearchFieldsTaggerIndexViewTests(APITestCase):
                 }
 
         response = self.client.post(self.url, payload, format="json")
+        print_output('test_search_fields_tagger_fields:url', self.url)
         print_output('test_search_fields_tagger_fields:response', response)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -122,6 +125,7 @@ class SearchQueryTaggerIndexViewTests(APITestCase):
                 }
 
         response = self.client.post(self.url, payload, format="json")
+        print_output('test_search_query_tagger:url', self.url)
         print_output('test_search_query_tagger:response', response)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -147,7 +151,8 @@ class SearchQueryTaggerIndexViewTests(APITestCase):
                 }
 
         response = self.client.post(self.url, payload, format="json")
-        print_output('test_search_query_tagger_fields:response', response)
+        print_output('test_search_query_tagger_index:url', self.url)
+        print_output('test_search_query_tagger_index:response', response)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -172,6 +177,7 @@ class SearchQueryTaggerIndexViewTests(APITestCase):
                 }
 
         response = self.client.post(self.url, payload, format="json")
+        print_output('test_search_query_tagger_fields:url', self.url)
         print_output('test_search_query_tagger_fields:response', response)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
