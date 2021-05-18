@@ -26,6 +26,8 @@ class ApplySnowballSerializer(serializers.ModelSerializer, FieldValidationSerial
     stemmer_lang = serializers.ChoiceField(choices=get_snowball_choices(), default=DEFAULT_SNOWBALL_LANGUAGE, help_text="Which language stemmer to apply on the text.")
     fields = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=False, help_text="Which field to stem.")
     detect_lang = serializers.BooleanField(help_text="Whether to detect the language for the stemming on the fly.", default=False)
+    scroll_timeout = serializers.IntegerField(min_value=1, max_value=60, default=25, help_text="How many minutes should there be between scroll requests before triggering a timeout.")
+    bulk_size = serializers.IntegerField(min_value=1, max_value=500, default=100, help_text="How many documents should be returned by Elasticsearch with each request.")
 
 
     def validate(self, attrs):
@@ -60,4 +62,4 @@ class ApplySnowballSerializer(serializers.ModelSerializer, FieldValidationSerial
 
     class Meta:
         model = ApplyStemmerWorker
-        fields = ("id", "url", "author_username", "indices", "stemmer_lang", "fields", "detect_lang", "description", "task", "query",)
+        fields = ("id", "url", "author_username", "indices", "stemmer_lang", "fields", "scroll_timeout", "bulk_size", "detect_lang", "description", "task", "query",)

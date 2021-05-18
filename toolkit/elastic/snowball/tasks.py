@@ -27,8 +27,9 @@ def apply_snowball_on_indices(self, worker_id: int):
         fields = json.loads(worker_object.fields)
         detect_lang = worker_object.detect_lang
         snowball_language = worker_object.stemmer_lang
+        scroll_timeout = f"{worker_object.scroll_timeout}m"
+        scroll_size = worker_object.bulk_size
 
-        scroll_size = 100
         searcher = ElasticSearcher(
             query=json.loads(worker_object.query),
             indices=indices,
@@ -36,7 +37,7 @@ def apply_snowball_on_indices(self, worker_id: int):
             output=ElasticSearcher.OUT_RAW,
             callback_progress=show_progress,
             scroll_size=scroll_size,
-            scroll_timeout="15m"
+            scroll_timeout=scroll_timeout
         )
 
         actions = process_stemmer_actions(

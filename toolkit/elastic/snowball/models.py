@@ -22,6 +22,8 @@ class ApplyStemmerWorker(models.Model):
     detect_lang = models.BooleanField()
     indices = models.ManyToManyField(Index)
     task = models.OneToOneField(Task, on_delete=models.SET_NULL, null=True)
+    scroll_timeout = models.IntegerField(default=15, help_text="How many minutes should there be between scroll requests before triggering a timeout.")
+    bulk_size = models.IntegerField(default=100, help_text="How many documents should be returned by Elasticsearch with each request.")
 
 
     def process(self):
