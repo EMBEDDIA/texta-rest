@@ -125,6 +125,8 @@ def apply_search_query_tagger_on_index(object_id: int):
         fields: List[str] = json.loads(search_query_tagger.fields)
         fact_name: List[str] = search_query_tagger.fact_name
         fact_value: List[str] = search_query_tagger.fact_value
+        scroll_timeout = search_query_tagger.es_timeout
+        scroll_size = search_query_tagger.bulk_size
 
         ec = ElasticCore()
         [ec.add_texta_facts_mapping(index) for index in indices]
@@ -136,9 +138,9 @@ def apply_search_query_tagger_on_index(object_id: int):
             field_data=fields + ["texta_facts"],  # Get facts to add upon existing ones.
             query=json.loads(search_query_tagger.query),
             output=ElasticSearcher.OUT_RAW,
-            scroll_timeout="30m",
+            scroll_timeout=f"{scroll_timeout}m",
             callback_progress=progress,
-            scroll_size=100
+            scroll_size=scroll_size
         )
 
         actions = update_search_query_generator(generator=searcher, ec=ec, fields=fields, fact_name=fact_name, fact_value=fact_value, tagger_object=search_query_tagger)
@@ -182,6 +184,8 @@ def apply_search_fields_tagger_on_index(object_id: int):
         indices: List[str] = search_fields_tagger.get_indices()
         fields: List[str] = json.loads(search_fields_tagger.fields)
         fact_name: List[str] = search_fields_tagger.fact_name
+        scroll_timeout = search_fields_tagger.es_timeout
+        scroll_size = search_fields_tagger.bulk_size
 
         ec = ElasticCore()
         [ec.add_texta_facts_mapping(index) for index in indices]
@@ -191,9 +195,9 @@ def apply_search_fields_tagger_on_index(object_id: int):
             field_data=fields + ["texta_facts"],  # Get facts to add upon existing ones.
             query=json.loads(search_fields_tagger.query),
             output=ElasticSearcher.OUT_RAW,
-            scroll_timeout="30m",
+            scroll_timeout=f"{scroll_timeout}m",
             callback_progress=progress,
-            scroll_size=100
+            scroll_size=scroll_size
         )
 
         actions = update_search_fields_generator(generator=searcher, ec=ec, fields=fields, fact_name=fact_name, tagger_object=search_fields_tagger)

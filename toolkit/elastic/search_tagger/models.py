@@ -19,6 +19,8 @@ class SearchQueryTagger(models.Model):
     fact_name = models.TextField()
     fact_value = models.TextField()
     task = models.OneToOneField(Task, on_delete=models.SET_NULL, null=True)
+    bulk_size = models.IntegerField(default=100)
+    es_timeout = models.IntegerField(default=10)
 
     def get_indices(self):
         return [index.name for index in self.indices.filter(is_open=True)]
@@ -46,6 +48,8 @@ class SearchFieldsTagger(models.Model):
     fields = models.TextField(default=json.dumps([]))
     fact_name = models.TextField()
     task = models.OneToOneField(Task, on_delete=models.SET_NULL, null=True)
+    bulk_size = models.IntegerField(default=100)
+    es_timeout = models.IntegerField(default=10)
 
     def get_indices(self):
         return [index.name for index in self.indices.filter(is_open=True)]
