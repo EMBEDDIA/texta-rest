@@ -7,6 +7,7 @@ from rest_framework.exceptions import ValidationError
 from .models import ApplyStemmerWorker
 from ..choices import DEFAULT_SNOWBALL_LANGUAGE, get_snowball_choices
 from ..index.serializers import IndexSerializer
+from ..tools.searcher import EMPTY_QUERY
 from ...core.task.serializers import TaskSerializer
 from ...serializer_constants import FieldValidationSerializer
 
@@ -22,7 +23,7 @@ class ApplySnowballSerializer(serializers.ModelSerializer, FieldValidationSerial
     author_username = serializers.CharField(source='author.username', read_only=True, required=False)
     task = TaskSerializer(read_only=True, required=False)
     url = serializers.SerializerMethodField()
-    query = serializers.JSONField(help_text='Query in JSON format', required=False)
+    query = serializers.JSONField(help_text='Query in JSON format', default=json.dumps(EMPTY_QUERY))
     stemmer_lang = serializers.ChoiceField(choices=get_snowball_choices(), default=DEFAULT_SNOWBALL_LANGUAGE, help_text="Which language stemmer to apply on the text.")
     fields = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=False, help_text="Which field to stem.")
     detect_lang = serializers.BooleanField(help_text="Whether to detect the language for the stemming on the fly.", default=False)
