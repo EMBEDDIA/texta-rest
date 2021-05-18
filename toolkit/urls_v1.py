@@ -25,6 +25,7 @@ from toolkit.dataset_import.urls import router as dataset_import_router
 from toolkit.docparser.views import DocparserView
 from toolkit.elastic.document_importer.views import DocumentImportView, DocumentInstanceView, UpdateSplitDocument
 from toolkit.elastic.face_analyzer.views import FaceAnalyzerViewSet
+from toolkit.elastic.urls import index_router, reindexer_router, splitter_router, search_tagger_router
 from toolkit.elastic.index.views import ElasticGetIndices
 from toolkit.elastic.snowball.urls import snowball_router as apply_snowball
 from toolkit.elastic.snowball.views import SnowballProcessor
@@ -52,6 +53,7 @@ router.register('core_variables', CoreVariableViewSet, basename='corevariable')
 project_router = routers.NestedDefaultRouter(router, r'projects', lookup='project')
 project_router.registry.extend(embedding_router.registry)
 project_router.registry.extend(reindexer_router.registry)
+project_router.registry.extend(search_tagger_router.registry)
 project_router.registry.extend(splitter_router.registry)
 project_router.registry.extend(dataset_import_router.registry)
 project_router.registry.extend(tagger_router.registry)
