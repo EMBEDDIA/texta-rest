@@ -27,13 +27,13 @@ class SearchQueryTagger(models.Model):
         return self.description
 
     def process(self):
-        from toolkit.elastic.search_tagger.tasks import apply_search_query_tagger_on_index
+        from toolkit.elastic.search_tagger.tasks import start_search_query_tagger_worker, apply_search_query_tagger_on_index, end_search_query_tagger_task
 
         new_task = Task.objects.create(searchquerytagger=self, status='created')
         self.task = new_task
         self.save()
 
-        chain = apply_search_query_tagger_on_index.s()
+        chain = start_search_query_tagger_worker.s() | apply_search_query_tagger_on_index.s() | end_search_query_tagger_task.s()
         transaction.on_commit(lambda: chain.apply_async(args=(self.pk,), queue=CELERY_LONG_TERM_TASK_QUEUE))
 
 
@@ -54,11 +54,11 @@ class SearchFieldsTagger(models.Model):
         return self.description
 
     def process(self):
-        from toolkit.elastic.search_tagger.tasks import apply_search_fields_tagger_on_index
+        from toolkit.elastic.search_tagger.tasks import start_search_fields_tagger_worker, apply_search_fields_tagger_on_index, end_search_fields_tagger_task
 
         new_task = Task.objects.create(searchfieldstagger=self, status='created')
         self.task = new_task
         self.save()
 
-        chain = apply_search_fields_tagger_on_index.s()
+        chain = start_search_fields_tagger_worker.s() | apply_search_fields_tagger_on_index.s() | end_search_fields_tagger_task.s()
         transaction.on_commit(lambda: chain.apply_async(args=(self.pk,), queue=CELERY_LONG_TERM_TASK_QUEUE))
