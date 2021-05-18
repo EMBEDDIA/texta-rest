@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ('core', '0014_userprofile_application'),
-        ('elastic', '0008_indexsplitter_str_val.py'),
+        ('elastic', '0008_indexsplitter_str_val'),
     ]
 
     operations = [

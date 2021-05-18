@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('core', '0014_userprofile_application'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('elastic', '0009_searchfieldstagger_searchquerytagger.py'),
+        ('elastic', '0009_searchfieldstagger_searchquerytagger'),
     ]
 
     operations = [
