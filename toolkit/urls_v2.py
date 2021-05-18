@@ -28,10 +28,9 @@ from toolkit.elastic.face_analyzer.views import FaceAnalyzerViewSet
 from toolkit.elastic.index.views import ElasticGetIndices
 from toolkit.elastic.index_splitter.views import IndexSplitterViewSet
 from toolkit.elastic.reindexer.views import ReindexerViewSet
+from toolkit.elastic.search_tagger.views import SearchFieldsTaggerViewSet, SearchQueryTaggerViewSet
 from toolkit.elastic.snowball.views import ApplySnowballOnIndices, SnowballProcessor
 from toolkit.elastic.urls import index_router
-from toolkit.elastic.search_tagger.views import SearchQueryTaggerViewSet, SearchFieldsTaggerViewSet
-from toolkit.elastic.face_analyzer.views import FaceAnalyzerViewSet
 from toolkit.embedding.urls import embedding_router
 from toolkit.evaluator.urls import router as evaluator_router
 from toolkit.mlp.urls import mlp_router

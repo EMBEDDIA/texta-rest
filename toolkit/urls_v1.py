@@ -25,11 +25,10 @@ from toolkit.dataset_import.urls import router as dataset_import_router
 from toolkit.docparser.views import DocparserView
 from toolkit.elastic.document_importer.views import DocumentImportView, DocumentInstanceView, UpdateSplitDocument
 from toolkit.elastic.face_analyzer.views import FaceAnalyzerViewSet
-from toolkit.elastic.urls import index_router, reindexer_router, splitter_router, search_tagger_router
 from toolkit.elastic.index.views import ElasticGetIndices
 from toolkit.elastic.snowball.urls import snowball_router as apply_snowball
 from toolkit.elastic.snowball.views import SnowballProcessor
-from toolkit.elastic.urls import index_router, reindexer_router, splitter_router
+from toolkit.elastic.urls import index_router, reindexer_router, search_tagger_router, splitter_router
 from toolkit.embedding.urls import embedding_router
 from toolkit.evaluator.urls import router as evaluator_router
 from toolkit.mlp.urls import mlp_router
