@@ -7,9 +7,9 @@ from rest_framework import serializers
 from toolkit.core import choices as choices
 from toolkit.core.project.models import Project
 from toolkit.core.project.validators import check_if_in_elastic
+from toolkit.elastic.index.serializers import IndexSerializer
 from toolkit.elastic.tools.core import ElasticCore
 from toolkit.elastic.tools.searcher import EMPTY_QUERY
-from toolkit.elastic.index.serializers import IndexSerializer
 
 
 class ExportSearcherResultsSerializer(serializers.Serializer):
@@ -87,6 +87,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     users = serializers.HyperlinkedRelatedField(many=True, view_name='user-detail', queryset=User.objects.all(), )
     author_username = serializers.CharField(source='author.username', read_only=True)
     resources = serializers.SerializerMethodField()
+    resource_count = serializers.SerializerMethodField()
 
 
     def update(self, instance, validated_data):
@@ -137,7 +138,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Project
-        fields = ('url', 'id', 'title', 'author_username', 'users', 'indices', 'resources',)
+        fields = ('url', 'id', 'title', 'author_username', 'users', 'indices', 'resources', 'resource_count',)
         read_only_fields = ('author_username', 'resources',)
 
 
@@ -155,7 +156,10 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
                 'elastic/index_splitter',
                 'elastic/dataset_imports',
                 'elastic/face_analyzer',
+                'elastic/search_query_tagger',
+                'elastic/search_fields_tagger',
                 'elastic/scroll',
+                'elastic/apply_snowball'
                 'searches',
                 'embeddings',
                 'topic_analyzer',
@@ -175,6 +179,8 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
             resources = (
                 'lexicons',
                 'reindexer',
+                'search_query_tagger',
+                'search_fields_tagger',
                 'index_splitter',
                 'dataset_imports',
                 'searches',
@@ -191,7 +197,8 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
                 'mlp_index',
                 'lang_index',
                 'evaluators',
-                'summarizer_index'
+                'summarizer_index',
+                'apply_snowball'
             )
 
         for resource_name in resources:
@@ -205,6 +212,10 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
         importer_uri = reverse(f"{api_version}:document_import", kwargs={"pk": obj.id})
         resource_dict["document_import_api"] = request.build_absolute_uri(importer_uri)
         return resource_dict
+
+
+    def get_resource_count(self, obj):
+        return sum(obj.get_resource_counts().values())
 
 
 class ProjectSuggestFactValuesSerializer(serializers.Serializer):
