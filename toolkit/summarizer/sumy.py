@@ -89,7 +89,10 @@ class Sumy:
         summarizers = self.get_summarizers(summarizer_names)
 
         stack = []
-        ratio_count = SumyTokenizer().sentences_ratio(text, float(ratio))
+        if float(ratio) <= 1:
+            ratio_count = SumyTokenizer().sentences_ratio(text, float(ratio))
+        else:
+            ratio_count = ratio
         parser = PlaintextParser.from_string(text, SumyTokenizer())
 
         summaries = {}
