@@ -92,7 +92,7 @@ class DataSample:
         :param field_data: List of strings containing the dot-separated names of fields.
         :return: List of fields to fetch from Elasticsearch.
         """
-        if hasattr(self.tagger_object, "snowball_language"):
+        if not hasattr(self.tagger_object, "snowball_language"):
             return field_data
         else:
             field_data_field = [f"{field}_mlp.language.detected" for field in field_data] + field_data
