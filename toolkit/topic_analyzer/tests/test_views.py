@@ -30,8 +30,7 @@ class TopicAnalyzerTests(APITransactionTestCase):
         return response.data["id"]
 
 
-    def setUpTestData(self):
-        # Owner of the project
+    def setUp(self):
         self.test_index_name = reindex_test_dataset()
         self.user = create_test_user('user', 'my@email.com', 'pw')
         self.admin_user = create_test_user("admin", "", "pw")
@@ -51,9 +50,6 @@ class TopicAnalyzerTests(APITransactionTestCase):
             "num_cluster": 10
         }
 
-
-    def setUp(self):
-        self.setUpTestData()
         self.client.login(username='user', password='pw')
         self.clustering_id = self._train_topic_cluster()
 
@@ -71,16 +67,19 @@ class TopicAnalyzerTests(APITransactionTestCase):
 
 
     def test_training_cluster_with_embedding(self):
-        # payload for training embedding
+        # Payload for training embedding
         payload = {
             "description": "TestEmbedding",
-            "fields": [self.test_index_name],
+            "fields": [TEST_FIELD],
+            "indices": [{"name": self.test_index_name}],
             "max_vocab": 10000,
             "min_freq": 5,
             "num_dimensions": 300
         }
         embeddings_url = f'{TEST_VERSION_PREFIX}/projects/{self.project.id}/embeddings/'
         response = self.client.post(embeddings_url, payload, format='json')
+        self.assertTrue(response.status_code == status.HTTP_201_CREATED)
+        print_output("test_training_cluster_with_embedding:response.data", response.data)
 
         # Train the actual cluster.
         payload = {**self.payload, "embedding": response.data["id"]}
