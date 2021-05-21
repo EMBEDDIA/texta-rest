@@ -1,3 +1,4 @@
+from toolkit.settings import DEFAULT_TEXTA_DS_CHOICES
 from django.db import models
 
 
@@ -11,6 +12,13 @@ class Index(models.Model):
     """
     name = models.CharField(max_length=255, unique=True)
     is_open = models.BooleanField(default=True)
+    description = models.CharField(max_length=255, default="")
+    added_by = models.CharField(max_length=255, default="")
+    test = models.BooleanField(default=False)
+    source = models.CharField(max_length=255, default="")
+    client = models.CharField(max_length=255, default="")
+    domain = models.CharField(max_length=255, choices=DEFAULT_TEXTA_DS_CHOICES, default="")
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
 
     def __str__(self):
         return self.name
