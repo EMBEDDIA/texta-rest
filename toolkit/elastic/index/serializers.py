@@ -35,6 +35,11 @@ class IndexSerializer(serializers.ModelSerializer):
             check_for_upper_case
         ]
     )
+    description = serializers.CharField(max_length=255, default="")
+    added_by = serializers.CharField(max_length=255, default="")
+    test = serializers.BooleanField(default=False)
+    source = serializers.CharField(max_length=255, default="")
+    client = serializers.CharField(max_length=255, default="")
 
 
     def get_url(self, obj):
