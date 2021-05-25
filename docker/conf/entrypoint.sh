@@ -4,13 +4,8 @@
 export TEXTA_SHORT_TASK_WORKERS="${TEXTA_SHORT_TASK_WORKERS:-1}"
 export TEXTA_LONG_TASK_WORKERS="${TEXTA_LONG_TASK_WORKERS:-4}"
 export TEXTA_MLP_TASK_WORKERS="${TEXTA_MLP_TASK_WORKERS:-2}"
-
 export TEXTA_SHORT_MAX_TASKS="${TEXTA_SHORT_MAX_TASKS:-100}"
 export TEXTA_LONG_MAX_TASKS="${TEXTA_SHORT_LONG_TASKS:-10}"
-
-export TEXTA_USE_UAA="${TEXTA_USE_UAA:-false}"
-export TEXTA_API_URL="${TEXTA_API_URL:-http://localhost}"
-export TEXTA_HOSTED_FILE_FIELD="${TEXTA_HOSTED_FILE_FIELD:-properties.hosted_filepath}"
 
 # NGINX CONF
 sed -i "s/.*user .*www-data;.*/user www-data www-data;/" /opt/conda/envs/texta-rest/etc/nginx/nginx.conf
