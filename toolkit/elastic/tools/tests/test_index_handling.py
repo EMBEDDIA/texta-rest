@@ -56,13 +56,7 @@ class ElasticIndexViewTests(APITestCase):
     def test_open_index_creation(self):
         response = self.client.post(self.index_url, format="json", data={
             "name": "open_index_creation",
-            "is_open": True,
-            "description": "test",
-            "added_by": "test_user",
-            "test": True,
-            "source": "test_source",
-            "client": "test_client",
-            "domain": "news"
+            "is_open": True
         })
         self.assertTrue(response.status_code == status.HTTP_201_CREATED)
         es_response = requests.head(f"{ES_URL}/open_index_creation")
@@ -74,13 +68,7 @@ class ElasticIndexViewTests(APITestCase):
     def test_closed_index_creation(self):
         response = self.client.post(self.index_url, format="json", data={
             "name": "closed_index_creation",
-            "is_open": False,
-            "description": "test",
-            "added_by": "test_user",
-            "test": True,
-            "source": "test_source",
-            "client": "test_client",
-            "domain": "news"
+            "is_open": False
         })
         self.assertTrue(response.status_code == status.HTTP_201_CREATED)
         es_response = requests.head(f"{ES_URL}/closed_index_creation")
@@ -93,13 +81,7 @@ class ElasticIndexViewTests(APITestCase):
         # Create open index
         response = self.client.post(self.index_url, format="json", data={
             "name": "open_index_2",
-            "is_open": True,
-            "description": "test",
-            "added_by": "test_user",
-            "test": True,
-            "source": "test_source",
-            "client": "test_client",
-            "domain": "news"
+            "is_open": True
         })
         self.assertTrue(response.status_code == status.HTTP_201_CREATED)
         pk = Index.objects.last().pk
@@ -114,13 +96,7 @@ class ElasticIndexViewTests(APITestCase):
         # Create open index
         response = self.client.post(self.index_url, format="json", data={
             "name": "closed_index_2",
-            "is_open": False,
-            "description": "test",
-            "added_by": "test_user",
-            "test": True,
-            "source": "test_source",
-            "client": "test_client",
-            "domain": "news"
+            "is_open": False
         })
         self.assertTrue(response.status_code == status.HTTP_201_CREATED)
         pk = Index.objects.last().pk
@@ -215,13 +191,7 @@ class ElasticIndexViewTests(APITestCase):
 
         first_index = self.client.post(self.index_url, format="json", data={
             "name": "first_index_duplicate",
-            "is_open": False,
-            "description": "test",
-            "added_by": "test_user",
-            "test": True,
-            "source": "test_source",
-            "client": "test_client",
-            "domain": "news"
+            "is_open": False
         })
         self.assertTrue(first_index.status_code == status.HTTP_201_CREATED)
 
