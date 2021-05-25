@@ -1,5 +1,6 @@
 from django.urls import reverse
 from rest_framework import serializers
+from toolkit.settings import DEFAULT_TEXTA_DS_CHOICES
 
 from toolkit.elastic.index.models import Index
 from toolkit.elastic.validators import (
@@ -40,6 +41,7 @@ class IndexSerializer(serializers.ModelSerializer):
     test = serializers.BooleanField(default=False)
     source = serializers.CharField(max_length=255, default="")
     client = serializers.CharField(max_length=255, default="")
+    domain = serializers.ChoiceField(choices=DEFAULT_TEXTA_DS_CHOICES, default="")
 
 
     def get_url(self, obj):
