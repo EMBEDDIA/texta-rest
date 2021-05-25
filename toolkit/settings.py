@@ -6,7 +6,7 @@ import warnings
 from corsheaders.defaults import default_headers
 from kombu import Exchange, Queue
 
-from .helper_functions import download_bert_requirements, download_mlp_requirements, parse_bool_env, parse_list_env_headers, download_nltk_resources, parse_tuple_env_headers
+from .helper_functions import download_bert_requirements, download_mlp_requirements, parse_bool_env, parse_list_env_headers, download_nltk_resources
 from .logging_settings import setup_logging
 
 
@@ -347,7 +347,7 @@ DEFAULT_BERT_MODELS = parse_list_env_headers("TEXTA_BERT_MODELS", ["bert-base-mu
 
 # default MLP languages
 DEFAULT_MLP_LANGUAGE_CODES = parse_list_env_headers("TEXTA_LANGUAGE_CODES", ["et", "en", "ru", "ar"])
-DEFAULT_TEXTA_DS_CHOICES = parse_list_env_headers("TEXTA_DS_CHOICES", ("None", "Other"))
+DEFAULT_TEXTA_DS_CHOICES = (('e-mails', 'e-mails'), ('news articles', 'news articles'), ('comments', 'comments'), ('court decisions', 'court decisions'), ('tweets', 'tweets'), ('forum posts', 'forum posts'), ('formal documents', 'formal documents'), ('other', 'other'))
 
 # Logger IDs, used in apps.
 INFO_LOGGER = "info_logger"
