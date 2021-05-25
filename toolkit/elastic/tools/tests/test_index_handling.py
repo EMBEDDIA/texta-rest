@@ -178,13 +178,7 @@ class ElasticIndexViewTests(APITestCase):
         created_response = requests.put(f"{ES_URL}/same_name_index")
         response = self.client.post(self.index_url, format="json", data={
             "name": "same_name_index",
-            "is_open": False,
-            "description": "test",
-            "added_by": "test_user",
-            "test": True,
-            "source": "test_source",
-            "client": "test_client",
-            "domain": "news"
+            "is_open": False
         })
         closed_index = Index.objects.get(name="same_name_index", is_open=False)
 
