@@ -189,19 +189,20 @@ class IndexViewSet(mixins.CreateModelMixin,
         data.is_valid(raise_exception=True)
 
         index = Index.objects.get(pk=pk)
-        description = data.validated_data["description"]
-        added_by = data.validated_data["added_by"]
-        test = data.validated_data["test"]
-        source = data.validated_data["source"]
-        client = data.validated_data["client"]
-        domain = data.validated_data["domain"]
 
-        index.description = description
-        index.added_by = added_by
-        index.test = test
-        index.source = source
-        index.client = client
-        index.domain = domain
+        val_list = [
+            'description',
+            'added_by',
+            'test',
+            'source',
+            'client',
+            'domain'
+        ]
+
+        for v_name in val_list:
+            if v_name in data.validated_data:
+                setattr(index, v_name, data.validated_data[v_name])
+
         index.save()
         return Response({"message": f"Updated index {index} into Elasticsearch!"}, status=status.HTTP_201_CREATED)
 
