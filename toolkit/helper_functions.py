@@ -60,16 +60,9 @@ def parse_tuple_env_headers(env_key: str, default_value: tuple) -> tuple:
     :param default_value: in case the key is missing or false, what tuple value to return
     """
 
-    res = []
-    temp = []
     data = os.getenv(env_key, None)
     if data and isinstance(data, str):
-        for token in data.split(", "):
-            num = str(token.replace("(", "").replace(")", ""))
-            temp.append(num)
-            if ")" in token:
-                res.append(tuple(temp))
-                temp = []
+        res = tuple((first, second) for first, second in json.loads(data))
         return res
     else:
         return default_value
