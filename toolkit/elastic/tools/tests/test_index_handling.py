@@ -223,7 +223,7 @@ class ElasticIndexViewTests(APITestCase):
             "test": True,
             "source": "test",
             "client": "texta",
-            "domain": "None"
+            "domain": "emails"
         })
         self.assertTrue(new_index_update.status_code == status.HTTP_201_CREATED)
 
