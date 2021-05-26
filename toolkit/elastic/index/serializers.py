@@ -36,11 +36,11 @@ class IndexSerializer(serializers.ModelSerializer):
             check_for_upper_case
         ]
     )
-    description = serializers.CharField(max_length=255, default="")
-    added_by = serializers.CharField(max_length=255, default="")
-    test = serializers.BooleanField(default=False)
-    source = serializers.CharField(max_length=255, default="")
-    client = serializers.CharField(max_length=255, default="")
+    description = serializers.CharField(max_length=255, default="", help_text="Description of index.")
+    added_by = serializers.CharField(max_length=255, default="", help_text="Who added the index.")
+    test = serializers.BooleanField(default=False, help_text="Is the index a test index.")
+    source = serializers.CharField(max_length=255, default="", help_text="What is the source of this index.")
+    client = serializers.CharField(max_length=255, default="", help_text="Who is the client related to this index.")
     domain = serializers.ChoiceField(choices=DEFAULT_TEXTA_DS_CHOICES, default="")
 
 
