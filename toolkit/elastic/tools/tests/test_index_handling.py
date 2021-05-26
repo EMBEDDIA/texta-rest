@@ -204,6 +204,29 @@ class ElasticIndexViewTests(APITestCase):
         list_view = self.client.get(self.index_url)
         self.assertTrue(list_view.status_code == status.HTTP_200_OK)
 
+    def test_update_existing_index(self):
+        """
+        Create an index and update it.
+        """
+
+        new_index = self.client.post(self.index_url, format="json", data={
+            "name": "my_new_index",
+            "is_open": False
+        })
+        self.assertTrue(new_index.status_code == status.HTTP_201_CREATED)
+
+        new_index_update = self.client.patch(self.index_url, format="json", data={
+            "name": "my_new_index",
+            "is_open": False,
+            "description": "testing",
+            "added_by": "tester",
+            "test": True,
+            "source": "test",
+            "client": "texta",
+            "domain": "news articles"
+        })
+
+        self.assertTrue(new_index_update.status_code == status.HTTP_201_CREATED)
 
     def test_that_index_count_matches_reality(self):
         ec = ElasticCore()
