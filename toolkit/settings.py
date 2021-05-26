@@ -349,7 +349,7 @@ DEFAULT_BERT_MODELS = parse_list_env_headers("TEXTA_BERT_MODELS", ["bert-base-mu
 DEFAULT_MLP_LANGUAGE_CODES = parse_list_env_headers("TEXTA_LANGUAGE_CODES", ["et", "en", "ru", "ar"])
 
 # default DS choices
-DEFAULT_TEXTA_DATASOURCE_CHOICES = parse_tuple_env_headers("TEXTA_DATASOURCE_CHOICES", [("None", "Other")])
+DEFAULT_TEXTA_DATASOURCE_CHOICES = parse_tuple_env_headers("TEXTA_DATASOURCE_CHOICES", [('emails', 'emails'), ('news articles', 'news articles'), ('comments', 'comments'), ('court decisions', 'court decisions'), ('tweets', 'tweets'), ('forum posts', 'forum posts'), ('formal documents', 'formal documents'), ('other', 'other')])
 
 # Logger IDs, used in apps.
 INFO_LOGGER = "info_logger"
