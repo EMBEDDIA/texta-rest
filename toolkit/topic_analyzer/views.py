@@ -403,7 +403,7 @@ class ClusterViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, mixins.
         serializer.is_valid(raise_exception=True)
         clustering_pk = ClusterViewSet.__handle_clustering_pk(kwargs)
         tag_cluster.apply_async(args=[kwargs["pk"], clustering_pk, serializer.validated_data])
-        return Response({"message": f"Successfully added fact {serializer.validated_data['fact']} to the documents!"})
+        return Response({"message": f"Successfully started adding fact {serializer.validated_data['fact']} to the documents! This might take a bit depending on the clusters size"})
 
 
 class TopicAnalyzerViewset(viewsets.ModelViewSet, BulkDelete):
