@@ -12,7 +12,8 @@ from .logging_settings import setup_logging
 
 
 env = environ.Env()
-environ.Env.read_env(env_file=".env")
+# environ.Env.read_env(env_file=".env")
+
 
 # Used in cases where multiple Toolkit instances share resources like Elasticsearch or DB.
 # Helps differentiate them when creating static index names.
