@@ -11,9 +11,11 @@ from .helper_functions import download_bert_requirements, download_mlp_requireme
 from .logging_settings import setup_logging
 
 
-env = environ.Env()
-# environ.Env.read_env(env_file=".env")
+env_file_path = os.getenv("TEXTA_ENV_FILE", None)
+if env_file_path:
+    environ.Env.read_env(env_file=env_file_path)
 
+env = environ.Env()
 
 # Used in cases where multiple Toolkit instances share resources like Elasticsearch or DB.
 # Helps differentiate them when creating static index names.
@@ -47,7 +49,7 @@ SECRET_KEY = env("TEXTA_SECRET_KEY", default="eqr9sjz-&baah&c%ejkaorp)a1$q63y0%*
 # SECURITY WARNING: don"t run with debug turned on in production!
 DEBUG = env.bool("TEXTA_DEBUG", default=True)
 # ALLOWED HOSTS
-ALLOWED_HOSTS = env.list("TEXTA_ALLOWED_HOSTS", ["*"])
+ALLOWED_HOSTS = env.list("TEXTA_ALLOWED_HOSTS", default=["*"])
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = env.int("TEXTA_MAX_UPLOAD", default=1024 * 1024 * 1024)
 
@@ -252,13 +254,13 @@ ES_CONNECTION_PARAMETERS = {
     "ca_certs": env("TEXTA_ES_CA_CERT_PATH", default=None),
     "client_cert": env("TEXTA_ES_CLIENT_CERT_PATH", default=None),
     "client_key": env("TEXTA_ES_CLIENT_KEY_PATH", default=None),
-    "timeout": env.int("TEXTA_ES_TIMEOUT", 60),
+    "timeout": env.int("TEXTA_ES_TIMEOUT", default=60),
     "sniff_on_start": env.bool("TEXTA_ES_SNIFF_ON_START", default=True),
     "sniff_on_connection_fail": env.bool("TEXTA_ES_SNIFF_ON_FAIL", default=True)
 }
 
 # CELERY
-BROKER_URL = env('TEXTA_REDIS_URL', 'redis://localhost:6379')
+BROKER_URL = env('TEXTA_REDIS_URL', default='redis://localhost:6379')
 CELERY_RESULT_BACKEND = BROKER_URL
 CELERY_ACCEPT_CONTENT = ["application/json"]
 CELERY_TASK_SERIALIZER = "json"
