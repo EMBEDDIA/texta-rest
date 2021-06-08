@@ -7,9 +7,12 @@ import environ
 from corsheaders.defaults import default_headers
 from kombu import Exchange, Queue
 
-from .helper_functions import download_bert_requirements, download_mlp_requirements, download_nltk_resources, parse_bool_env, parse_list_env_headers, parse_tuple_env_headers
+from .helper_functions import download_bert_requirements, download_mlp_requirements, download_nltk_resources, parse_bool_env, parse_list_env_headers, parse_tuple_env_headers, prepare_mandatory_directories
 from .logging_settings import setup_logging
 
+
+# Ignore Python Warning base class
+warnings.simplefilter(action="ignore", category=Warning)
 
 env_file_path = os.getenv("TEXTA_ENV_FILE", None)
 if env_file_path:
@@ -20,6 +23,8 @@ env = environ.Env()
 # Used in cases where multiple Toolkit instances share resources like Elasticsearch or DB.
 # Helps differentiate them when creating static index names.
 DEPLOY_KEY = env.int("TEXTA_DEPLOY_KEY", default=1)
+
+SEARCHER_FOLDER_KEY = "searcher"
 
 ### CORE SETTINGS ###
 # NOTE: THESE ARE INITIAL VARIABLES IMPORTED FROM THE ENVIRONMENT
@@ -306,48 +311,19 @@ BERT_FINETUNED_MODEL_DIRECTORY = os.path.join(RELATIVE_MODELS_PATH, "bert_tagger
 # NLTK data dir
 NLTK_DATA_DIRECTORY = env("TEXTA_NLTK_DATA_DIRECTORY_PATH", default=os.path.join(EXTERNAL_DATA_DIR, "nltk"))
 
-# create model folders
+# Different types of models
 MODEL_TYPES = ["embedding", "tagger", "torchtagger", "bert_tagger"]
-for model_type in MODEL_TYPES:
-    model_dir = os.path.join(RELATIVE_MODELS_PATH, model_type)
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
-
-# create directory for external data
-if not os.path.exists(EXTERNAL_DATA_DIR):
-    os.makedirs(EXTERNAL_DATA_DIR)
-
-# create directories for BERT
-if not os.path.exists(BERT_PRETRAINED_MODEL_DIRECTORY):
-    os.makedirs(BERT_PRETRAINED_MODEL_DIRECTORY)
-
-if not os.path.exists(BERT_FINETUNED_MODEL_DIRECTORY):
-    os.makedirs(BERT_FINETUNED_MODEL_DIRECTORY)
-
-# create directories for NLTK resources
-if not os.path.exists(NLTK_DATA_DIRECTORY):
-    os.makedirs(NLTK_DATA_DIRECTORY)
 
 # create protected media dirs
 MEDIA_DIR = os.path.join(DATA_DIR, "media")
-if not os.path.exists(MEDIA_DIR):
-    os.makedirs(MEDIA_DIR)
 MEDIA_URL = "data/media/"
 
-# Path to the log directory. Default is /log
 LOG_PATH = os.path.join(DATA_DIR, "log")
-if not os.path.exists(LOG_PATH):
-    os.makedirs(LOG_PATH)
 
-# Path to the upload directory. Default is /upload
 UPLOAD_PATH = os.path.join(DATA_DIR, "upload")
-if not os.path.exists(UPLOAD_PATH):
-    os.makedirs(UPLOAD_PATH)
 
 # Path to the directory containing test files
 TEST_DATA_DIR = os.path.join(DATA_DIR, "test")
-if not os.path.exists(TEST_DATA_DIR):
-    os.makedirs(TEST_DATA_DIR)
 
 # default BERT models
 DEFAULT_BERT_MODELS = env.list("TEXTA_BERT_MODELS", default=["bert-base-multilingual-cased", "EMBEDDIA/finest-bert", "bert-base-uncased"])
@@ -356,8 +332,16 @@ DEFAULT_BERT_MODELS = env.list("TEXTA_BERT_MODELS", default=["bert-base-multilin
 DEFAULT_MLP_LANGUAGE_CODES = env.list("TEXTA_LANGUAGE_CODES", default=[])
 
 # default DS choices
-DEFAULT_TEXTA_DATASOURCE_CHOICES = parse_tuple_env_headers("TEXTA_DATASOURCE_CHOICES",
-                                                           [('emails', 'emails'), ('news articles', 'news articles'), ('comments', 'comments'), ('court decisions', 'court decisions'), ('tweets', 'tweets'), ('forum posts', 'forum posts'), ('formal documents', 'formal documents'), ('other', 'other')])
+DEFAULT_TEXTA_DATASOURCE_CHOICES = parse_tuple_env_headers("TEXTA_DATASOURCE_CHOICES", [
+    ('emails', 'emails'),
+    ('news articles', 'news articles'),
+    ('comments', 'comments'),
+    ('court decisions', 'court decisions'),
+    ('tweets', 'tweets'),
+    ('forum posts', 'forum posts'),
+    ('formal documents', 'formal documents'),
+    ('other', 'other')
+])
 
 # Logger IDs, used in apps.
 INFO_LOGGER = "info_logger"
@@ -367,16 +351,12 @@ INFO_LOG_FILE_NAME = os.path.join(LOG_PATH, "info.log")
 ERROR_LOG_FILE_NAME = os.path.join(LOG_PATH, "error.log")
 LOGGING = setup_logging(INFO_LOG_FILE_NAME, ERROR_LOG_FILE_NAME, INFO_LOGGER, ERROR_LOGGER)
 
-# Ignore Python Warning base class
-warnings.simplefilter(action="ignore", category=Warning)
-
 # Swagger Documentation
 SWAGGER_SETTINGS = {
     "DEFAULT_AUTO_SCHEMA_CLASS": "toolkit.tools.swagger.CompoundTagsSchema"
 }
 
 ### RESOURCE DOWNLOADS
-
 SKIP_MLP_RESOURCES = env.bool("SKIP_MLP_RESOURCES", default=False)
 if SKIP_MLP_RESOURCES is False:
     download_mlp_requirements(MLP_MODEL_DIRECTORY, DEFAULT_MLP_LANGUAGE_CODES, logging.getLogger(INFO_LOGGER))
@@ -392,9 +372,17 @@ if SKIP_NLTK_RESOURCES is False:
 
 ALLOW_BERT_MODEL_DOWNLOADS = env.bool("TEXTA_ALLOW_BERT_MODEL_DOWNLOADS", default=True)
 
-### PROJECT DATA PATH
-
 RELATIVE_PROJECT_DATA_PATH = env("TOOLKIT_PROJECT_DATA_PATH", default=os.path.join(DATA_DIR, "projects"))
-pathlib.Path(RELATIVE_PROJECT_DATA_PATH).mkdir(parents=True, exist_ok=True)
 
-SEARCHER_FOLDER_KEY = "searcher"
+prepare_mandatory_directories(
+    EXTERNAL_DATA_DIR,
+    BERT_PRETRAINED_MODEL_DIRECTORY,
+    BERT_FINETUNED_MODEL_DIRECTORY,
+    NLTK_DATA_DIRECTORY,
+    MEDIA_DIR,
+    LOG_PATH,
+    UPLOAD_PATH,
+    TEST_DATA_DIR,
+    RELATIVE_PROJECT_DATA_PATH,
+    *[os.path.join(RELATIVE_MODELS_PATH, model_type) for model_type in MODEL_TYPES]
+)
