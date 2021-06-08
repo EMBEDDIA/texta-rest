@@ -329,3 +329,39 @@ class ProjectViewTests(APITestCase):
         response = self.client.post(url, data={"indices": []}, format="json")
         self.assertTrue(response.status_code == status.HTTP_200_OK)
         self.assertTrue(response.data == 0)
+
+
+    def test_that_superadmins_can_see_all_projects(self):
+        pass
+
+
+    def test_that_normal_users_can_see_only_projects_they_author_or_admin(self):
+        pass
+
+
+    def test_that_normal_user_cant_add_indices(self):
+        pass
+
+
+    def test_that_normal_user_can_create_project(self):
+        pass
+
+
+    def test_creation_with_only_title_and_indices(self):
+        pass
+
+
+    def test_nonsuperadmin_and_nonadmin_trying_to_edit_wrong_project(self):
+        pass
+
+
+    def test_non_superuser_admin_can_edit_title(self):
+        pass
+
+
+    def test_non_superuser_admin_can_edit_users(self):
+        pass
+
+
+    def test_non_superuser_admin_cant_remove_projadmins_and_users_who_are_projadmins(self):
+        pass

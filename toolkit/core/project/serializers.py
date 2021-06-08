@@ -1,8 +1,9 @@
 from typing import List
 
 from django.contrib.auth.models import User
+from django.db import transaction
 from django.urls import reverse
-from rest_framework import serializers
+from rest_framework import exceptions, serializers
 
 from toolkit.core import choices as choices
 from toolkit.core.project.models import Project
@@ -10,6 +11,7 @@ from toolkit.core.project.validators import check_if_in_elastic
 from toolkit.elastic.index.serializers import IndexSerializer
 from toolkit.elastic.tools.core import ElasticCore
 from toolkit.elastic.tools.searcher import EMPTY_QUERY
+from toolkit.helper_functions import wrap_in_list
 
 
 class ExportSearcherResultsSerializer(serializers.Serializer):
@@ -84,14 +86,16 @@ class ProjectGetFactsSerializer(serializers.Serializer):
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     title = serializers.CharField(required=True)
     indices = serializers.ListField(default=[], child=serializers.CharField(), source="get_indices", validators=[check_if_in_elastic])
-    users = serializers.HyperlinkedRelatedField(many=True, view_name='user-detail', queryset=User.objects.all(), )
+    users = serializers.HyperlinkedRelatedField(many=True, default=serializers.CurrentUserDefault(), view_name='user-detail', queryset=User.objects.all(), )
+    administrators = serializers.HyperlinkedRelatedField(many=True, default=serializers.CurrentUserDefault(), view_name='user-detail', queryset=User.objects.all(), )
     author_username = serializers.CharField(source='author.username', read_only=True)
     resources = serializers.SerializerMethodField()
     resource_count = serializers.SerializerMethodField()
 
 
-    def update(self, instance, validated_data):
+    def update(self, instance: Project, validated_data: dict):
         from toolkit.elastic.index.models import Index
+        user = self.context["request"].user
 
         if "title" in validated_data:
             instance.title = validated_data["title"]
@@ -104,13 +108,14 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
             for index_name in validated_data["get_indices"]:
                 index, is_created = Index.objects.get_or_create(name=index_name)
                 container.append(index)
-
             instance.indices.set(container)
-            instance.save()
 
         if "users" in validated_data:
             instance.users.set(validated_data["users"])
-            instance.save()
+
+        if "administrators" in validated_data:
+            administrators = validated_data["administrators"]
+            instance.users.set(administrators)
 
         return instance
 
@@ -119,26 +124,30 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
         from toolkit.elastic.index.models import Index
         indices: List[str] = validated_data["get_indices"]
         title = validated_data["title"]
-        users = validated_data["users"]
+        users = wrap_in_list(validated_data["users"])
+        administrators = wrap_in_list(validated_data["administrators"])
         author = self.context["request"].user
+
         # create object
-        project = Project.objects.create(title=title, author=author)
-        project.users.set(users)
-        # only run if indices given as we might not have elastic running
-        if indices:
-            ec = ElasticCore()
-            ec.syncher()
-            for index_name in indices:
-                index, is_created = Index.objects.get_or_create(name=index_name)
-                project.indices.add(index)
-        # save project
-        project.save()
+        with transaction.atomic():
+            project = Project.objects.create(title=title, author=author)
+            project.users.add(*users, *administrators, author)
+            project.administrators.add(*administrators, author)  # All admins are also users.
+
+            # only run if indices given as we might not have elastic running
+            if indices:
+                ec = ElasticCore()
+                ec.syncher()
+                for index_name in indices:
+                    index, is_created = Index.objects.get_or_create(name=index_name)
+                    project.indices.add(index)
+
         return project
 
 
     class Meta:
         model = Project
-        fields = ('url', 'id', 'title', 'author_username', 'users', 'indices', 'resources', 'resource_count',)
+        fields = ('url', 'id', 'title', 'author_username', 'users', 'indices', 'administrators', 'resources', 'resource_count',)
         read_only_fields = ('author_username', 'resources',)
 
 

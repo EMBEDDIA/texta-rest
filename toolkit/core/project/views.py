@@ -16,9 +16,18 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from toolkit.core.project.models import Project
-from toolkit.core.project.serializers import (CountIndicesSerializer, ExportSearcherResultsSerializer, ProjectDocumentSerializer, ProjectGetFactsSerializer, ProjectGetSpamSerializer, ProjectSearchByQuerySerializer, ProjectSerializer, ProjectSimplifiedSearchSerializer,
-                                              ProjectSuggestFactNamesSerializer,
-                                              ProjectSuggestFactValuesSerializer)
+from toolkit.core.project.serializers import (
+    CountIndicesSerializer,
+    ExportSearcherResultsSerializer,
+    ProjectDocumentSerializer,
+    ProjectGetFactsSerializer,
+    ProjectGetSpamSerializer,
+    ProjectSearchByQuerySerializer,
+    ProjectSerializer,
+    ProjectSimplifiedSearchSerializer,
+    ProjectSuggestFactNamesSerializer,
+    ProjectSuggestFactValuesSerializer
+)
 from toolkit.elastic.index.serializers import IndexSerializer
 from toolkit.elastic.tools.aggregator import ElasticAggregator
 from toolkit.elastic.tools.core import ElasticCore
@@ -29,7 +38,7 @@ from toolkit.elastic.tools.serializers import ElasticScrollSerializer
 from toolkit.elastic.tools.spam_detector import SpamDetector
 from toolkit.exceptions import InvalidInputDocument, ProjectValidationFailed, SerializerNotValid
 from toolkit.helper_functions import hash_string
-from toolkit.permissions.project_permissions import (ExtraActionResource, IsSuperUser, ProjectAllowed, ProjectResourceAllowed)
+from toolkit.permissions.project_permissions import (ExtraActionResource, ProjectAllowed, ProjectResourceAllowed)
 from toolkit.settings import RELATIVE_PROJECT_DATA_PATH, SEARCHER_FOLDER_KEY
 from toolkit.tools.autocomplete import Autocomplete
 from toolkit.view_constants import FeedbackIndexView
@@ -335,7 +344,7 @@ class ProjectViewSet(viewsets.ModelViewSet, FeedbackIndexView):
         Disable project creation for non-superusers
         """
         if self.action == 'create':
-            permission_classes = [permissions.IsAuthenticated, IsSuperUser]
+            permission_classes = [permissions.IsAuthenticated]
         else:
             permission_classes = self.permission_classes
         return [permission() for permission in permission_classes]
