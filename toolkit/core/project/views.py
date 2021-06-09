@@ -4,6 +4,7 @@ import pathlib
 import elasticsearch
 import elasticsearch_dsl
 import rest_framework.filters as drf_filters
+from django.contrib.auth.models import User
 from django.db.models import Count
 from django.urls import reverse
 from django_filters import rest_framework as filters
@@ -19,7 +20,7 @@ from toolkit.core.project.models import Project
 from toolkit.core.project.serializers import (
     CountIndicesSerializer,
     ExportSearcherResultsSerializer,
-    ProjectDocumentSerializer,
+    HandleIndicesSerializer, HandleProjectAdministratorsSerializer, HandleUsersSerializer, ProjectDocumentSerializer,
     ProjectGetFactsSerializer,
     ProjectGetSpamSerializer,
     ProjectSearchByQuerySerializer,
@@ -28,6 +29,7 @@ from toolkit.core.project.serializers import (
     ProjectSuggestFactNamesSerializer,
     ProjectSuggestFactValuesSerializer
 )
+from toolkit.elastic.index.models import Index
 from toolkit.elastic.index.serializers import IndexSerializer
 from toolkit.elastic.tools.aggregator import ElasticAggregator
 from toolkit.elastic.tools.core import ElasticCore
@@ -348,6 +350,80 @@ class ProjectViewSet(viewsets.ModelViewSet, FeedbackIndexView):
         else:
             permission_classes = self.permission_classes
         return [permission() for permission in permission_classes]
+
+
+    @action(detail=True, methods=['post'], serializer_class=HandleIndicesSerializer, permission_classes=[ExtraActionResource])
+    def add_indices(self, request, pk=None, project_pk=None):
+        project: Project = self.get_object()
+        serializer = self.get_serializer()
+        serializer.is_valid(raise_exception=True)
+        indices = serializer.validated_data["indices"]
+        ec = ElasticCore()
+        exists = ec.check_if_indices_exist(indices)
+        if exists:
+            for index_name in indices:
+                index, is_created = Index.objects.get_or_create(name=index_name)
+                project.indices.add(index)
+            return Response(f"Added indices '{indices}' to the project!")
+        else:
+            raise ValidationError(f"Could not validate indices f'{indices}'")
+
+
+    @action(detail=True, methods=['post'], serializer_class=HandleIndicesSerializer, permission_classes=[ExtraActionResource])
+    def remove_indices(self, request, pk=None, project_pk=None):
+        project: Project = self.get_object()
+        serializer = self.get_serializer()
+        serializer.is_valid(raise_exception=True)
+        indices_names = serializer.validated_data["indices"]
+        ec = ElasticCore()
+        ec.delete_index(",".join(indices_names))
+        indices = project.indices.filter(name__in=indices_names)
+        project.indices.remove(*indices)
+        return Response(f"Removed indices '{indices_names}' from the project!")
+
+
+    @action(detail=True, methods=['post'], serializer_class=HandleUsersSerializer, permission_classes=[ExtraActionResource])
+    def add_users(self, request, pk=None, project_pk=None):
+        project: Project = self.get_object()
+        serializer = self.get_serializer()
+        serializer.is_valid(raise_exception=True)
+        users_names = serializer.validated_data["users"]
+        users = User.objects.filter(username__in=users_names)
+        project.users.add(*users)
+        return Response(f"Added users '{users_names}' into the project!")
+
+
+    @action(detail=True, methods=['post'], serializer_class=HandleUsersSerializer, permission_classes=[ExtraActionResource])
+    def remove_users(self, request, pk=None, project_pk=None):
+        project: Project = self.get_object()
+        serializer = self.get_serializer()
+        serializer.is_valid(raise_exception=True)
+        users_names = serializer.validated_data["users"]
+        users = User.objects.filter(username__in=users_names)
+        project.users.remove(*users)
+        return Response(f"Removed users '{users_names}' into the project!")
+
+
+    @action(detail=True, methods=['post'], serializer_class=HandleProjectAdministratorsSerializer, permission_classes=[ExtraActionResource])
+    def add_project_admins(self, request, pk=None, project_pk=None):
+        project: Project = self.get_object()
+        serializer = self.get_serializer()
+        serializer.is_valid(raise_exception=True)
+        users_names = serializer.validated_data["project_admins"]
+        users = User.objects.filter(username__in=users_names)
+        project.administrators.add(*users)
+        return Response(f"Added project administrators '{users_names}' into the project!")
+
+
+    @action(detail=True, methods=['post'], serializer_class=HandleProjectAdministratorsSerializer, permission_classes=[ExtraActionResource])
+    def remove_project_admins(self, request, pk=None, project_pk=None):
+        project: Project = self.get_object()
+        serializer = self.get_serializer()
+        serializer.is_valid(raise_exception=True)
+        users_names = serializer.validated_data["project_admins"]
+        users = User.objects.filter(username__in=users_names)
+        project.administrators.remove(*users)
+        return Response(f"Removed project administrators '{users_names}' into the project!")
 
 
     def get_queryset(self):

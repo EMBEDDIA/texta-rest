@@ -9,6 +9,9 @@ from toolkit.core.project.models import Project
 """
 
 
+
+
+# Used inside applications to denote access permissions.
 class ProjectResourceAllowed(permissions.BasePermission):
     message = 'Insufficient permissions for this resource.'
 
@@ -27,9 +30,14 @@ class ProjectResourceAllowed(permissions.BasePermission):
             project_object = Project.objects.get(id=view.kwargs['project_pk'])
         except:
             return False
+
         # check if user is listed among project users
         if request.user in project_object.users.all():
             return True
+
+        if request.user in project_object.administrators.all():
+            return True
+
         # check if user is superuser
         if request.user.is_superuser:
             return True
@@ -37,6 +45,7 @@ class ProjectResourceAllowed(permissions.BasePermission):
         return False
 
 
+# Used inside the Project endpoints.
 class ProjectAllowed(permissions.BasePermission):
     message = 'Insufficient permissions for this project.'
 
@@ -56,7 +65,7 @@ class ProjectAllowed(permissions.BasePermission):
             return False
 
         # Project admins have the right to edit project information.
-        if request.user in project_object.administrators.all():
+        if request.user in project_object.administrators.all() and request.method in permissions.SAFE_METHODS:
             return True
 
         # Project users are permitted safe access to project list_view

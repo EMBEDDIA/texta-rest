@@ -3,11 +3,12 @@ from typing import List
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.urls import reverse
-from rest_framework import exceptions, serializers
+from rest_framework import serializers
 
 from toolkit.core import choices as choices
 from toolkit.core.project.models import Project
 from toolkit.core.project.validators import check_if_in_elastic
+from toolkit.core.user_profile.serializers import UserSerializer
 from toolkit.elastic.index.serializers import IndexSerializer
 from toolkit.elastic.tools.core import ElasticCore
 from toolkit.elastic.tools.searcher import EMPTY_QUERY
@@ -81,6 +82,18 @@ class ProjectGetFactsSerializer(serializers.Serializer):
         choices=((True, 'fact names with values'), (False, 'fact names without values')),
         help_text=f'Include fact values in output. Default: True', default=True
     )
+
+
+class HandleIndicesSerializer(serializers.Serializer):
+    indices = IndexSerializer(many=True)
+
+
+class HandleUsersSerializer(serializers.Serializer):
+    users = UserSerializer(many=True)
+
+
+class HandleProjectAdministratorsSerializer(serializers.Serializer):
+    project_admins = UserSerializer(many=True)
 
 
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
