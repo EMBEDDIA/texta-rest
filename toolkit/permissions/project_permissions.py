@@ -9,10 +9,70 @@ from toolkit.core.project.models import Project
 """
 
 
+# Everyone except a plebian user.
+class AuthorProjAdminSuperadminAllowed(permissions.BasePermission):
+    message = 'Only authors, superusers and project administrators have access to this resource.'
+
+
+    def has_permission(self, request, view):
+        return self._permission_check(request, view)
+
+
+    def has_object_permission(self, request, view, obj):
+        return self._permission_check(request, view)
+
+
+    def _permission_check(self, request, view):
+        # retrieve project object
+        try:
+            pk = view.kwargs['project_pk'] if "project_pk" in view.kwargs else view.kwargs["pk"]
+            project_object = Project.objects.get(id=pk)
+        except:
+            return False
+
+        if request.user == project_object.author:
+            return True
+
+        if request.user in project_object.administrators.all():
+            return True
+
+        # check if user is superuser
+        if request.user.is_superuser:
+            return True
+
+        # nah, not gonna see anything!
+        return False
+
+
+class OnlySuperadminAllowed(permissions.BasePermission):
+    message = 'Only superusers have access to this resource.'
+
+
+    def has_permission(self, request, view):
+        return self._permission_check(request, view)
+
+
+    def has_object_permission(self, request, view, obj):
+        return self._permission_check(request, view)
+
+
+    def _permission_check(self, request, view):
+        # retrieve project object
+        try:
+            pk = view.kwargs['project_pk'] if "project_pk" in view.kwargs else view.kwargs["pk"]
+            project_object = Project.objects.get(id=pk)
+        except:
+            return False
+
+        # check if user is superuser
+        if request.user.is_superuser:
+            return True
+        # nah, not gonna see anything!
+        return False
 
 
 # Used inside applications to denote access permissions.
-class ProjectResourceAllowed(permissions.BasePermission):
+class ProjectAccessInApplicationsAllowed(permissions.BasePermission):
     message = 'Insufficient permissions for this resource.'
 
 
@@ -27,7 +87,8 @@ class ProjectResourceAllowed(permissions.BasePermission):
     def _permission_check(self, request, view):
         # retrieve project object
         try:
-            project_object = Project.objects.get(id=view.kwargs['project_pk'])
+            pk = view.kwargs['project_pk'] if "project_pk" in view.kwargs else view.kwargs["pk"]
+            project_object = Project.objects.get(id=pk)
         except:
             return False
 
@@ -46,7 +107,7 @@ class ProjectResourceAllowed(permissions.BasePermission):
 
 
 # Used inside the Project endpoints.
-class ProjectAllowed(permissions.BasePermission):
+class ProjectEditAccessAllowed(permissions.BasePermission):
     message = 'Insufficient permissions for this project.'
 
 
@@ -60,12 +121,13 @@ class ProjectAllowed(permissions.BasePermission):
             return True
         # retrieve project object
         try:
-            project_object = Project.objects.get(id=view.kwargs['pk'])
+            pk = view.kwargs['project_pk'] if "project_pk" in view.kwargs else view.kwargs["pk"]
+            project_object = Project.objects.get(id=pk)
         except:
             return False
 
         # Project admins have the right to edit project information.
-        if request.user in project_object.administrators.all() and request.method in permissions.SAFE_METHODS:
+        if request.user in project_object.administrators.all():
             return True
 
         # Project users are permitted safe access to project list_view
@@ -88,18 +150,21 @@ class IsSuperUser(permissions.BasePermission):
         return request.user and request.user.is_superuser
 
 
-class ExtraActionResource(ProjectResourceAllowed):
+class ExtraActionAccessInApplications(ProjectAccessInApplicationsAllowed):
     """ Overrides ProjectResourceAllowed for project extra_actions that use POST """
 
 
     def _permission_check(self, request, view):
         # retrieve project object
         try:
-            project_object = Project.objects.get(id=view.kwargs['pk'])
+            pk = view.kwargs['project_pk'] if "project_pk" in view.kwargs else view.kwargs["pk"]
+            project_object = Project.objects.get(id=pk)
         except:
             return False
         # check if user is listed among project users
         if request.user in project_object.users.all():
+            return True
+        if request.user in project_object.administrators.all():
             return True
         # check if user is superuser
         if request.user.is_superuser:

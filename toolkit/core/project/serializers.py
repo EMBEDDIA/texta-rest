@@ -4,11 +4,12 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.urls import reverse
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 
 from toolkit.core import choices as choices
 from toolkit.core.project.models import Project
 from toolkit.core.project.validators import check_if_in_elastic
-from toolkit.core.user_profile.serializers import UserSerializer
+from toolkit.elastic.index.models import Index
 from toolkit.elastic.index.serializers import IndexSerializer
 from toolkit.elastic.tools.core import ElasticCore
 from toolkit.elastic.tools.searcher import EMPTY_QUERY
@@ -85,15 +86,18 @@ class ProjectGetFactsSerializer(serializers.Serializer):
 
 
 class HandleIndicesSerializer(serializers.Serializer):
-    indices = IndexSerializer(many=True)
+    indices = serializers.PrimaryKeyRelatedField(many=True, queryset=Index.objects.all(), )
+    # indices = IndexSerializer(many=True)
 
 
 class HandleUsersSerializer(serializers.Serializer):
-    users = UserSerializer(many=True)
+    # users = UserSerializer(many=True)
+    users = serializers.PrimaryKeyRelatedField(many=True, queryset=User.objects.all(), )
 
 
 class HandleProjectAdministratorsSerializer(serializers.Serializer):
-    project_admins = UserSerializer(many=True)
+    # project_admins = UserSerializer(many=True)
+    project_admins = serializers.PrimaryKeyRelatedField(many=True, queryset=User.objects.all(), )
 
 
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
@@ -107,28 +111,9 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
 
 
     def update(self, instance: Project, validated_data: dict):
-        from toolkit.elastic.index.models import Index
-        user = self.context["request"].user
-
         if "title" in validated_data:
             instance.title = validated_data["title"]
             instance.save()
-
-        if "get_indices" in validated_data:
-            ec = ElasticCore()
-            ec.syncher()
-            container = []
-            for index_name in validated_data["get_indices"]:
-                index, is_created = Index.objects.get_or_create(name=index_name)
-                container.append(index)
-            instance.indices.set(container)
-
-        if "users" in validated_data:
-            instance.users.set(validated_data["users"])
-
-        if "administrators" in validated_data:
-            administrators = validated_data["administrators"]
-            instance.users.set(administrators)
 
         return instance
 
@@ -140,6 +125,9 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
         users = wrap_in_list(validated_data["users"])
         administrators = wrap_in_list(validated_data["administrators"])
         author = self.context["request"].user
+
+        if indices and not author.is_superuser:
+            raise PermissionDenied("Non-superusers can not create projects with indices defined!")
 
         # create object
         with transaction.atomic():
