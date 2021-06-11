@@ -86,7 +86,7 @@ class ProjectGetFactsSerializer(serializers.Serializer):
 
 
 class HandleIndicesSerializer(serializers.Serializer):
-    indices = serializers.PrimaryKeyRelatedField(many=True, queryset=Index.objects.all(), )
+    indices = serializers.PrimaryKeyRelatedField(many=True, queryset=Index.objects.filter(is_open=True), )
     # indices = IndexSerializer(many=True)
 
 

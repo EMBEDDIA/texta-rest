@@ -343,7 +343,7 @@ class ProjectViewSet(viewsets.ModelViewSet, FeedbackIndexView):
     def get_queryset(self):
         current_user = self.request.user
         if not current_user.is_superuser:
-            return (Project.objects.filter(users=current_user) | Project.objects.filter(administrators=current_user))
+            return (Project.objects.filter(users=current_user) | Project.objects.filter(administrators=current_user)).distinct()
         else:
             return Project.objects.all()
 
