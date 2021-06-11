@@ -372,7 +372,6 @@ class ProjectViewSet(viewsets.ModelViewSet, FeedbackIndexView):
         serializer.is_valid(raise_exception=True)
         indices_names = [index.name for index in serializer.validated_data["indices"]]
         ec = ElasticCore()
-        ec.delete_index(",".join(indices_names))
         indices = project.indices.filter(name__in=indices_names)
         project.indices.remove(*indices)
         return Response({"detail": f"Removed indices '{str(indices_names)}' from the project!"})
