@@ -7,27 +7,45 @@ from texta_mlp.mlp import MLP
 from toolkit.elastic.choices import map_iso_to_snowball
 from toolkit.elastic.tools.searcher import ElasticSearcher
 from toolkit.settings import INFO_LOGGER, MLP_MODEL_DIRECTORY
-from toolkit.tools.lemmatizer import ElasticLemmatizer
+from toolkit.tools.lemmatizer import ElasticAnalyzer
 
 
-def apply_stemmer_to_texts(texts: List[str], mlp: MLP, detect_lang: bool = False, stemmer_lang: str = None):
-    lemmatizer = ElasticLemmatizer(language=None)
+# TODO Reformat this with documentation and something prettier.
+def apply_analyzers_to_texts(texts: List[str], mlp: MLP, analyzers: List[str], tokenizer: str, strip_html: bool, detect_lang: bool = False, stemmer_lang: str = None):
+    analyzer = ElasticAnalyzer(language=None)
     processed_texts = []
     for text in texts:
+        # No language inserted, we just detect one.
         if detect_lang:
             lang = mlp.detect_language(text)
             lang = map_iso_to_snowball(lang)
             if lang:
-                stemmed_text = lemmatizer.lemmatize(text, language=lang)
+                stemmed_text = analyzer.analyze(text, language=lang, analyzers=analyzers, tokenizer=tokenizer, strip_html=strip_html)
             else:
                 stemmed_text = text
+
+        # Stem with the inserted language.
         elif stemmer_lang:
-            stemmed_text = lemmatizer.lemmatize(text, language=stemmer_lang)
+            stemmed_text = analyzer.analyze(text, language=stemmer_lang, analyzers=analyzers, tokenizer=tokenizer, strip_html=strip_html)
+
+        # We're not stemming at all.
+        else:
+            stemmed_text = analyzer.analyze(text, language=stemmer_lang, analyzers=analyzers, tokenizer=tokenizer, strip_html=strip_html)
+
         processed_texts.append(stemmed_text)
     return processed_texts
 
 
-def process_stemmer_actions(generator: ElasticSearcher, worker, detect_lang: bool, snowball_language: str, fields_to_parse: List[str]):
+def process_analyzer_actions(
+        generator: ElasticSearcher,
+        worker,
+        detect_lang: bool,
+        snowball_language: str,
+        fields_to_parse: List[str],
+        analyzers: List[str],
+        tokenizer: str,
+        strip_html: bool
+):
     counter = 0
     info_logger = logging.getLogger(INFO_LOGGER)
     mlp = MLP(
@@ -43,7 +61,16 @@ def process_stemmer_actions(generator: ElasticSearcher, worker, detect_lang: boo
             source = item["_source"]
             for field in fields_to_parse:
                 texts = mlp.parse_doc_texts(doc_path=field, document=source)
-                stemmed_texts = apply_stemmer_to_texts(texts, mlp, detect_lang, stemmer_lang=snowball_language)
+                stemmed_texts = apply_analyzers_to_texts(
+                    texts=texts,
+                    mlp=mlp,
+                    detect_lang=detect_lang,
+                    stemmer_lang=snowball_language,
+                    analyzers=analyzers,
+                    tokenizer=tokenizer,
+                    strip_html=strip_html
+                )
+
                 if stemmed_texts:
                     text = stemmed_texts[0]
                     new_field = f"{field}_mlp.stem"

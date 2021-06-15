@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import List, Optional
 
 import elasticsearch
 from celery.result import allow_join_result
@@ -24,7 +24,7 @@ class CeleryLemmatizer:
             return lemmas
 
 
-class ElasticLemmatizer:
+class ElasticAnalyzer:
 
     def __init__(self, language="english"):
         self.core = ElasticCore()
@@ -33,7 +33,21 @@ class ElasticLemmatizer:
         self.language = language
 
 
-    def lemmatize(self, text: str, language: Optional[str] = None) -> str:
+    def _prepare_body(self, analyzers: List[str], tokenizer: str, strip_html: bool, language: Optional[str] = None, **kwargs):
+        body = {}
+        if strip_html:
+            body["char_filter"] = ["html_strip"]
+
+        if "stemmer" in analyzers:
+            body["filter"] = [{"type": "snowball", "language": language}]
+
+        if "tokenizer" in analyzers:
+            body["tokenizer"] = tokenizer
+
+        return body
+
+
+    def analyze(self, text: str, analyzers: List[str], tokenizer: str, strip_html: bool, language: Optional[str] = None) -> str:
         analyzed_chunks = []
         # Split input if token count greater than 5K.
         # Elastic will complain if token count exceeds 10K.
@@ -46,13 +60,10 @@ class ElasticLemmatizer:
         # Creating the class for every object would be a waste of resources so instead this
         # workaround allows for both while not breaking existing code.
         lang = self.language if language is None else language
+        body = self._prepare_body(analyzers, tokenizer, strip_html, language)
+
         for text in text_chunks:
-            body = {
-                "char_filter": ["html_strip"],
-                "tokenizer": "standard",
-                "text": text,
-                "filter": [{"type": "snowball", "language": lang}]
-            }
+            body = {"text": text, **body}
             try:
                 analysis = self.indices_client.analyze(body=body)
                 tokens = [token["token"] for token in analysis["tokens"]]

@@ -4,6 +4,18 @@ from typing import Optional
 from toolkit.settings import ELASTIC_CLUSTER_VERSION, INFO_LOGGER
 
 
+ELASTIC_TOKENIZERS = (
+    ("standard", "standard"),
+    ("letter", "letter"),
+    ("lowercase", "lowercase"),
+    ("whitespace", "whitespace"),
+    ("uax_url_email", "uax_url_email"),
+    ("classic", "classic"),
+    ("thai", "thai")
+)
+
+DEFAULT_ELASTIC_TOKENIZER = "standard"
+
 LABEL_DISTRIBUTION = (
     ("random", "random"),
     ("original", "original"),

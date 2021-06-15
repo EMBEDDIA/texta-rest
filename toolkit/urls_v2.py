@@ -29,7 +29,7 @@ from toolkit.elastic.index.views import ElasticGetIndices
 from toolkit.elastic.index_splitter.views import IndexSplitterViewSet
 from toolkit.elastic.reindexer.views import ReindexerViewSet
 from toolkit.elastic.search_tagger.views import SearchFieldsTaggerViewSet, SearchQueryTaggerViewSet
-from toolkit.elastic.snowball.views import ApplySnowballOnIndices, SnowballProcessor
+from toolkit.elastic.snowball.views import ApplyEsAnalyzerOnIndices, SnowballProcessor
 from toolkit.elastic.urls import index_router
 from toolkit.embedding.urls import embedding_router
 from toolkit.evaluator.urls import router as evaluator_router
@@ -70,7 +70,7 @@ project_router.register('elastic/face_analyzer', FaceAnalyzerViewSet, basename='
 project_router.register('elastic/reindexer', ReindexerViewSet, basename='reindexer')
 project_router.register('elastic/dataset_imports', DatasetImportViewSet, basename='dataset_import')
 project_router.register('elastic/index_splitter', IndexSplitterViewSet, basename='index_splitter')
-project_router.register('elastic/apply_snowball', ApplySnowballOnIndices, basename='apply_snowball')
+project_router.register('elastic/apply_snowball', ApplyEsAnalyzerOnIndices, basename='apply_snowball')
 project_router.register('elastic/search_query_tagger', SearchQueryTaggerViewSet, basename='search_query_tagger')
 project_router.register('elastic/search_fields_tagger', SearchFieldsTaggerViewSet, basename='search_fields_tagger')
 

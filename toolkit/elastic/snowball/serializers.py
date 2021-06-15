@@ -4,45 +4,47 @@ from django.urls import reverse
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from .models import ApplyStemmerWorker
-from ..choices import DEFAULT_SNOWBALL_LANGUAGE, get_snowball_choices
+from .models import ApplyESAnalyzerWorker
+from ..choices import DEFAULT_ELASTIC_TOKENIZER, DEFAULT_SNOWBALL_LANGUAGE, ELASTIC_TOKENIZERS, get_snowball_choices
 from ..index.serializers import IndexSerializer
 from ..tools.searcher import EMPTY_QUERY
 from ...core.task.serializers import TaskSerializer
 from ...serializer_constants import FieldValidationSerializer
 
 
-class SnowballSerializer(serializers.Serializer):
-    text = serializers.CharField()
-    language = serializers.ChoiceField(choices=get_snowball_choices(), default=DEFAULT_SNOWBALL_LANGUAGE)
-
-
-class ApplySnowballSerializer(serializers.ModelSerializer, FieldValidationSerializer):
-    description = serializers.CharField()
-    indices = IndexSerializer(many=True, default=[])
+class ApplyESAnalyzerWorkerSerializer(serializers.ModelSerializer, FieldValidationSerializer):
     author_username = serializers.CharField(source='author.username', read_only=True, required=False)
-    task = TaskSerializer(read_only=True, required=False)
-    url = serializers.SerializerMethodField()
+
     query = serializers.JSONField(help_text='Query in JSON format', default=json.dumps(EMPTY_QUERY))
-    stemmer_lang = serializers.ChoiceField(choices=get_snowball_choices(), default=DEFAULT_SNOWBALL_LANGUAGE, help_text="Which language stemmer to apply on the text.")
     fields = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=False, help_text="Which field to stem.")
-    detect_lang = serializers.BooleanField(help_text="Whether to detect the language for the stemming on the fly.", default=False)
-    es_timeout = serializers.IntegerField(min_value=1, max_value=60, default=25, help_text="How many minutes should there be between scroll requests before triggering a timeout.")
-    bulk_size = serializers.IntegerField(min_value=1, max_value=500, default=100, help_text="How many documents should be returned by Elasticsearch with each request.")
+    indices = IndexSerializer(many=True, default=[])
+    url = serializers.SerializerMethodField()
+
+    analyzers = serializers.MultipleChoiceField(allow_blank=False, choices=(("stemmer", "stemmer"), ("tokenizer", "tokenizer")))
+    strip_html = serializers.BooleanField(default=True, help_text="Whether to strip HTML from the text.")
+
+    tokenizer = serializers.ChoiceField(choices=ELASTIC_TOKENIZERS, default=DEFAULT_ELASTIC_TOKENIZER)
+    stemmer_lang = serializers.ChoiceField(choices=get_snowball_choices(), default=DEFAULT_SNOWBALL_LANGUAGE)
+    detect_lang = serializers.BooleanField(default=False)
+    bulk_size = serializers.IntegerField(min_value=0, max_value=500, default=100, help_text="How many items should be processed at once for Elasticsearch")
+    es_timeout = serializers.IntegerField(min_value=1, max_value=100, default=30, help_text="How long should the timeout for scroll be in minutes.")
+    task = TaskSerializer(read_only=True, required=False)
 
 
     def validate(self, attrs):
-        stemmer_lang_exists = "stemmer_lang" in attrs and attrs["stemmer_lang"]
-        detect_lang_exists = "detect_lang" in attrs and attrs["detect_lang"]
-        if stemmer_lang_exists and detect_lang_exists:
-            raise ValidationError("Fields 'stemmer_lang' and 'detect_lang' are mutually exclusive, please choose one!")
+        if "stemmer" in attrs["analyzers"]:
+            stemmer_lang_exists = "stemmer_lang" in attrs and attrs["stemmer_lang"]
+            detect_lang_exists = "detect_lang" in attrs and attrs["detect_lang"]
+            if stemmer_lang_exists and detect_lang_exists:
+                raise ValidationError("Fields 'stemmer_lang' and 'detect_lang' are mutually exclusive, please choose one!")
 
-        if not stemmer_lang_exists and not detect_lang_exists:
-            raise ValidationError("Please choose at least one of the fields 'stemmer_lang' or 'detect_lang'!")
+            if not stemmer_lang_exists and not detect_lang_exists:
+                raise ValidationError("Please choose at least one of the fields 'stemmer_lang' or 'detect_lang'!")
 
         return attrs
 
 
+    # TODO Change the url to the new thing.
     def get_url(self, obj):
         default_version = "v2"
         index = reverse(f"{default_version}:apply_snowball-detail", kwargs={"project_pk": obj.project.pk, "pk": obj.pk})
@@ -54,13 +56,19 @@ class ApplySnowballSerializer(serializers.ModelSerializer, FieldValidationSerial
             return None
 
 
-    def to_representation(self, instance: ApplyStemmerWorker):
-        data = super(ApplySnowballSerializer, self).to_representation(instance)
+    def to_representation(self, instance: ApplyESAnalyzerWorker):
+        data = super(ApplyESAnalyzerWorkerSerializer, self).to_representation(instance)
         data["query"] = json.loads(instance.query)
         data["fields"] = json.loads(instance.fields)
+        data["analyzers"] = json.loads(instance.fields)
         return data
 
 
     class Meta:
-        model = ApplyStemmerWorker
-        fields = ("id", "url", "author_username", "indices", "stemmer_lang", "fields", "es_timeout", "bulk_size", "detect_lang", "description", "task", "query",)
+        model = ApplyESAnalyzerWorker
+        fields = ("id", "url", "author_username", "strip_html", "indices", "analyzers", "stemmer_lang", "fields", "tokenizer", "es_timeout", "bulk_size", "detect_lang", "description", "task", "query",)
+
+
+class SnowballSerializer(serializers.Serializer):
+    text = serializers.CharField()
+    language = serializers.ChoiceField(choices=get_snowball_choices(), default=DEFAULT_SNOWBALL_LANGUAGE)
