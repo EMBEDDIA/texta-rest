@@ -9,6 +9,8 @@ from rest_framework.exceptions import PermissionDenied
 from toolkit.core import choices as choices
 from toolkit.core.project.models import Project
 from toolkit.core.project.validators import check_if_in_elastic
+from toolkit.core.user_profile.serializers import UserSerializer
+from toolkit.core.user_profile.validators import check_if_username_exist
 from toolkit.elastic.index.models import Index
 from toolkit.elastic.index.serializers import IndexSerializer
 from toolkit.elastic.tools.core import ElasticCore
@@ -100,14 +102,34 @@ class HandleProjectAdministratorsSerializer(serializers.Serializer):
     project_admins = serializers.PrimaryKeyRelatedField(many=True, queryset=User.objects.all(), )
 
 
-class ProjectSerializer(serializers.HyperlinkedModelSerializer):
+class ProjectSerializer(serializers.ModelSerializer):
     title = serializers.CharField(required=True)
-    indices = serializers.ListField(default=[], child=serializers.CharField(), source="get_indices", validators=[check_if_in_elastic])
-    users = serializers.HyperlinkedRelatedField(many=True, default=serializers.CurrentUserDefault(), view_name='user-detail', queryset=User.objects.all(), )
-    administrators = serializers.HyperlinkedRelatedField(many=True, default=serializers.CurrentUserDefault(), view_name='user-detail', queryset=User.objects.all(), )
+
+    indices = IndexSerializer(many=True, required=False, read_only=True)
+    indices_write = serializers.ListField(child=serializers.CharField(), write_only=True, validators=[check_if_in_elastic])
+
+    users = UserSerializer(many=True, default=serializers.CurrentUserDefault(), read_only=True)
+    users_write = serializers.ListField(child=serializers.CharField(validators=[check_if_username_exist]), write_only=True, default=[])
+
+    administrators = UserSerializer(many=True, default=serializers.CurrentUserDefault(), read_only=True)
+    administrators_write = serializers.ListField(child=serializers.CharField(validators=[check_if_username_exist]), write_only=True, default=[])
+
     author_username = serializers.CharField(source='author.username', read_only=True)
     resources = serializers.SerializerMethodField()
     resource_count = serializers.SerializerMethodField()
+
+
+    def to_internal_value(self, data):
+        base = super(ProjectSerializer, self).to_internal_value(data)
+        author = self.context["request"].user
+        fields = ["users_write", "administrators_write"]
+        for field in fields:
+            usernames = data.get(field, None)
+            if not usernames:
+                base[field] = [author]
+            else:
+                base[field] = list(User.objects.filter(username__in=usernames))
+        return base
 
 
     def update(self, instance: Project, validated_data: dict):
@@ -120,10 +142,10 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
 
     def create(self, validated_data):
         from toolkit.elastic.index.models import Index
-        indices: List[str] = validated_data["get_indices"]
+        indices: List[str] = validated_data.get("indices_write", None)
         title = validated_data["title"]
-        users = wrap_in_list(validated_data["users"])
-        administrators = wrap_in_list(validated_data["administrators"])
+        users = wrap_in_list(validated_data["users_write"])
+        administrators = wrap_in_list(validated_data["administrators_write"])
         author = self.context["request"].user
 
         if indices and not author.is_superuser:
@@ -148,7 +170,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Project
-        fields = ('url', 'id', 'title', 'author_username', 'users', 'indices', 'administrators', 'resources', 'resource_count',)
+        fields = ('url', 'id', 'title', 'author_username', 'administrators_write', 'administrators', 'users', 'users_write', 'indices', 'indices_write', 'resources', 'resource_count',)
         read_only_fields = ('author_username', 'resources',)
 
 
