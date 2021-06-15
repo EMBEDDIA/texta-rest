@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.urls import reverse
 from rest_framework import serializers
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from toolkit.core import choices as choices
 from toolkit.core.project.models import Project
@@ -106,7 +106,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     title = serializers.CharField(required=True)
 
     indices = IndexSerializer(many=True, required=False, read_only=True)
-    indices_write = serializers.ListField(child=serializers.CharField(), write_only=True, validators=[check_if_in_elastic])
+    indices_write = serializers.ListField(child=serializers.CharField(), write_only=True, default=[], validators=[check_if_in_elastic])
 
     users = UserSerializer(many=True, default=serializers.CurrentUserDefault(), read_only=True)
     users_write = serializers.ListField(child=serializers.CharField(validators=[check_if_username_exist]), write_only=True, default=[])
@@ -119,8 +119,14 @@ class ProjectSerializer(serializers.ModelSerializer):
     resource_count = serializers.SerializerMethodField()
 
 
-    def to_internal_value(self, data):
-        base = super(ProjectSerializer, self).to_internal_value(data)
+    def __validate_read_only_fields(self, data):
+        read_only_fields = ["indices", "users", "administrators"]
+        for field in read_only_fields:
+            if field in data:
+                raise ValidationError(f"Field '{field}' is a read-only field and should be inside the request!")
+
+
+    def __enrich_payload_with_orm(self, base, data):
         author = self.context["request"].user
         fields = ["users_write", "administrators_write"]
         for field in fields:
@@ -132,7 +138,15 @@ class ProjectSerializer(serializers.ModelSerializer):
         return base
 
 
+    def to_internal_value(self, data):
+        self.__validate_read_only_fields(data)
+        base = super(ProjectSerializer, self).to_internal_value(data)
+        base = self.__enrich_payload_with_orm(base, data)
+        return base
+
+
     def update(self, instance: Project, validated_data: dict):
+        self.__validate_read_only_fields(validated_data)
         if "title" in validated_data:
             instance.title = validated_data["title"]
             instance.save()
