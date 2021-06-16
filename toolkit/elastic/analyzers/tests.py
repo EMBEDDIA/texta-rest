@@ -87,15 +87,15 @@ class ApplyAnalyzersTests(APITransactionTestCase):
     def test_unauthorized_endpoint_access(self):
         self.client.logout()
         response = self.client.get(self.list_url)
-        self.assertTrue(response.status_code == status.HTTP_403_FORBIDDEN)
         print_output("test_unauthorized_endpoint_access:response.data", response.data)
+        self.assertTrue(response.status_code == status.HTTP_403_FORBIDDEN)
 
 
     def test_unauthorized_project_access(self):
         self.client.login(username="unauthorized", password="pw")
         response = self.client.get(self.list_url)
-        self.assertTrue(response.status_code == status.HTTP_403_FORBIDDEN)
         print_output("test_unauthorized_project_access:response.data", response.data)
+        self.assertTrue(response.status_code == status.HTTP_403_FORBIDDEN)
 
 
     def test_normal_process_application(self):
@@ -107,14 +107,15 @@ class ApplyAnalyzersTests(APITransactionTestCase):
             "indices": [{"name": self.test_index_name}]
         }
         response = self.client.post(self.list_url, data=payload, format="json")
-        self.assertTrue(response.status_code == status.HTTP_201_CREATED)
         print_output("test_normal_process_application:response.data", response.data)
+        self.assertTrue(response.status_code == status.HTTP_201_CREATED)
         s = ElasticSearcher(indices=[self.test_index_name])
         for hit in s:
             new_field = f'{TEST_FIELD}_es.stems'
             self.assertTrue(new_field in hit)
             self.assertTrue(hit[new_field] != hit[TEST_FIELD])
             break
+
 
     def test_non_existing_fields_input(self):
         payload = {
@@ -125,8 +126,8 @@ class ApplyAnalyzersTests(APITransactionTestCase):
             "indices": [{"name": self.test_index_name}]
         }
         response = self.client.post(self.list_url, data=payload, format="json")
-        self.assertTrue(response.status_code == status.HTTP_400_BAD_REQUEST)
         print_output("test_non_existing_fields_input:response.data", response.data)
+        self.assertTrue(response.status_code == status.HTTP_400_BAD_REQUEST)
 
 
     def test_nested_field_process(self):
@@ -138,8 +139,8 @@ class ApplyAnalyzersTests(APITransactionTestCase):
             "indices": [{"name": self.test_index_name}]
         }
         response = self.client.post(self.list_url, data=payload, format="json")
-        self.assertTrue(response.status_code == status.HTTP_201_CREATED)
         print_output("test_nested_field_process:response.data", response.data)
+        self.assertTrue(response.status_code == status.HTTP_201_CREATED)
 
 
     def test_blank_fields_input(self):
@@ -151,8 +152,8 @@ class ApplyAnalyzersTests(APITransactionTestCase):
             "indices": [{"name": self.test_index_name}]
         }
         response = self.client.post(self.list_url, data=payload, format="json")
-        self.assertTrue(response.status_code == status.HTTP_400_BAD_REQUEST)
         print_output("test_blank_fields_input:response.data", response.data)
+        self.assertTrue(response.status_code == status.HTTP_400_BAD_REQUEST)
 
 
     def test_blank_indices_input(self):
@@ -165,8 +166,8 @@ class ApplyAnalyzersTests(APITransactionTestCase):
             "query": json.dumps(TEST_QUERY, ensure_ascii=False)
         }
         response = self.client.post(self.list_url, data=payload, format="json")
-        self.assertTrue(response.status_code == status.HTTP_201_CREATED)
         print_output("test_blank_indices_input:response.data", response.data)
+        self.assertTrue(response.status_code == status.HTTP_201_CREATED)
 
 
     def test_non_existant_snowball_lang(self):
@@ -178,8 +179,8 @@ class ApplyAnalyzersTests(APITransactionTestCase):
             "indices": [{"name": self.test_index_name}]
         }
         response = self.client.post(self.list_url, data=payload, format="json")
-        self.assertTrue(response.status_code == status.HTTP_400_BAD_REQUEST)
         print_output("test_non_existant_snowball_lang:response.data", response.data)
+        self.assertTrue(response.status_code == status.HTTP_400_BAD_REQUEST)
 
 
     def test_automatic_lang_detection_process(self):
@@ -191,14 +192,16 @@ class ApplyAnalyzersTests(APITransactionTestCase):
             "indices": [{"name": self.test_index_name}]
         }
         response = self.client.post(self.list_url, data=payload, format="json")
-        self.assertTrue(response.status_code == status.HTTP_201_CREATED)
         print_output("test_automatic_lang_detection_process:response.data", response.data)
+        self.assertTrue(response.status_code == status.HTTP_201_CREATED)
+
         s = ElasticSearcher(indices=[self.test_index_name])
         for hit in s:
             fields = [f'{TEST_FIELD}_es.tokenized_text', f'{TEST_FIELD}_es.stems']
             self.assertTrue(all([field in hit for field in fields]))
             self.assertTrue(all(hit[field] != hit[TEST_FIELD] for field in fields))
             break
+
 
     def test_exclusivity_for_detection_options_check(self):
         payload = {
@@ -210,8 +213,8 @@ class ApplyAnalyzersTests(APITransactionTestCase):
             "detect_lang": True
         }
         response = self.client.post(self.list_url, data=payload, format="json")
-        self.assertTrue(response.status_code == status.HTTP_400_BAD_REQUEST)
         print_output("test_exclusivity_for_detection_options_check:response.data", response.data)
+        self.assertTrue(response.status_code == status.HTTP_400_BAD_REQUEST)
 
 
     def test_normal_process_with_multiple_fields(self):
@@ -223,8 +226,8 @@ class ApplyAnalyzersTests(APITransactionTestCase):
             "query": json.dumps(TEST_QUERY, ensure_ascii=False)
         }
         response = self.client.post(self.list_url, data=payload, format="json")
-        self.assertTrue(response.status_code == status.HTTP_201_CREATED)
         print_output("test_normal_process_with_multiple_fields:response.data", response.data)
+        self.assertTrue(response.status_code == status.HTTP_201_CREATED)
 
 
     def test_processing_with_query(self):
@@ -236,8 +239,8 @@ class ApplyAnalyzersTests(APITransactionTestCase):
             "query": json.dumps(TEST_QUERY, ensure_ascii=False)
         }
         response = self.client.post(self.list_url, data=payload, format="json")
-        self.assertTrue(response.status_code == status.HTTP_201_CREATED)
         print_output("test_processing_with_query:response.data", response.data)
+        self.assertTrue(response.status_code == status.HTTP_201_CREATED)
 
 
     def test_check_for_either_detect_lang_or_snowball_lang_existence(self):
@@ -248,8 +251,8 @@ class ApplyAnalyzersTests(APITransactionTestCase):
             "indices": [{"name": self.test_index_name}],
         }
         response = self.client.post(self.list_url, data=payload, format="json")
-        self.assertTrue(response.status_code == status.HTTP_400_BAD_REQUEST)
         print_output("test_check_for_either_detect_lang_or_snowball_lang_existence:response.data", response.data)
+        self.assertTrue(response.status_code == status.HTTP_400_BAD_REQUEST)
 
 
     def test_processing_with_just_tokenizer(self):
@@ -261,8 +264,8 @@ class ApplyAnalyzersTests(APITransactionTestCase):
             "query": json.dumps(TEST_QUERY, ensure_ascii=False)
         }
         response = self.client.post(self.list_url, data=payload, format="json")
-        self.assertTrue(response.status_code == status.HTTP_201_CREATED)
         print_output("test_processing_with_just_tokenizer:response.data", response.data)
+        self.assertTrue(response.status_code == status.HTTP_201_CREATED)
         s = ElasticSearcher(indices=[self.test_index_name], query=TEST_QUERY)
         for hit in s:
             new_field = f'{TEST_FIELD}_es.tokenized_text'
@@ -280,5 +283,5 @@ class ApplyAnalyzersTests(APITransactionTestCase):
             "tokenizer": "whitespace"
         }
         response = self.client.post(self.list_url, data=payload, format="json")
-        self.assertTrue(response.status_code == status.HTTP_201_CREATED)
         print_output("test_processing_with_non_standard_tokenizer:response.data", response.data)
+        self.assertTrue(response.status_code == status.HTTP_201_CREATED)
