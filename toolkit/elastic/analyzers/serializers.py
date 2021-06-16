@@ -23,7 +23,7 @@ class ApplyESAnalyzerWorkerSerializer(serializers.ModelSerializer, FieldValidati
     analyzers = serializers.MultipleChoiceField(allow_blank=False, choices=(("stemmer", "stemmer"), ("tokenizer", "tokenizer")))
     strip_html = serializers.BooleanField(default=True, help_text="Whether to strip HTML from the text.")
 
-    tokenizer = serializers.ChoiceField(choices=ELASTIC_TOKENIZERS, default=DEFAULT_ELASTIC_TOKENIZER, help_text="Which Elasticsearch tokenizer to use.")
+    tokenizer = serializers.ChoiceField(choices=ELASTIC_TOKENIZERS, default=DEFAULT_ELASTIC_TOKENIZER, help_text="Which Elasticsearch tokenizer to use for tokenizer and stemmer analyzers.")
     stemmer_lang = serializers.ChoiceField(choices=get_snowball_choices(), default=DEFAULT_SNOWBALL_LANGUAGE, help_text="Which language stemmer to use.")
     detect_lang = serializers.BooleanField(default=False, help_text="Whether to automatically detect the language from the fields for stemming purposes.")
     bulk_size = serializers.IntegerField(min_value=0, max_value=500, default=100, help_text="How many items should be processed at once for Elasticsearch")
@@ -44,7 +44,6 @@ class ApplyESAnalyzerWorkerSerializer(serializers.ModelSerializer, FieldValidati
         return attrs
 
 
-    # TODO Change the url to the new thing.
     def get_url(self, obj):
         default_version = "v2"
         index = reverse(f"{default_version}:apply_analyzers-detail", kwargs={"project_pk": obj.project.pk, "pk": obj.pk})
