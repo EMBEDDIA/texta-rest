@@ -165,7 +165,7 @@ class DataSample:
             for cl, examples in self.data.items():
                 processed_examples = []
                 for example_doc in examples:
-                    new_example_doc = {k: lemmatizer.analyze(v, language=snowball_language) for k, v in example_doc.items()}
+                    new_example_doc = {k: lemmatizer.stem_text(v, language=snowball_language) for k, v in example_doc.items()}
                     processed_examples.append(new_example_doc)
                 self.data[cl] = processed_examples
 
@@ -185,7 +185,7 @@ class DataSample:
                         if lang is not None:
                             snowball_language = self.humanize_lang_code(lang)
                             if snowball_language:
-                                example_doc[key] = lemmatizer.analyze(example_doc[key], snowball_language)
+                                example_doc[key] = lemmatizer.stem_text(example_doc[key], snowball_language)
                 processed_examples.append(example_doc)
 
             self.data[cl] = processed_examples

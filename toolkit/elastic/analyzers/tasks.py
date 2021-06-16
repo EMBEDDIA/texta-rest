@@ -6,16 +6,16 @@ from celery.task import task
 
 from toolkit.base_tasks import TransactionAwareTask
 from toolkit.core.task.models import Task
-from toolkit.elastic.snowball.helpers import process_analyzer_actions
-from toolkit.elastic.snowball.models import ApplyESAnalyzerWorker
+from toolkit.elastic.analyzers.helpers import process_analyzer_actions
+from toolkit.elastic.analyzers.models import ApplyESAnalyzerWorker
 from toolkit.elastic.tools.document import ElasticDocument
 from toolkit.elastic.tools.searcher import ElasticSearcher
 from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, ERROR_LOGGER
 from toolkit.tools.show_progress import ShowProgress
 
 
-@task(name="apply_snowball_on_indices", base=TransactionAwareTask, queue=CELERY_LONG_TERM_TASK_QUEUE, bind=True)
-def apply_snowball_on_indices(self, worker_id: int):
+@task(name="apply_analyzers_on_indices", base=TransactionAwareTask, queue=CELERY_LONG_TERM_TASK_QUEUE, bind=True)
+def apply_analyzers_on_indices(self, worker_id: int):
     worker_object = ApplyESAnalyzerWorker.objects.get(pk=worker_id)
     task_object = worker_object.task
     try:

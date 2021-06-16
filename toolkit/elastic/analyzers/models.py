@@ -33,14 +33,14 @@ class ApplyESAnalyzerWorker(models.Model):
 
 
     def process(self):
-        from toolkit.elastic.snowball.tasks import apply_snowball_on_indices
+        from toolkit.elastic.analyzers.tasks import apply_analyzers_on_indices
 
         new_task = Task.objects.create(applyesanalyzerworker=self, status='created')
         self.task = new_task
         self.save()
 
         # Run the task.
-        apply_snowball_on_indices.apply_async(args=(self.pk,), queue=CELERY_LONG_TERM_TASK_QUEUE)
+        apply_analyzers_on_indices.apply_async(args=(self.pk,), queue=CELERY_LONG_TERM_TASK_QUEUE)
 
 
     def get_indices(self):

@@ -9,8 +9,8 @@ from rest_framework.response import Response
 from toolkit.core.project.models import Project
 from toolkit.elastic.choices import get_snowball_choices
 from toolkit.elastic.index.models import Index
-from toolkit.elastic.snowball.models import ApplyESAnalyzerWorker
-from toolkit.elastic.snowball.serializers import ApplyESAnalyzerWorkerSerializer, SnowballSerializer
+from toolkit.elastic.analyzers.models import ApplyESAnalyzerWorker
+from toolkit.elastic.analyzers.serializers import ApplyESAnalyzerWorkerSerializer, SnowballSerializer
 from toolkit.permissions.project_permissions import ProjectAccessInApplicationsAllowed
 from toolkit.tools.lemmatizer import ElasticAnalyzer
 from toolkit.view_constants import BulkDelete
@@ -29,7 +29,7 @@ class SnowballProcessor(views.APIView):
         language = serializer.validated_data["language"]
 
         lemmatizer = ElasticAnalyzer(language=language)
-        lemmatized = lemmatizer.analyze(text)
+        lemmatized = lemmatizer.stem_text(text, language=language)
 
         return Response({"text": lemmatized})
 

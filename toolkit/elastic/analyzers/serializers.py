@@ -23,9 +23,9 @@ class ApplyESAnalyzerWorkerSerializer(serializers.ModelSerializer, FieldValidati
     analyzers = serializers.MultipleChoiceField(allow_blank=False, choices=(("stemmer", "stemmer"), ("tokenizer", "tokenizer")))
     strip_html = serializers.BooleanField(default=True, help_text="Whether to strip HTML from the text.")
 
-    tokenizer = serializers.ChoiceField(choices=ELASTIC_TOKENIZERS, default=DEFAULT_ELASTIC_TOKENIZER)
-    stemmer_lang = serializers.ChoiceField(choices=get_snowball_choices(), default=DEFAULT_SNOWBALL_LANGUAGE)
-    detect_lang = serializers.BooleanField(default=False)
+    tokenizer = serializers.ChoiceField(choices=ELASTIC_TOKENIZERS, default=DEFAULT_ELASTIC_TOKENIZER, help_text="Which Elasticsearch tokenizer to use.")
+    stemmer_lang = serializers.ChoiceField(choices=get_snowball_choices(), default=DEFAULT_SNOWBALL_LANGUAGE, help_text="Which language stemmer to use.")
+    detect_lang = serializers.BooleanField(default=False, help_text="Whether to automatically detect the language from the fields for stemming purposes.")
     bulk_size = serializers.IntegerField(min_value=0, max_value=500, default=100, help_text="How many items should be processed at once for Elasticsearch")
     es_timeout = serializers.IntegerField(min_value=1, max_value=100, default=30, help_text="How long should the timeout for scroll be in minutes.")
     task = TaskSerializer(read_only=True, required=False)
@@ -47,7 +47,7 @@ class ApplyESAnalyzerWorkerSerializer(serializers.ModelSerializer, FieldValidati
     # TODO Change the url to the new thing.
     def get_url(self, obj):
         default_version = "v2"
-        index = reverse(f"{default_version}:apply_snowball-detail", kwargs={"project_pk": obj.project.pk, "pk": obj.pk})
+        index = reverse(f"{default_version}:apply_analyzers-detail", kwargs={"project_pk": obj.project.pk, "pk": obj.pk})
         if "request" in self.context:
             request = self.context["request"]
             url = request.build_absolute_uri(index)
