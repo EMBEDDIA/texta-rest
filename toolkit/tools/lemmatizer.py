@@ -102,3 +102,9 @@ class ElasticAnalyzer:
             response = self.apply_analyzer(body)
             analysed_chunks.append(response)
         return " ".join(analysed_chunks)
+
+
+    # This only exists here because otherwise it breaks backwards compatibility
+    # with the texta-tools library that send there as the lemmatizer.
+    def lemmatize(self, text):
+        return self.stem_text(text=text, language=self.language, strip_html=True)
