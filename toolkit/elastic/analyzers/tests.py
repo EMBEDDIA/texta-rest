@@ -88,7 +88,7 @@ class ApplyAnalyzersTests(APITransactionTestCase):
         self.client.logout()
         response = self.client.get(self.list_url)
         print_output("test_unauthorized_endpoint_access:response.data", response.data)
-        self.assertTrue(response.status_code == status.HTTP_403_FORBIDDEN)
+        self.assertTrue(response.status_code == status.HTTP_403_FORBIDDEN or response.status_code == status.HTTP_401_UNAUTHORIZED)
 
 
     def test_unauthorized_project_access(self):
