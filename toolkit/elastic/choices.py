@@ -4,7 +4,9 @@ from typing import Optional
 from toolkit.settings import ELASTIC_CLUSTER_VERSION, INFO_LOGGER
 
 
+# https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-tokenizers.html
 ELASTIC_TOKENIZERS = (
+    ("keyword", "keyword"),
     ("standard", "standard"),
     ("letter", "letter"),
     ("lowercase", "lowercase"),
