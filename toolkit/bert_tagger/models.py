@@ -37,9 +37,11 @@ class BertTagger(models.Model):
 
     description = models.CharField(max_length=MAX_DESC_LEN)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    author = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
     fields = models.TextField(default=json.dumps([]))
     indices = models.ManyToManyField(Index, default=None)
+
+    checkpoint_model = models.ForeignKey("self", null=True, on_delete=models.SET_NULL, default=None)
 
     query = models.TextField(default=json.dumps(EMPTY_QUERY))
     fact_name = models.CharField(max_length=MAX_DESC_LEN, null=True)

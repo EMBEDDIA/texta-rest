@@ -5,7 +5,7 @@ from toolkit.helper_functions import get_downloaded_bert_models
 from toolkit.core.task.serializers import TaskSerializer
 from toolkit.elastic.index.serializers import IndexSerializer
 from toolkit.elastic.tools.searcher import EMPTY_QUERY
-from toolkit.serializer_constants import FieldParseSerializer, ProjectResourceUrlSerializer
+from toolkit.serializer_constants import FieldParseSerializer, ProjectResourceUrlSerializer, ProjectFilteredPrimaryKeyRelatedField
 from toolkit.bert_tagger import choices
 from toolkit.bert_tagger.models import BertTagger
 from toolkit.settings import BERT_PRETRAINED_MODEL_DIRECTORY, ALLOW_BERT_MODEL_DOWNLOADS
@@ -41,12 +41,15 @@ class TagRandomDocSerializer(serializers.Serializer):
     fields = serializers.ListField(child=serializers.CharField(), default=[], required=False, allow_empty=True, help_text = 'Fields to apply the tagger. By default, the tagger is applied to the same fields it was trained on.')
 
 
+
 class BertTaggerSerializer(FieldParseSerializer, serializers.ModelSerializer, ProjectResourceUrlSerializer):
     author_username = serializers.CharField(source='author.username', read_only=True)
     fields = serializers.ListField(child=serializers.CharField(), help_text=f'Fields used to build the model.')
     query = serializers.JSONField(required=False, help_text='Query in JSON format')
     indices = IndexSerializer(many=True, default=[])
     fact_name = serializers.CharField(default=None, required=False, help_text=f'Fact name used to filter tags (fact values). Default: None')
+
+    checkpoint_model = ProjectFilteredPrimaryKeyRelatedField(queryset=BertTagger.objects, many=False, read_only=False, allow_null=True, default=None)
 
     maximum_sample_size = serializers.IntegerField(default=choices.DEFAULT_MAX_SAMPLE_SIZE, required=False, help_text=f'Maximum number of positive examples. Default = {choices.DEFAULT_MAX_SAMPLE_SIZE}')
     minimum_sample_size = serializers.IntegerField(default=choices.DEFAULT_MIN_SAMPLE_SIZE, required=False, help_text=f'Minimum number of negative examples. Default = {choices.DEFAULT_MIN_SAMPLE_SIZE}')
@@ -82,7 +85,7 @@ class BertTaggerSerializer(FieldParseSerializer, serializers.ModelSerializer, Pr
         fields = ('url', 'author_username', 'id', 'description', 'query', 'fields', 'f1_score', 'precision', 'recall', 'accuracy',
                   'validation_loss', 'training_loss', 'maximum_sample_size', 'minimum_sample_size', 'num_epochs', 'plot', 'task', 'fact_name',
                   'indices', 'bert_model', 'learning_rate', 'eps', 'max_length', 'batch_size', 'adjusted_batch_size',
-                  'split_ratio','negative_multiplier', 'num_examples', 'confusion_matrix', 'balance', 'use_sentence_shuffle', 'balance_to_max_limit')
+                  'split_ratio','negative_multiplier', 'checkpoint_model', 'num_examples', 'confusion_matrix', 'balance', 'use_sentence_shuffle', 'balance_to_max_limit')
 
         read_only_fields = ('project', 'fields', 'f1_score', 'precision', 'recall', 'accuracy', 'validation_loss', 'training_loss', 'plot',
                             'task', 'fact_name', 'num_examples', 'adjusted_batch_size', 'confusion_matrix')
