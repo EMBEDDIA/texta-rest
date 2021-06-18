@@ -4,8 +4,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from toolkit.elastic.tools.core import ElasticCore
 from toolkit.elastic.index.models import Index
+from toolkit.elastic.tools.core import ElasticCore
 from toolkit.settings import CORE_SETTINGS
 from toolkit.test_settings import TEST_INDEX, VERSION_NAMESPACE
 from toolkit.tools.utils_for_tests import create_test_user, project_creation
@@ -172,8 +172,8 @@ class ElasticIndexViewTests(APITestCase):
 
         response = self.client.post(reverse(f"{VERSION_NAMESPACE}:project-list"), format="json", data={
             "title": "faulty_project",
-            "indices": index_names,
-            "users": [reverse(f"{VERSION_NAMESPACE}:user-detail", args=[self.admin.pk])]
+            "indices_write": index_names,
+            "users_write": [self.admin.username]
         })
 
         ec = ElasticCore()
@@ -226,6 +226,30 @@ class ElasticIndexViewTests(APITestCase):
             "domain": "emails"
         })
         self.assertTrue(new_index_update.status_code == status.HTTP_201_CREATED)
+
+    def test_update_existing_index(self):
+        """
+        Create an index and update it.
+        """
+
+        new_index = self.client.post(self.index_url, format="json", data={
+            "name": "my_new_index",
+            "is_open": False
+        })
+        self.assertTrue(new_index.status_code == status.HTTP_201_CREATED)
+
+        pk = Index.objects.last().pk
+        url = f"{self.index_url}{pk}/"
+        new_index_update = self.client.patch(url, format="json", data={
+            "description": "testing",
+            "added_by": "tester",
+            "test": True,
+            "source": "test",
+            "client": "texta",
+            "domain": "emails"
+        })
+        self.assertTrue(new_index_update.status_code == status.HTTP_201_CREATED)
+
 
     def test_that_index_count_matches_reality(self):
         ec = ElasticCore()
