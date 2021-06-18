@@ -156,13 +156,19 @@ class ElasticCore:
             # Create an Index object if it doesn't exist.
             # Ensures that changes Elastic-side on the open/closed state are forcefully updated.
             for index in opened:
+                utc_time = self.get_index_creation_date(index)
                 index, is_created = Index.objects.get_or_create(name=index)
+                index.created_at = utc_time
+                index.save()
                 if not index.is_open:
                     index.is_open = True
                     index.save()
 
             for index in closed:
+                utc_time = self.get_index_creation_date(index)
                 index, is_created = Index.objects.get_or_create(name=index)
+                index.created_at = utc_time
+                index.save()
                 if index.is_open:
                     index.is_open = False
                     index.save()
