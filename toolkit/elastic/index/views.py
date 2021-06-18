@@ -155,9 +155,7 @@ class IndexViewSet(mixins.CreateModelMixin,
 
         # Using get_or_create to avoid unique name constraints on creation.
         if es.check_if_indices_exist([index]):
-            es_settings = es.get_settings(index)
-            unix_timestamp = int(es_settings[str(index)]['settings']['index']['creation_date']) / 1000
-            utc_time = datetime.utcfromtimestamp(unix_timestamp).isoformat()
+            utc_time = es.get_index_creation_date(index)
             # Even if the index already exists, create the index object just in case
             index, is_created = Index.objects.get_or_create(name=index)
 
@@ -178,9 +176,7 @@ class IndexViewSet(mixins.CreateModelMixin,
             if not is_open:
                 es.close_index(index)
 
-            es_settings = es.get_settings(index)
-            unix_timestamp = int(es_settings[str(index)]['settings']['index']['creation_date']) / 1000
-            utc_time = datetime.utcfromtimestamp(unix_timestamp).isoformat()
+            utc_time = es.get_index_creation_date(index)
 
             index, is_created = Index.objects.get_or_create(name=index)
             if is_created:

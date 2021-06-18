@@ -12,6 +12,7 @@ from rest_framework.exceptions import ValidationError
 from toolkit.elastic.decorators import elastic_connection
 from toolkit.helper_functions import get_core_setting
 from toolkit.settings import ES_CONNECTION_PARAMETERS
+from datetime import datetime
 
 
 class ElasticCore:
@@ -89,6 +90,13 @@ class ElasticCore:
         :returns: Either {'acknowledged': True} or a detailed error response.
         """
         return self.es.indices.delete(index=index, ignore=ignore)
+
+    @elastic_connection
+    def get_index_creation_date(self, index):
+        es_settings = self.get_settings(index)
+        unix_timestamp = int(es_settings[str(index)]['settings']['index']['creation_date']) / 1000
+        utc_time = datetime.utcfromtimestamp(unix_timestamp).isoformat()
+        return utc_time
 
     @elastic_connection
     def get_settings(self, index):
