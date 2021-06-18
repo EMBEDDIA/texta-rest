@@ -18,6 +18,7 @@ from toolkit.elastic.index.serializers import (
 from toolkit.elastic.tools.core import ElasticCore
 from toolkit.permissions.project_permissions import IsSuperUser
 from toolkit.settings import TEXTA_TAGS_KEY
+from datetime import datetime
 
 
 class IndicesFilter(filters.FilterSet):
@@ -154,8 +155,12 @@ class IndexViewSet(mixins.CreateModelMixin,
 
         # Using get_or_create to avoid unique name constraints on creation.
         if es.check_if_indices_exist([index]):
+            es_stats = es.get_settings(index)
+            unix_timestamp = int(es_stats[str(index)]['settings']['index']['creation_date']) / 1000
+            utc_time = datetime.utcfromtimestamp(unix_timestamp).isoformat()
             # Even if the index already exists, create the index object just in case
             index, is_created = Index.objects.get_or_create(name=index)
+
             if is_created:
                 index.is_open = is_open
                 index.description = description
@@ -164,10 +169,19 @@ class IndexViewSet(mixins.CreateModelMixin,
                 index.source = source
                 index.client = client
                 index.domain = domain
+                index.created_at = utc_time
             index.save()
             raise ElasticIndexAlreadyExists()
 
         else:
+            es.create_index(index=index)
+            if not is_open:
+                es.close_index(index)
+
+            es_stats = es.get_settings(index)
+            unix_timestamp = int(es_stats[str(index)]['settings']['index']['creation_date']) / 1000
+            utc_time = datetime.utcfromtimestamp(unix_timestamp).isoformat()
+
             index, is_created = Index.objects.get_or_create(name=index)
             if is_created:
                 index.is_open = is_open
@@ -177,11 +191,9 @@ class IndexViewSet(mixins.CreateModelMixin,
                 index.source = source
                 index.client = client
                 index.domain = domain
+                index.created_at = utc_time
             index.save()
 
-            es.create_index(index=index)
-            if not is_open:
-                es.close_index(index)
             return Response({"message": f"Added index {index} into Elasticsearch!"}, status=status.HTTP_201_CREATED)
 
     def partial_update(self, request, pk=None, **kwargs):
