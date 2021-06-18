@@ -90,6 +90,9 @@ class ElasticCore:
         """
         return self.es.indices.delete(index=index, ignore=ignore)
 
+    @elastic_connection
+    def get_settings(self, index):
+        return self.es.indices.get_settings(index=index)
 
     @elastic_connection
     def get_mapping(self, index):
