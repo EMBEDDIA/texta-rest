@@ -82,6 +82,8 @@ class BertTaggerObjectViewTests(APITransactionTestCase):
     def test(self):
         self.run_train_multiclass_bert_tagger_using_fact_name()
         self.run_train_balanced_multiclass_bert_tagger_using_fact_name()
+        self.run_train_bert_tagger_from_checkpoint_model_bin2bin()
+        self.run_train_bert_tagger_from_checkpoint_model_bin2mc()
         self.run_train_bert_tagger_using_query()
         self.run_bert_tag_text()
         self.run_bert_tag_with_imported_gpu_model()
@@ -215,6 +217,68 @@ class BertTaggerObjectViewTests(APITransactionTestCase):
 
         # set trained tagger as active tagger
         self.test_tagger_id = tagger_id
+        self.add_cleanup_files(tagger_id)
+
+
+    def run_train_bert_tagger_from_checkpoint_model_bin2bin(self):
+        """Tests training BertTagger from a checkpoint."""
+        payload = {
+            "description": "Test training binary BertTagger from checkpoint",
+            "fields": TEST_FIELD_CHOICE,
+            "query": json.dumps(TEST_QUERY),
+            "maximum_sample_size": 500,
+            "indices": [{"name": self.test_index_name}],
+            "num_epochs": 2,
+            "max_length": 12,
+            "bert_model": TEST_BERT_MODEL,
+            "checkpoint_model": self.test_tagger_id
+        }
+
+        print_output(f"training binary bert tagger from checkpoint with payload: {payload}", 200)
+        response = self.client.post(self.url, payload, format='json')
+        print_output('test_train_bert_tagger_from_checkpoint_model_bin2bin:response.data', response.data)
+
+        # Check if BertTagger gets created
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        # Give the tagger some time to finish training
+        sleep(5)
+        tagger_id = response.data['id']
+        response = self.client.get(f'{self.url}{tagger_id}/')
+        print_output('test_train_bert_tagger_from_checkpoint_model_bin2bin:response.data', response.data)
+        for score in ['f1_score', 'precision', 'recall', 'accuracy']:
+            self.assertTrue(isinstance(response.data[score], float))
+
+        self.add_cleanup_files(tagger_id)
+
+
+    def run_train_bert_tagger_from_checkpoint_model_bin2mc(self):
+        """Tests training BertTagger from a checkpoint."""
+        payload = {
+            "description": "Test training multiclass BertTagger from checkpoint",
+            "fields": TEST_FIELD_CHOICE,
+            "fact_name": TEST_FACT_NAME,
+            "maximum_sample_size": 500,
+            "indices": [{"name": self.test_index_name}],
+            "num_epochs": 2,
+            "max_length": 12,
+            "bert_model": TEST_BERT_MODEL,
+            "checkpoint_model": self.test_tagger_id
+        }
+
+        print_output(f"training multiclass bert tagger from checkpoint with payload: {payload}", 200)
+        response = self.client.post(self.url, payload, format='json')
+        print_output('test_train_bert_tagger_from_checkpoint_model_bin2mc:response.data', response.data)
+
+        # Check if BertTagger gets created
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        # Give the tagger some time to finish training
+        sleep(5)
+        tagger_id = response.data['id']
+        response = self.client.get(f'{self.url}{tagger_id}/')
+        print_output('test_train_bert_tagger_from_checkpoint_model_bin2mc:response.data', response.data)
+        for score in ['f1_score', 'precision', 'recall', 'accuracy']:
+            self.assertTrue(isinstance(response.data[score], float))
+
         self.add_cleanup_files(tagger_id)
 
 
