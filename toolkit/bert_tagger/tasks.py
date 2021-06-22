@@ -69,6 +69,9 @@ def train_bert_tagger(tagger_id, testing=False):
         from_checkpoint = False
         checkpoint_model = tagger_object.checkpoint_model
 
+        # set pos_label None by defaut
+        pos_label = tagger_object.pos_label
+
         # create Datasample object for retrieving positive and negative sample
         data_sample = DataSample(
             tagger_object,
@@ -123,12 +126,13 @@ def train_bert_tagger(tagger_id, testing=False):
             tagger.config.use_state_dict = True
         else:
             tagger.config.use_state_dict = False
-
+            pos_label = ""
 
         # train tagger and get result statistics
         report = tagger.train(
             data_sample.data,
             from_checkpoint = from_checkpoint,
+            pos_label = pos_label,
             n_epochs = tagger_object.num_epochs,
             max_length = tagger_object.max_length,
             batch_size = tagger_object.batch_size,

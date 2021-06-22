@@ -1,14 +1,17 @@
 import json
 
 from rest_framework import serializers
+from django.core.exceptions import ValidationError
 from toolkit.helper_functions import get_downloaded_bert_models
 from toolkit.core.task.serializers import TaskSerializer
 from toolkit.elastic.index.serializers import IndexSerializer
 from toolkit.elastic.tools.searcher import EMPTY_QUERY
+from toolkit.elastic.tools.aggregator import ElasticAggregator
 from toolkit.serializer_constants import FieldParseSerializer, ProjectResourceUrlSerializer, ProjectFilteredPrimaryKeyRelatedField
 from toolkit.bert_tagger import choices
 from toolkit.bert_tagger.models import BertTagger
 from toolkit.settings import BERT_PRETRAINED_MODEL_DIRECTORY, ALLOW_BERT_MODEL_DOWNLOADS
+
 
 class ApplyTaggerSerializer(FieldParseSerializer, serializers.Serializer):
     description = serializers.CharField(required=True, help_text="Text for distinguishing this task from others.")
@@ -41,15 +44,15 @@ class TagRandomDocSerializer(serializers.Serializer):
     fields = serializers.ListField(child=serializers.CharField(), default=[], required=False, allow_empty=True, help_text = 'Fields to apply the tagger. By default, the tagger is applied to the same fields it was trained on.')
 
 
-
 class BertTaggerSerializer(FieldParseSerializer, serializers.ModelSerializer, ProjectResourceUrlSerializer):
     author_username = serializers.CharField(source='author.username', read_only=True)
     fields = serializers.ListField(child=serializers.CharField(), help_text=f'Fields used to build the model.')
-    query = serializers.JSONField(required=False, help_text='Query in JSON format')
+    query = serializers.JSONField(required=False, help_text='Query in JSON format', default=json.dumps(EMPTY_QUERY))
     indices = IndexSerializer(many=True, default=[])
-    fact_name = serializers.CharField(default=None, required=False, help_text=f'Fact name used to filter tags (fact values). Default: None')
+    fact_name = serializers.CharField(default=None, required=False, help_text=f'Fact name used to filter tags (fact values). Default = None')
+    pos_label = serializers.CharField(default="", required=False, allow_blank=True, help_text=f'Fact value used as positive label while evaluating the results. This is needed only, if the selected fact has exactly two possible values. Default = ""')
 
-    checkpoint_model = ProjectFilteredPrimaryKeyRelatedField(queryset=BertTagger.objects, many=False, read_only=False, allow_null=True, default=None)
+    checkpoint_model = ProjectFilteredPrimaryKeyRelatedField(queryset=BertTagger.objects, many=False, read_only=False, allow_null=True, default=None, help_text=f'Previously fine-tuned BERT model. Select this, if you wish to further fine-tune it with additional data and/or new parameters. Default = None')
 
     maximum_sample_size = serializers.IntegerField(default=choices.DEFAULT_MAX_SAMPLE_SIZE, required=False, help_text=f'Maximum number of positive examples. Default = {choices.DEFAULT_MAX_SAMPLE_SIZE}')
     minimum_sample_size = serializers.IntegerField(default=choices.DEFAULT_MIN_SAMPLE_SIZE, required=False, help_text=f'Minimum number of negative examples. Default = {choices.DEFAULT_MIN_SAMPLE_SIZE}')
@@ -71,6 +74,7 @@ class BertTaggerSerializer(FieldParseSerializer, serializers.ModelSerializer, Pr
     plot = serializers.SerializerMethodField()
     url = serializers.SerializerMethodField()
 
+
     def validate_bert_model(self, bert_model):
         available_models = get_downloaded_bert_models(BERT_PRETRAINED_MODEL_DIRECTORY)
         if not bert_model in available_models:
@@ -80,14 +84,50 @@ class BertTaggerSerializer(FieldParseSerializer, serializers.ModelSerializer, Pr
                 raise serializers.ValidationError(f"Model '{bert_model}' is not downloaded. Downloading models via API is disabled. Please contact you system administrator to make it available. Currently available models: {available_models}.")
         return bert_model
 
+
+    def validate(self, data):
+        """ Check if inserted pos label is present in the fact values."""
+
+        fact_name = data.get("fact_name")
+
+        # If fact name is not selected, the value for pos label doesn't matter
+        if not fact_name:
+            return data
+
+        indices = [index.get("name") for index in data.get("indices")]
+        pos_label = data.get("pos_label")
+        serializer_query = data.get("query")
+
+        try:
+            # If query is passed as a JSON string
+            query = json.loads(serializer_query)
+        except:
+            # if query is passed as a JSON dict
+            query = serializer_query
+
+
+        ag = ElasticAggregator(indices=indices, query=query)
+        fact_values = ag.facts(size=10, filter_by_fact_name=fact_name, include_values=True)
+
+        # If there exists exactly two possible values for the selected fact, check if pos label
+        # is selected and if it is present in corresponding fact values.
+        if len(fact_values) == 2:
+            if not pos_label:
+                raise ValidationError(f"The fact values corresponding to the selected query and fact '{fact_name}' are binary. You must specify param 'pos_label' for evaluation purposes. Allowed values for 'pos_label' are: {fact_values}")
+            elif pos_label not in fact_values:
+                raise ValidationError(f"The specified pos label '{pos_label}' is NOT one of the fact values for fact '{fact_name}'. Please select an existing fact value. Allowed fact values are: {fact_values}")
+
+        return data
+
+
     class Meta:
         model = BertTagger
         fields = ('url', 'author_username', 'id', 'description', 'query', 'fields', 'f1_score', 'precision', 'recall', 'accuracy',
-                  'validation_loss', 'training_loss', 'maximum_sample_size', 'minimum_sample_size', 'num_epochs', 'plot', 'task', 'fact_name',
+                  'validation_loss', 'training_loss', 'maximum_sample_size', 'minimum_sample_size', 'num_epochs', 'plot', 'task', 'pos_label', 'fact_name',
                   'indices', 'bert_model', 'learning_rate', 'eps', 'max_length', 'batch_size', 'adjusted_batch_size',
                   'split_ratio','negative_multiplier', 'checkpoint_model', 'num_examples', 'confusion_matrix', 'balance', 'use_sentence_shuffle', 'balance_to_max_limit')
 
         read_only_fields = ('project', 'fields', 'f1_score', 'precision', 'recall', 'accuracy', 'validation_loss', 'training_loss', 'plot',
-                            'task', 'fact_name', 'num_examples', 'adjusted_batch_size', 'confusion_matrix')
+                            'task', 'num_examples', 'adjusted_batch_size', 'confusion_matrix')
 
         fields_to_parse = ['fields']
