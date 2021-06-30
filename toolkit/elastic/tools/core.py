@@ -94,8 +94,10 @@ class ElasticCore:
     @elastic_connection
     def get_index_creation_date(self, index):
         es_settings = self.get_settings()
-        unix_timestamp = int(es_settings[str(index)]['settings']['index']['creation_date']) / 1000
-        utc_time = datetime.utcfromtimestamp(unix_timestamp).isoformat()
+        utc_time = ""
+        if index in es_settings:
+            unix_timestamp = int(es_settings[str(index)]['settings']['index']['creation_date']) / 1000
+            utc_time = datetime.utcfromtimestamp(unix_timestamp).isoformat()
         return utc_time
 
     @elastic_connection
@@ -156,9 +158,11 @@ class ElasticCore:
             # Create an Index object if it doesn't exist.
             # Ensures that changes Elastic-side on the open/closed state are forcefully updated.
             es_settings = self.get_settings()
+            utc_time = ""
             for index in opened:
-                unix_timestamp = int(es_settings[str(index)]['settings']['index']['creation_date']) / 1000
-                utc_time = datetime.utcfromtimestamp(unix_timestamp).isoformat()
+                if index in es_settings:
+                    unix_timestamp = int(es_settings[str(index)]['settings']['index']['creation_date']) / 1000
+                    utc_time = datetime.utcfromtimestamp(unix_timestamp).isoformat()
                 index, is_created = Index.objects.get_or_create(name=index)
                 index.created_at = utc_time
                 index.save()
@@ -167,8 +171,9 @@ class ElasticCore:
                     index.save()
 
             for index in closed:
-                unix_timestamp = int(es_settings[str(index)]['settings']['index']['creation_date']) / 1000
-                utc_time = datetime.utcfromtimestamp(unix_timestamp).isoformat()
+                if index in es_settings:
+                    unix_timestamp = int(es_settings[str(index)]['settings']['index']['creation_date']) / 1000
+                    utc_time = datetime.utcfromtimestamp(unix_timestamp).isoformat()
                 index, is_created = Index.objects.get_or_create(name=index)
                 index.created_at = utc_time
                 index.save()
