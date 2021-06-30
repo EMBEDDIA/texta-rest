@@ -93,12 +93,16 @@ class ElasticCore:
 
     @elastic_connection
     def get_index_creation_date(self, index):
-        es_settings = self.get_settings()
+        es_index_settings = self.get_index_settings(index)
         utc_time = datetime.utcfromtimestamp(0).isoformat()
-        if str(index) in es_settings:
-            unix_timestamp = int(es_settings[str(index)]['settings']['index']['creation_date']) / 1000
+        if str(index) in es_index_settings:
+            unix_timestamp = int(es_index_settings[str(index)]['settings']['index']['creation_date']) / 1000
             utc_time = datetime.utcfromtimestamp(unix_timestamp).isoformat()
         return utc_time
+
+    @elastic_connection
+    def get_index_settings(self, index):
+        return self.es.indices.get_settings(index=index)
 
     @elastic_connection
     def get_settings(self):
