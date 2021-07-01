@@ -2,11 +2,12 @@ import logging
 import os
 import pathlib
 import warnings
+from datetime import timedelta
 
 from corsheaders.defaults import default_headers
 from kombu import Exchange, Queue
 
-from .helper_functions import download_bert_requirements, download_mlp_requirements, parse_bool_env, parse_list_env_headers, parse_tuple_env_headers, download_nltk_resources
+from .helper_functions import download_bert_requirements, download_mlp_requirements, download_nltk_resources, parse_bool_env, parse_list_env_headers, parse_tuple_env_headers
 from .logging_settings import setup_logging
 
 
@@ -265,7 +266,6 @@ CELERY_LONG_TERM_TASK_QUEUE = "long_term_tasks"
 CELERY_SHORT_TERM_TASK_QUEUE = "short_term_tasks"
 CELERY_MLP_TASK_QUEUE = "mlp_queue"
 
-
 CELERY_QUEUES = (
     Queue(CELERY_LONG_TERM_TASK_QUEUE, exchange=CELERY_LONG_TERM_TASK_QUEUE, routing_key=CELERY_LONG_TERM_TASK_QUEUE),
     Queue(CELERY_SHORT_TERM_TASK_QUEUE, exchange=CELERY_SHORT_TERM_TASK_QUEUE, routing_key=CELERY_SHORT_TERM_TASK_QUEUE),
@@ -276,6 +276,14 @@ CELERY_QUEUES = (
 CELERY_DEFAULT_QUEUE = 'short_term_tasks'
 CELERY_DEFAULT_EXCHANGE = 'short_term_tasks'
 CELERY_DEFAULT_ROUTING_KEY = 'short_term_tasks'
+
+CELERYBEAT_SCHEDULE = {
+    'sync_indices_in_elasticsearch': {
+        'task': 'sync_indices_in_elasticsearch',
+        'schedule': timedelta(minutes=1),
+        'options': {"queue": CELERY_DEFAULT_QUEUE}
+    }
+}
 
 ### DATA DIRECTORIES
 
@@ -350,7 +358,8 @@ DEFAULT_BERT_MODELS = parse_list_env_headers("TEXTA_BERT_MODELS", ["bert-base-mu
 DEFAULT_MLP_LANGUAGE_CODES = parse_list_env_headers("TEXTA_LANGUAGE_CODES", [])
 
 # default DS choices
-DEFAULT_TEXTA_DATASOURCE_CHOICES = parse_tuple_env_headers("TEXTA_DATASOURCE_CHOICES", [('emails', 'emails'), ('news articles', 'news articles'), ('comments', 'comments'), ('court decisions', 'court decisions'), ('tweets', 'tweets'), ('forum posts', 'forum posts'), ('formal documents', 'formal documents'), ('other', 'other')])
+DEFAULT_TEXTA_DATASOURCE_CHOICES = parse_tuple_env_headers("TEXTA_DATASOURCE_CHOICES",
+                                                           [('emails', 'emails'), ('news articles', 'news articles'), ('comments', 'comments'), ('court decisions', 'court decisions'), ('tweets', 'tweets'), ('forum posts', 'forum posts'), ('formal documents', 'formal documents'), ('other', 'other')])
 
 # Logger IDs, used in apps.
 INFO_LOGGER = "info_logger"
