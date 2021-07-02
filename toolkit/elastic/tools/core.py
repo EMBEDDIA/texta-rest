@@ -11,6 +11,7 @@ from rest_framework.exceptions import ValidationError
 from toolkit.elastic.decorators import elastic_connection
 from toolkit.helper_functions import get_core_setting
 from toolkit.settings import ES_CONNECTION_PARAMETERS
+from datetime import datetime
 
 
 class ElasticCore:
@@ -89,6 +90,22 @@ class ElasticCore:
         """
         return self.es.indices.delete(index=index, ignore=ignore)
 
+    @elastic_connection
+    def get_index_creation_date(self, index):
+        es_index_settings = self.get_index_settings(index)
+        utc_time = datetime.utcfromtimestamp(0).isoformat()
+        if str(index) in es_index_settings:
+            unix_timestamp = int(es_index_settings[str(index)]['settings']['index']['creation_date']) / 1000
+            utc_time = datetime.utcfromtimestamp(unix_timestamp).isoformat()
+        return utc_time
+
+    @elastic_connection
+    def get_index_settings(self, index):
+        return self.es.indices.get_settings(index=index)
+
+    @elastic_connection
+    def get_settings(self):
+        return self.es.indices.get_settings()
 
     @elastic_connection
     def get_mapping(self, index):
