@@ -7,7 +7,7 @@ import environ
 from corsheaders.defaults import default_headers
 from kombu import Exchange, Queue
 
-from .helper_functions import download_bert_requirements, download_mlp_requirements, parse_bool_env, parse_list_env_headers, parse_tuple_env_headers, download_nltk_resources
+from .helper_functions import download_bert_requirements, download_mlp_requirements, download_nltk_resources, parse_bool_env, parse_list_env_headers, parse_tuple_env_headers, prepare_mandatory_directories
 from .logging_settings import setup_logging
 
 
@@ -312,9 +312,6 @@ BERT_FINETUNED_MODEL_DIRECTORY = os.path.join(RELATIVE_MODELS_PATH, "bert_tagger
 # NLTK data dir
 NLTK_DATA_DIRECTORY = env("TEXTA_NLTK_DATA_DIRECTORY_PATH", default=os.path.join(EXTERNAL_DATA_DIR, "nltk"))
 
-# Different types of models
-MODEL_TYPES = ["embedding", "tagger", "torchtagger", "bert_tagger"]
-
 # create protected media dirs
 MEDIA_DIR = os.path.join(DATA_DIR, "media")
 MEDIA_URL = "data/media/"
@@ -357,6 +354,27 @@ SWAGGER_SETTINGS = {
     "DEFAULT_AUTO_SCHEMA_CLASS": "toolkit.tools.swagger.CompoundTagsSchema"
 }
 
+ALLOW_BERT_MODEL_DOWNLOADS = env.bool("TEXTA_ALLOW_BERT_MODEL_DOWNLOADS", default=True)
+
+RELATIVE_PROJECT_DATA_PATH = env("TOOLKIT_PROJECT_DATA_PATH", default=os.path.join(DATA_DIR, "projects"))
+
+# Different types of models
+MODEL_TYPES = ["embedding", "tagger", "torchtagger", "bert_tagger"]
+
+# Ensure all the folders exists before downloading the resources.
+prepare_mandatory_directories(
+    EXTERNAL_DATA_DIR,
+    BERT_PRETRAINED_MODEL_DIRECTORY,
+    BERT_FINETUNED_MODEL_DIRECTORY,
+    NLTK_DATA_DIRECTORY,
+    MEDIA_DIR,
+    LOG_PATH,
+    UPLOAD_PATH,
+    TEST_DATA_DIR,
+    RELATIVE_PROJECT_DATA_PATH,
+    *[os.path.join(RELATIVE_MODELS_PATH, model_type) for model_type in MODEL_TYPES]
+)
+
 ### RESOURCE DOWNLOADS
 SKIP_MLP_RESOURCES = env.bool("SKIP_MLP_RESOURCES", default=False)
 if SKIP_MLP_RESOURCES is False:
@@ -370,20 +388,3 @@ if SKIP_BERT_RESOURCES is False:
 SKIP_NLTK_RESOURCES = env.bool("SKIP_NLTK_RESOURCES", default=False)
 if SKIP_NLTK_RESOURCES is False:
     download_nltk_resources(NLTK_DATA_DIRECTORY)
-
-ALLOW_BERT_MODEL_DOWNLOADS = env.bool("TEXTA_ALLOW_BERT_MODEL_DOWNLOADS", default=True)
-
-RELATIVE_PROJECT_DATA_PATH = env("TOOLKIT_PROJECT_DATA_PATH", default=os.path.join(DATA_DIR, "projects"))
-
-prepare_mandatory_directories(
-    EXTERNAL_DATA_DIR,
-    BERT_PRETRAINED_MODEL_DIRECTORY,
-    BERT_FINETUNED_MODEL_DIRECTORY,
-    NLTK_DATA_DIRECTORY,
-    MEDIA_DIR,
-    LOG_PATH,
-    UPLOAD_PATH,
-    TEST_DATA_DIR,
-    RELATIVE_PROJECT_DATA_PATH,
-    *[os.path.join(RELATIVE_MODELS_PATH, model_type) for model_type in MODEL_TYPES]
-)
