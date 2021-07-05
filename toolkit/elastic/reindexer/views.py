@@ -11,7 +11,7 @@ from toolkit.core.project.models import Project
 from toolkit.elastic.index.models import Index
 from toolkit.elastic.reindexer.models import Reindexer
 from toolkit.elastic.reindexer.serializers import ReindexerCreateSerializer
-from toolkit.permissions.project_permissions import ProjectResourceAllowed
+from toolkit.permissions.project_permissions import ProjectAccessInApplicationsAllowed
 from toolkit.view_constants import BulkDelete
 
 
@@ -46,7 +46,7 @@ class ReindexerViewSet(mixins.CreateModelMixin,
     queryset = Reindexer.objects.all()
     serializer_class = ReindexerCreateSerializer
     permission_classes = (
-        ProjectResourceAllowed,
+        ProjectAccessInApplicationsAllowed,
         permissions.IsAuthenticated,
     )
 
@@ -58,7 +58,7 @@ class ReindexerViewSet(mixins.CreateModelMixin,
 
 
     def get_queryset(self):
-        return Reindexer.objects.filter(project=self.kwargs['project_pk'])
+        return Reindexer.objects.filter(project=self.kwargs['project_pk']).order_by('-id')
 
 
     def perform_create(self, serializer):

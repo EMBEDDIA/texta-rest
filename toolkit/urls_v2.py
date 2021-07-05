@@ -4,6 +4,7 @@ from rest_framework_nested import routers
 
 from toolkit.anonymizer.urls import router as anonymizer_router
 from toolkit.bert_tagger.urls import router as bert_tagger_router
+from toolkit.celery_management.views import PurgeTasks, QueueStats
 from toolkit.core.core_variable.views import CoreVariableViewSet
 from toolkit.core.health.views import HealthView
 from toolkit.core.project.views import (
@@ -23,13 +24,13 @@ from toolkit.core.urls import router as core_router
 from toolkit.core.user_profile import views as profile_views
 from toolkit.dataset_import.views import DatasetImportViewSet
 from toolkit.docparser.views import DocparserView
+from toolkit.elastic.analyzers.views import ApplyEsAnalyzerOnIndices, SnowballProcessor
 from toolkit.elastic.document_importer.views import DocumentImportView, DocumentInstanceView, UpdateSplitDocument
 from toolkit.elastic.face_analyzer.views import FaceAnalyzerViewSet
 from toolkit.elastic.index.views import ElasticGetIndices
 from toolkit.elastic.index_splitter.views import IndexSplitterViewSet
 from toolkit.elastic.reindexer.views import ReindexerViewSet
 from toolkit.elastic.search_tagger.views import SearchFieldsTaggerViewSet, SearchQueryTaggerViewSet
-from toolkit.elastic.snowball.views import ApplySnowballOnIndices, SnowballProcessor
 from toolkit.elastic.urls import index_router
 from toolkit.embedding.urls import embedding_router
 from toolkit.evaluator.urls import router as evaluator_router
@@ -70,7 +71,7 @@ project_router.register('elastic/face_analyzer', FaceAnalyzerViewSet, basename='
 project_router.register('elastic/reindexer', ReindexerViewSet, basename='reindexer')
 project_router.register('elastic/dataset_imports', DatasetImportViewSet, basename='dataset_import')
 project_router.register('elastic/index_splitter', IndexSplitterViewSet, basename='index_splitter')
-project_router.register('elastic/apply_snowball', ApplySnowballOnIndices, basename='apply_snowball')
+project_router.register('elastic/apply_analyzers', ApplyEsAnalyzerOnIndices, basename='apply_analyzers')
 project_router.register('elastic/search_query_tagger', SearchQueryTaggerViewSet, basename='search_query_tagger')
 project_router.register('elastic/search_fields_tagger', SearchFieldsTaggerViewSet, basename='search_fields_tagger')
 
@@ -123,6 +124,10 @@ urlpatterns = [
     path('projects/<int:project_pk>/elastic/scroll/', ScrollView.as_view(), name="project-scroll"),
     path('projects/<int:project_pk>/elastic/search/', SearchView.as_view(), name="search"),
     path('projects/<int:project_pk>/elastic/search_by_query/', SearchByQueryView.as_view(), name="search_by_query"),
+
+    # Celery resources
+    path('celery/purge_tasks/', PurgeTasks.as_view(), name="purge_tasks"),
+    path('celery/stats/', QueueStats.as_view(), name="purge_tasks"),
 
     # UAA OAuth 2.0
     url('uaa/callback', UAAView.as_view()),

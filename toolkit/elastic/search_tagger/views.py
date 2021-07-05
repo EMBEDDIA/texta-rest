@@ -4,7 +4,7 @@ from .serializers import SearchQueryTaggerSerializer, SearchFieldsTaggerSerializ
 from rest_framework import permissions, viewsets
 import rest_framework.filters as drf_filters
 from django_filters import rest_framework as filters
-from toolkit.permissions.project_permissions import ProjectResourceAllowed
+from toolkit.permissions.project_permissions import ProjectAccessInApplicationsAllowed
 from .models import SearchQueryTagger, SearchFieldsTagger
 from django.db import transaction
 from toolkit.core.project.models import Project
@@ -18,12 +18,12 @@ class SearchQueryTaggerViewSet(viewsets.ModelViewSet, BulkDelete):
     'id', 'author__username', 'description', 'fields', 'task__time_started', 'task__time_completed', 'f1_score',
     'precision', 'recall', 'task__status')
     permission_classes = (
-        ProjectResourceAllowed,
+        ProjectAccessInApplicationsAllowed,
         permissions.IsAuthenticated,
     )
 
     def get_queryset(self):
-        return SearchQueryTagger.objects.filter(project=self.kwargs['project_pk'])
+        return SearchQueryTagger.objects.filter(project=self.kwargs['project_pk']).order_by('-id')
 
     def perform_create(self, serializer):
         with transaction.atomic():
@@ -50,12 +50,12 @@ class SearchFieldsTaggerViewSet(viewsets.ModelViewSet, BulkDelete):
         'id', 'author__username', 'description', 'fields', 'task__time_started', 'task__time_completed', 'f1_score',
         'precision', 'recall', 'task__status')
     permission_classes = (
-        ProjectResourceAllowed,
+        ProjectAccessInApplicationsAllowed,
         permissions.IsAuthenticated,
     )
 
     def get_queryset(self):
-        return SearchFieldsTagger.objects.filter(project=self.kwargs['project_pk'])
+        return SearchFieldsTagger.objects.filter(project=self.kwargs['project_pk']).order_by('-id')
 
     def perform_create(self, serializer):
         with transaction.atomic():

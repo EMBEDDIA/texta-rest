@@ -8,7 +8,7 @@ from rest_framework.renderers import BrowsableAPIRenderer, HTMLFormRenderer, JSO
 from rest_framework.response import Response
 from toolkit.elastic.index.models import Index
 from .serializers import SummarizerIndexSerializer, SummarizerSummarizeSerializer
-from toolkit.permissions.project_permissions import ProjectResourceAllowed
+from toolkit.permissions.project_permissions import ProjectAccessInApplicationsAllowed
 from .models import Summarizer
 from toolkit.view_constants import BulkDelete
 from .sumy import Sumy
@@ -22,12 +22,12 @@ class SummarizerIndexViewSet(viewsets.ModelViewSet, BulkDelete):
     'id', 'author__username', 'description', 'fields', 'task__time_started', 'task__time_completed', 'f1_score',
     'precision', 'recall', 'task__status')
     permission_classes = (
-        ProjectResourceAllowed,
+        ProjectAccessInApplicationsAllowed,
         permissions.IsAuthenticated,
     )
 
     def get_queryset(self):
-        return Summarizer.objects.filter(project=self.kwargs['project_pk'])
+        return Summarizer.objects.filter(project=self.kwargs['project_pk']).order_by('-id')
 
     def perform_create(self, serializer):
         with transaction.atomic():

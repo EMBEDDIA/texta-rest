@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from texta_anonymizer.anonymizer import Anonymizer as NameAnonymizer
 
 from toolkit.core.project.models import Project
-from toolkit.permissions.project_permissions import ProjectResourceAllowed
+from toolkit.permissions.project_permissions import ProjectAccessInApplicationsAllowed
 from toolkit.serializer_constants import ProjectResourceImportModelSerializer
 from toolkit.view_constants import BulkDelete
 from .models import Anonymizer
@@ -28,7 +28,7 @@ class AnonymizerFilter(filters.FilterSet):
 class AnonymizerViewSet(viewsets.ModelViewSet, BulkDelete):
     serializer_class = AnonymizerSerializer
     permission_classes = (
-        ProjectResourceAllowed,
+        ProjectAccessInApplicationsAllowed,
         permissions.IsAuthenticated,
     )
 
@@ -38,7 +38,7 @@ class AnonymizerViewSet(viewsets.ModelViewSet, BulkDelete):
 
 
     def get_queryset(self):
-        return Anonymizer.objects.filter(project=self.kwargs['project_pk'])
+        return Anonymizer.objects.filter(project=self.kwargs['project_pk']).order_by('-id')
 
 
     def perform_create(self, serializer):

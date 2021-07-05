@@ -25,14 +25,14 @@ from ..elastic.tools.document import ElasticDocument
 from ..elastic.tools.searcher import ElasticSearcher
 from ..elastic.tools.serializers import ElasticFactSerializer, ElasticMoreLikeThisSerializer
 from ..pagination import PageNumberPaginationDataOnly
-from ..permissions.project_permissions import ProjectResourceAllowed
+from ..permissions.project_permissions import ProjectAccessInApplicationsAllowed
 from ..settings import REST_FRAMEWORK
 from ..view_constants import BulkDelete
 
 
 class ClusterViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):
     serializer_class = ClusterSerializer
-    permission_classes = [permissions.IsAuthenticated, ProjectResourceAllowed]
+    permission_classes = [permissions.IsAuthenticated, ProjectAccessInApplicationsAllowed]
 
     filter_backends = (drf_filters.OrderingFilter, filters.DjangoFilterBackend)
 
@@ -50,7 +50,7 @@ class ClusterViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, mixins.
 
     def get_queryset(self):
         clustering_pk = ClusterViewSet.__handle_clustering_pk(self.kwargs)
-        return Cluster.objects.filter(clusteringresult__project__pk=self.kwargs["project_pk"], clusteringresult__pk=clustering_pk)
+        return Cluster.objects.filter(clusteringresult__project__pk=self.kwargs["project_pk"], clusteringresult__pk=clustering_pk).order_by('-id')
 
 
     def update(self, request, *args, **kwargs):
@@ -419,7 +419,7 @@ class ClusterViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, mixins.
 
 class TopicAnalyzerViewset(viewsets.ModelViewSet, BulkDelete):
     serializer_class = ClusteringSerializer
-    permission_classes = [permissions.IsAuthenticated, ProjectResourceAllowed]
+    permission_classes = [permissions.IsAuthenticated, ProjectAccessInApplicationsAllowed]
 
     filter_backends = (drf_filters.OrderingFilter, filters.DjangoFilterBackend)
     pagination_class = PageNumberPaginationDataOnly
@@ -444,7 +444,7 @@ class TopicAnalyzerViewset(viewsets.ModelViewSet, BulkDelete):
 
 
     def get_queryset(self):
-        return ClusteringResult.objects.filter(project=self.kwargs['project_pk'])
+        return ClusteringResult.objects.filter(project=self.kwargs['project_pk']).order_by('-id')
 
 
     def perform_update(self, serializer: ClusteringSerializer):

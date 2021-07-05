@@ -14,7 +14,7 @@ from toolkit.core.task.models import Task
 from toolkit.elastic.tools.core import ElasticCore
 from toolkit.elastic.tools.document import ElasticDocument
 from toolkit.elastic.tools.searcher import ElasticSearcher
-from toolkit.permissions.project_permissions import ProjectResourceAllowed
+from toolkit.permissions.project_permissions import ProjectAccessInApplicationsAllowed
 from toolkit.regex_tagger.models import RegexTagger, RegexTaggerGroup
 from toolkit.regex_tagger.serializers import (
     ApplyRegexTaggerGroupSerializer, RegexGroupTaggerTagTextSerializer, RegexMultitagTextSerializer, RegexTaggerGroupMultitagDocsSerializer, RegexTaggerGroupMultitagTextSerializer,
@@ -38,7 +38,7 @@ class RegexTaggerFilter(filters.FilterSet):
 class RegexTaggerViewSet(viewsets.ModelViewSet, BulkDelete):
     serializer_class = RegexTaggerSerializer
     permission_classes = (
-        ProjectResourceAllowed,
+        ProjectAccessInApplicationsAllowed,
         permissions.IsAuthenticated,
     )
 
@@ -48,7 +48,7 @@ class RegexTaggerViewSet(viewsets.ModelViewSet, BulkDelete):
 
 
     def get_queryset(self):
-        return RegexTagger.objects.filter(project=self.kwargs['project_pk'])
+        return RegexTagger.objects.filter(project=self.kwargs['project_pk']).order_by('-id')
 
 
     def perform_create(self, serializer: RegexTaggerSerializer):
@@ -315,7 +315,7 @@ class RegexTaggerGroupFilter(filters.FilterSet):
 class RegexTaggerGroupViewSet(viewsets.ModelViewSet, BulkDelete):
     serializer_class = RegexTaggerGroupSerializer
     permission_classes = (
-        ProjectResourceAllowed,
+        ProjectAccessInApplicationsAllowed,
         permissions.IsAuthenticated,
     )
 
@@ -325,7 +325,7 @@ class RegexTaggerGroupViewSet(viewsets.ModelViewSet, BulkDelete):
 
 
     def get_queryset(self):
-        return RegexTaggerGroup.objects.filter(project=self.kwargs['project_pk'])
+        return RegexTaggerGroup.objects.filter(project=self.kwargs['project_pk']).order_by('-id')
 
 
     def perform_update(self, serializer: RegexTaggerGroupSerializer):

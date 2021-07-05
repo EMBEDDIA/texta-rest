@@ -14,13 +14,14 @@ from texta_mlp.mlp import MLP
 from toolkit.core.project.models import Project
 from toolkit.elastic.choices import ES6_SNOWBALL_MAPPING, ES7_SNOWBALL_MAPPING
 from toolkit.elastic.index.models import Index
-from toolkit.mlp.exceptions import CouldNotDetectLanguageException
+from toolkit.mlp.exceptions import CouldNotDetectLanguageException, WorkerBusyException
 from toolkit.mlp.models import ApplyLangWorker, MLPWorker
 from toolkit.mlp.serializers import ApplyLangOnIndicesSerializer, LangDetectSerializer, MLPDocsSerializer, MLPListSerializer, MLPWorkerSerializer
 from toolkit.mlp.tasks import apply_mlp_on_docs, apply_mlp_on_list
-from toolkit.permissions.project_permissions import ProjectResourceAllowed
+from toolkit.permissions.project_permissions import ProjectAccessInApplicationsAllowed
 from toolkit.settings import CELERY_MLP_TASK_QUEUE
 from toolkit.view_constants import BulkDelete
+from toolkit.mlp.helpers import check_celery_tasks
 
 
 class LangDetectView(APIView):
@@ -71,9 +72,12 @@ class MlpDocsProcessor(APIView):
         analyzers = list(serializer.validated_data["analyzers"])
         fields_to_parse = list(serializer.validated_data["fields_to_parse"])
 
+        # check if the MLP queue is empty to process our request
+        if not check_celery_tasks(CELERY_MLP_TASK_QUEUE):
+            raise WorkerBusyException()
+
         with allow_join_result():
             mlp = apply_mlp_on_docs.apply_async(kwargs={"docs": docs, "analyzers": analyzers, "fields_to_parse": fields_to_parse}, queue=CELERY_MLP_TASK_QUEUE).get()
-
         return Response(mlp)
 
 
@@ -90,10 +94,14 @@ class MLPListProcessor(APIView):
         texts = list(serializer.validated_data["texts"])
         analyzers = list(serializer.validated_data["analyzers"])
 
+        # check if the MLP queue is empty to process our request
+        if not check_celery_tasks(CELERY_MLP_TASK_QUEUE):
+            raise WorkerBusyException()
+        
         with allow_join_result():
             mlp = apply_mlp_on_list.apply_async(kwargs={"texts": texts, "analyzers": analyzers}, queue=CELERY_MLP_TASK_QUEUE).get()
-
         return Response(mlp)
+
 
 
 class MLPElasticWorkerViewset(viewsets.ModelViewSet, BulkDelete):
@@ -103,13 +111,13 @@ class MLPElasticWorkerViewset(viewsets.ModelViewSet, BulkDelete):
     ordering_fields = ('id', 'author__username', 'description', 'fields', 'task__time_started', 'task__time_completed', 'task__status')
 
     permission_classes = (
-        ProjectResourceAllowed,
+        ProjectAccessInApplicationsAllowed,
         permissions.IsAuthenticated
     )
 
 
     def get_queryset(self):
-        return MLPWorker.objects.filter(project=self.kwargs['project_pk'])
+        return MLPWorker.objects.filter(project=self.kwargs['project_pk']).order_by('-id')
 
 
     def perform_create(self, serializer):
@@ -126,6 +134,7 @@ class MLPElasticWorkerViewset(viewsets.ModelViewSet, BulkDelete):
                 project=project,
                 fields=json.dumps(serializer.validated_data["fields"], ensure_ascii=False),
                 analyzers=json.dumps(analyzers),
+                query=json.dumps(serializer.validated_data["query"], ensure_ascii=False)
             )
 
             for index in Index.objects.filter(name__in=indices, is_open=True):
@@ -141,13 +150,13 @@ class ApplyLangOnIndices(viewsets.ModelViewSet, BulkDelete):
     ordering_fields = ('id', 'author__username', 'description', 'fields', 'task__time_started', 'task__time_completed', 'task__status')
 
     permission_classes = (
-        ProjectResourceAllowed,
+        ProjectAccessInApplicationsAllowed,
         permissions.IsAuthenticated
     )
 
 
     def get_queryset(self):
-        return ApplyLangWorker.objects.filter(project=self.kwargs['project_pk'])
+        return ApplyLangWorker.objects.filter(project=self.kwargs['project_pk']).order_by('-id')
 
 
     def perform_create(self, serializer):

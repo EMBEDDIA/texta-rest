@@ -7,7 +7,7 @@ import environ
 from corsheaders.defaults import default_headers
 from kombu import Exchange, Queue
 
-from .helper_functions import download_bert_requirements, download_mlp_requirements, download_nltk_resources, parse_bool_env, parse_list_env_headers, parse_tuple_env_headers, prepare_mandatory_directories
+from .helper_functions import download_bert_requirements, download_mlp_requirements, parse_bool_env, parse_list_env_headers, parse_tuple_env_headers, download_nltk_resources
 from .logging_settings import setup_logging
 
 
@@ -90,6 +90,7 @@ INSTALLED_APPS = [
     "toolkit.docparser",
     "toolkit.evaluator",
     "toolkit.summarizer",
+    "toolkit.celery_management",
     # TEXTA Extension Apps
     # "docscraper",
     # THIRD PARTY
