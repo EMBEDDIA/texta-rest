@@ -126,7 +126,7 @@ urlpatterns = [
     path('projects/<int:project_pk>/elastic/search_by_query/', SearchByQueryView.as_view(), name="search_by_query"),
 
     # Celery resources
-    path('celery/purge_tasks/', PurgeTasks.as_view(), name="purge_tasks"),
+    path('celery/queue/purge_tasks/', PurgeTasks.as_view(), name="purge_tasks"),
     path('celery/queue/stats/', QueueStats.as_view(), name="queue_stats"),
     path('celery/stats/', CeleryStats.as_view(), name="celery_stats"),
 
