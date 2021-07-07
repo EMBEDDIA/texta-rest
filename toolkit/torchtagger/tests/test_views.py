@@ -27,8 +27,7 @@ from toolkit.test_settings import (
 )
 from toolkit.tools.utils_for_tests import create_test_user, print_output, project_creation, remove_file
 from toolkit.torchtagger.models import TorchTagger
-from toolkit.torchtagger.torch_models.models import TORCH_MODELS
-
+from texta_torch_tagger.tagger import TORCH_MODELS
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
 class TorchTaggerViewTests(APITransactionTestCase):
