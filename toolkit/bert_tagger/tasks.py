@@ -69,7 +69,6 @@ def train_bert_tagger(tagger_id, testing=False):
         from_checkpoint = False
         checkpoint_model = tagger_object.checkpoint_model
 
-        # set pos_label None by defaut
         pos_label = tagger_object.pos_label
 
         # create Datasample object for retrieving positive and negative sample

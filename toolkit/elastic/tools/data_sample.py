@@ -279,6 +279,11 @@ class DataSample:
     def _get_samples_for_classes(self):
         """Returns samples for each class as a dict."""
         samples = {}
+
+        # Return empty dict, if no classes with enough number of samples is detected
+        if not self.class_names:
+            return samples
+
         for i, class_name in enumerate(self.class_names):
             self.show_progress.update_step(f"scrolling sample for {class_name}")
             self.show_progress.update_view(0)
@@ -469,6 +474,8 @@ class DataSample:
 
     def _validate(self):
         """Validates self.data after creation."""
+        if not self.data:
+            raise InvalidDataSampleError(f"None of the classes had enough examples (required at least {self.tagger_object.minimum_sample_size} examples per class). Try lowering the value of parameter 'minimum_sample_size'.")
         # check if enough classes
         if len(self.data.keys()) < 2:
             raise InvalidDataSampleError("Data sample has less than 2 classes! Check your data!")

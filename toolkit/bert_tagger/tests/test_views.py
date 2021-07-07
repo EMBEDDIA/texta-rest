@@ -30,12 +30,12 @@ from toolkit.test_settings import (
     TEST_BERT_TAGGER_BINARY_CPU,
     TEST_BERT_TAGGER_BINARY_GPU,
     TEST_BERT_TAGGER_MULTICLASS_GPU,
+    TEST_BIN_FACT_QUERY,
     TEST_FACT_NAME,
     TEST_FIELD_CHOICE,
     TEST_KEEP_PLOT_FILES,
-    TEST_QUERY,
-    TEST_BIN_FACT_QUERY,
     TEST_POS_LABEL,
+    TEST_QUERY,
     TEST_VERSION_PREFIX
 )
 from toolkit.tools.utils_for_tests import(
@@ -210,6 +210,7 @@ class BertTaggerObjectViewTests(APITransactionTestCase):
 
     def run_train_binary_multiclass_bert_tagger_using_fact_name_invalid_payload(self):
         """Tests BertTagger training with binary facts."""
+        # Pos label is undefined by the user
         invalid_payload_1 = {
             "description": "Test Bert Tagger training binary multiclass invalid",
             "fact_name": TEST_FACT_NAME,
@@ -224,9 +225,10 @@ class BertTaggerObjectViewTests(APITransactionTestCase):
         response = self.client.post(self.url, invalid_payload_1, format='json')
 
         print_output('test_run_train_binary_multiclass_bert_tagger_using_fact_name_missing_pos_label:response.data', response.data)
-        # Check if BertTagger gets created
+        # Check if creating the BertTagger fails with status code 400
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+        # The pos label the user has inserted is not present in the data
         invalid_payload_2 = {
             "description": "Test Bert Tagger training binary multiclass invalid",
             "fact_name": TEST_FACT_NAME,
@@ -242,7 +244,7 @@ class BertTaggerObjectViewTests(APITransactionTestCase):
         response = self.client.post(self.url, invalid_payload_2, format='json')
 
         print_output('test_run_train_binary_multiclass_bert_tagger_using_fact_name_invalid_pos_label:response.data', response.data)
-        # Check if BertTagger gets created
+        # Check if creating the BertTagger fails with status code 400
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
