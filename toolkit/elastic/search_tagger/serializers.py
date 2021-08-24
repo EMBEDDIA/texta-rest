@@ -4,7 +4,6 @@ from django.urls import reverse
 from rest_framework import serializers
 
 from toolkit.core.task.serializers import TaskSerializer
-from toolkit.elastic.index.serializers import IndexSerializer
 from toolkit.elastic.tools.searcher import EMPTY_QUERY
 from toolkit.serializer_constants import FieldValidationSerializer, IndicesSerializerMixin
 from toolkit.settings import REST_FRAMEWORK
@@ -55,13 +54,17 @@ class SearchFieldsTaggerSerializer(serializers.ModelSerializer, FieldValidationS
     query = serializers.JSONField(help_text='Query in JSON format', default=EMPTY_QUERY)
     fields = serializers.ListField(child=serializers.CharField(), required=True)
     fact_name = serializers.CharField()
+
+    use_breakup = serializers.BooleanField(default=True, help_text="Whether to split the text into multiple facts by the breakup character.")
+    breakup_character = serializers.CharField(default="&quot;", help_text="Which text/symbol to use to split the text into separate facts.")
+
     bulk_size = serializers.IntegerField(min_value=1, default=100)
     es_timeout = serializers.IntegerField(min_value=1, default=10)
 
 
     class Meta:
         model = SearchFieldsTagger
-        fields = ("id", "url", "author_username", "indices", "description", "task", "query", "fields", "fact_name", "bulk_size", "es_timeout")
+        fields = ("id", "url", "author_username", "indices", "description", "task", "query", "fields", "fact_name", "use_breakup", "breakup_character", "bulk_size", "es_timeout")
 
 
     def get_url(self, obj):
