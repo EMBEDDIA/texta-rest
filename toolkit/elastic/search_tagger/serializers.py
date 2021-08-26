@@ -56,7 +56,7 @@ class SearchFieldsTaggerSerializer(serializers.ModelSerializer, FieldValidationS
     fact_name = serializers.CharField()
 
     use_breakup = serializers.BooleanField(default=True, help_text="Whether to split the text into multiple facts by the breakup character.")
-    breakup_character = serializers.CharField(default="&quot;", help_text="Which text/symbol to use to split the text into separate facts.")
+    breakup_character = serializers.CharField(default="\n", help_text="Which text/symbol to use to split the text into separate facts.", trim_whitespace=False)
 
     bulk_size = serializers.IntegerField(min_value=1, default=100)
     es_timeout = serializers.IntegerField(min_value=1, default=10)

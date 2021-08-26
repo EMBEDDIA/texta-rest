@@ -76,4 +76,4 @@ class SearchFieldsTagger(models.Model):
         self.save()
 
         chain = start_search_fields_tagger_worker.s() | apply_search_fields_tagger_on_index.s() | end_search_fields_tagger_task.s()
-        transaction.on_commit(lambda: chain.apply_async(args=(self.pk,), queue=CELERY_LONG_TERM_TASK_QUEUE))
+        chain.apply_async(args=(self.pk,), queue=CELERY_LONG_TERM_TASK_QUEUE)
