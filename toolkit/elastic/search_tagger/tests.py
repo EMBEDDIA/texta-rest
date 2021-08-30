@@ -71,7 +71,7 @@ class SearchFieldsTaggerIndexViewTests(APITestCase):
 
         response = self.client.post(self.url, payload, format="json")
         print_output('test_new_line_break_into_facts:url', self.url)
-        print_output('test_new_line_break_into_facts:response', response)
+        print_output('test_new_line_break_into_facts:response.data', response.data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         s = Search(using=self.ed.core.es, index=self.new_test_index_name)
@@ -94,7 +94,7 @@ class SearchFieldsTaggerIndexViewTests(APITestCase):
 
         response = self.client.post(self.url, payload, format="json")
         print_output('test_array_break_into_facts:url', self.url)
-        print_output('test_array_break_into_facts:response', response)
+        print_output('test_array_break_into_facts:response.data', response.data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         s = Search(using=self.ed.core.es, index=self.new_test_index_name)
