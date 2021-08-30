@@ -18,6 +18,9 @@ class SearchFieldsTaggerIndexViewTests(APITestCase):
         self.index_uuid = uuid.uuid4().hex[:5]
         self.new_test_index_name = f"ttk_test_fields_tagger_{self.index_uuid}"
 
+        self.ed = ElasticDocument(index=self.new_test_index_name)
+        self.ed.core.es.indices.create(index=self.new_test_index_name, ignore=[400, 404])
+
         self.project = project_creation("SearchFieldsTaggerTestProject", self.new_test_index_name, self.user)
         self.project.users.add(self.user)
         self.url = reverse(f"{VERSION_NAMESPACE}:search_fields_tagger-list", kwargs={"project_pk": self.project.pk})
@@ -31,8 +34,6 @@ class SearchFieldsTaggerIndexViewTests(APITestCase):
             "array_break": ["olgu", "õnnistatud", "püha", "käsikranaat"],
             "uuid": self.uuid
         }
-
-        self.ed = ElasticDocument(index=self.new_test_index_name)
 
         self.ed.add(self.document)
         self.client.login(username='user', password='pw')
@@ -129,7 +130,7 @@ class SearchFieldsTaggerIndexViewTests(APITestCase):
 
         response = self.client.post(self.url, payload, format="json")
         print_output('test_search_fields_tagger_fields:url', self.url)
-        print_output('test_search_fields_tagger_fields:response', response)
+        print_output('test_search_fields_tagger_fields:response.data', response.data)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
