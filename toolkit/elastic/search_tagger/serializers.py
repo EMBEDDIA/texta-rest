@@ -5,22 +5,22 @@ from rest_framework import serializers
 
 from toolkit.core.task.serializers import TaskSerializer
 from toolkit.elastic.tools.searcher import EMPTY_QUERY
-from toolkit.serializer_constants import FieldValidationSerializer, IndicesSerializerMixin
+from toolkit.serializer_constants import BULK_SIZE_HELPTEXT, DESCRIPTION_HELPTEXT, ES_TIMEOUT_HELPTEXT, FIELDS_HELPTEXT, FieldValidationSerializer, IndicesSerializerMixin, QUERY_HELPTEXT
 from toolkit.settings import REST_FRAMEWORK
 from .models import SearchFieldsTagger, SearchQueryTagger
 
 
 class SearchQueryTaggerSerializer(serializers.ModelSerializer, FieldValidationSerializer, IndicesSerializerMixin):
     author_username = serializers.CharField(source='author.profile.get_display_namee', read_only=True, required=False)
-    description = serializers.CharField()
+    description = serializers.CharField(help_text=DESCRIPTION_HELPTEXT)
     task = TaskSerializer(read_only=True, required=False)
     url = serializers.SerializerMethodField()
-    query = serializers.JSONField(help_text='Query in JSON format', default=EMPTY_QUERY)
-    fields = serializers.ListField(child=serializers.CharField(), required=True)
-    fact_name = serializers.CharField(required=True)
-    fact_value = serializers.CharField(required=True)
-    bulk_size = serializers.IntegerField(min_value=1, default=100)
-    es_timeout = serializers.IntegerField(min_value=1, default=10)
+    query = serializers.JSONField(help_text=QUERY_HELPTEXT, default=EMPTY_QUERY)
+    fields = serializers.ListField(child=serializers.CharField(), help_text=FIELDS_HELPTEXT, required=True)
+    fact_name = serializers.CharField(required=True, help_text="What name should the newly created facts have.")
+    fact_value = serializers.CharField(required=True, help_text="What value should the newly created facts have.")
+    bulk_size = serializers.IntegerField(min_value=1, default=100, help_text=BULK_SIZE_HELPTEXT)
+    es_timeout = serializers.IntegerField(min_value=1, default=10, help_text=ES_TIMEOUT_HELPTEXT)
 
 
     class Meta:
@@ -48,18 +48,18 @@ class SearchQueryTaggerSerializer(serializers.ModelSerializer, FieldValidationSe
 
 class SearchFieldsTaggerSerializer(serializers.ModelSerializer, FieldValidationSerializer, IndicesSerializerMixin):
     author_username = serializers.CharField(source='author.profile.get_display_name', read_only=True, required=False)
-    description = serializers.CharField()
+    description = serializers.CharField(help_text=DESCRIPTION_HELPTEXT)
     task = TaskSerializer(read_only=True, required=False)
     url = serializers.SerializerMethodField()
-    query = serializers.JSONField(help_text='Query in JSON format', default=EMPTY_QUERY)
-    fields = serializers.ListField(child=serializers.CharField(), required=True)
-    fact_name = serializers.CharField()
+    query = serializers.JSONField(help_text=QUERY_HELPTEXT, default=EMPTY_QUERY)
+    fields = serializers.ListField(child=serializers.CharField(), required=True, help_text=FIELDS_HELPTEXT)
+    fact_name = serializers.CharField(help_text="What name should the newly created facts have.")
 
     use_breakup = serializers.BooleanField(default=True, help_text="Whether to split the text into multiple facts by the breakup character.")
     breakup_character = serializers.CharField(default="\n", help_text="Which text/symbol to use to split the text into separate facts.", trim_whitespace=False)
 
-    bulk_size = serializers.IntegerField(min_value=1, default=100)
-    es_timeout = serializers.IntegerField(min_value=1, default=10)
+    bulk_size = serializers.IntegerField(min_value=1, default=100, help_text=BULK_SIZE_HELPTEXT)
+    es_timeout = serializers.IntegerField(min_value=1, default=10, help_text=ES_TIMEOUT_HELPTEXT)
 
 
     class Meta:
