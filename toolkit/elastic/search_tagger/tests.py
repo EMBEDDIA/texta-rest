@@ -1,6 +1,7 @@
 import json
 import uuid
 
+from django.test import override_settings
 from django.urls import reverse
 from elasticsearch_dsl import Search
 from rest_framework import status
@@ -11,6 +12,7 @@ from toolkit.test_settings import VERSION_NAMESPACE
 from toolkit.tools.utils_for_tests import create_test_user, print_output, project_creation
 
 
+@override_settings(CELERY_ALWAYS_EAGER=True)
 class SearchFieldsTaggerIndexViewTests(APITestCase):
 
     def setUp(self):
@@ -79,6 +81,7 @@ class SearchFieldsTaggerIndexViewTests(APITestCase):
         for doc in s.execute():
             dict_doc = doc.to_dict()
             facts = dict_doc.get("texta_facts", [])
+            print_output('test_new_line_break_into_facts:facts', facts)
             self.assertTrue(len(facts) == 4)
 
 
@@ -102,6 +105,7 @@ class SearchFieldsTaggerIndexViewTests(APITestCase):
         for doc in s.execute():
             dict_doc = doc.to_dict()
             facts = dict_doc.get("texta_facts", [])
+            print_output('test_array_break_into_facts:facts', facts)
             self.assertTrue(len(facts) == 4)
 
 
@@ -135,6 +139,7 @@ class SearchFieldsTaggerIndexViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
+@override_settings(CELERY_ALWAYS_EAGER=True)
 class SearchQueryTaggerIndexViewTests(APITestCase):
 
     def setUp(self):
