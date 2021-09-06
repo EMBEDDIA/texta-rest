@@ -65,7 +65,7 @@ class SearchFieldsTaggerSerializer(serializers.ModelSerializer, FieldValidationS
 
     class Meta:
         model = SearchFieldsTagger
-        fields = ("id", "url", "author", "indices", "description", "task", "query", "fields", "fact_name", "bulk_size", "es_timeout")
+        fields = ("id", "url", "author", "indices", "description", "use_breakup", "breakup_character", "task", "query", "fields", "fact_name", "bulk_size", "es_timeout")
 
 
     def get_url(self, obj):
