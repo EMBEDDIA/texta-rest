@@ -8,11 +8,12 @@ from toolkit.elastic.tools.searcher import EMPTY_QUERY
 from toolkit.serializer_constants import BULK_SIZE_HELPTEXT, DESCRIPTION_HELPTEXT, ES_TIMEOUT_HELPTEXT, FIELDS_HELPTEXT, FieldValidationSerializer, IndicesSerializerMixin, QUERY_HELPTEXT
 from toolkit.settings import REST_FRAMEWORK
 from .models import SearchFieldsTagger, SearchQueryTagger
+from ...core.user_profile.serializers import UserSerializer
 
 
 class SearchQueryTaggerSerializer(serializers.ModelSerializer, FieldValidationSerializer, IndicesSerializerMixin):
-    author_username = serializers.CharField(source='author.profile.get_display_namee', read_only=True, required=False)
-    description = serializers.CharField(help_text=DESCRIPTION_HELPTEXT)
+    author = UserSerializer(read_only=True)
+    description = serializers.CharField()
     task = TaskSerializer(read_only=True, required=False)
     url = serializers.SerializerMethodField()
     query = serializers.JSONField(help_text=QUERY_HELPTEXT, default=EMPTY_QUERY)
@@ -25,7 +26,7 @@ class SearchQueryTaggerSerializer(serializers.ModelSerializer, FieldValidationSe
 
     class Meta:
         model = SearchQueryTagger
-        fields = ("id", "url", "author_username", "indices", "description", "task", "query", "fields", "fact_name", "fact_value", "bulk_size", "es_timeout")
+        fields = ("id", "url", "author", "indices", "description", "task", "query", "fields", "fact_name", "fact_value", "bulk_size", "es_timeout")
 
 
     def get_url(self, obj):
@@ -47,7 +48,7 @@ class SearchQueryTaggerSerializer(serializers.ModelSerializer, FieldValidationSe
 
 
 class SearchFieldsTaggerSerializer(serializers.ModelSerializer, FieldValidationSerializer, IndicesSerializerMixin):
-    author_username = serializers.CharField(source='author.profile.get_display_name', read_only=True, required=False)
+    author = UserSerializer(read_only=True)
     description = serializers.CharField(help_text=DESCRIPTION_HELPTEXT)
     task = TaskSerializer(read_only=True, required=False)
     url = serializers.SerializerMethodField()
@@ -64,7 +65,7 @@ class SearchFieldsTaggerSerializer(serializers.ModelSerializer, FieldValidationS
 
     class Meta:
         model = SearchFieldsTagger
-        fields = ("id", "url", "author_username", "indices", "description", "task", "query", "fields", "fact_name", "use_breakup", "breakup_character", "bulk_size", "es_timeout")
+        fields = ("id", "url", "author", "indices", "description", "task", "query", "fields", "fact_name", "bulk_size", "es_timeout")
 
 
     def get_url(self, obj):
