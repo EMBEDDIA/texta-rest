@@ -111,11 +111,14 @@ class Embedding(models.Model):
         Returns embedding object based on embedding type.
         """
         if self.embedding_type == FASTTEXT_EMBEDDING:
-            return FastTextEmbedding()
+            return FastTextEmbedding(min_freq=self.min_freq,
+                                     num_dimensions=self.num_dimensions)
         elif self.embedding_type == W2V_EMBEDDING:
-            return W2VEmbedding()
+            return W2VEmbedding(min_freq=self.min_freq,
+                                num_dimensions=self.num_dimensions)
         else:
-            return W2VEmbedding()
+            return W2VEmbedding(min_freq=self.min_freq,
+                                num_dimensions=self.num_dimensions)
 
 
     def get_indices(self):
