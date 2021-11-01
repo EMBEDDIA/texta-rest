@@ -11,9 +11,9 @@ from texta_tools.text_splitter import TextSplitter
 
 from toolkit.core.project.models import Project
 from toolkit.elastic.document_importer.serializers import InsertDocumentsSerializer, UpdateSplitDocumentSerializer
-from toolkit.elastic.tools.document import ElasticDocument
+from texta_elastic.document import ElasticDocument
 from toolkit.elastic.index.models import Index
-from toolkit.elastic.tools.searcher import ElasticSearcher
+from texta_elastic.searcher import ElasticSearcher
 from toolkit.permissions.project_permissions import ProjectEditAccessAllowed
 from toolkit.serializer_constants import EmptySerializer
 from toolkit.settings import DEPLOY_KEY
