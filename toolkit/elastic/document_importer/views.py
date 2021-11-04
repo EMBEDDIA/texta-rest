@@ -162,7 +162,6 @@ class DocumentInstanceView(GenericAPIView):
             document = ed.update(index=index, doc_id=document_id, doc=request.data)
             return Response(document)
         except elasticsearch.exceptions.RequestError as e:
-            #print(e)
             if e.error == "mapper_parsing_exception":  # TODO Extend the decorator with different variants of the request error instead.
                 return Response(e.info["error"]["root_cause"], status=status.HTTP_400_BAD_REQUEST)
         except texta_elastic.exceptions.NotFoundError:
