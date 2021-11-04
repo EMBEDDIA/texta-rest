@@ -2,6 +2,7 @@
 from typing import List
 
 import elasticsearch
+import texta_elastic
 from elasticsearch_dsl import Q, Search
 from rest_framework import permissions, status
 from rest_framework.exceptions import NotFound, PermissionDenied
@@ -144,9 +145,13 @@ class DocumentInstanceView(GenericAPIView):
 
     def delete(self, request, pk: int, index: str, document_id: str):
         validate_index_and_project_perms(request, pk, index)
-        ed = ElasticDocument(index)
-        document = ed.delete(doc_id=document_id)
-        return Response(document)
+
+        try:
+            ed = ElasticDocument(index)
+            document = ed.delete(doc_id=document_id)
+            return Response(document)
+        except texta_elastic.exceptions.NotFoundError:
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
 
     def patch(self, request, pk: int, index: str, document_id: str):
@@ -157,8 +162,11 @@ class DocumentInstanceView(GenericAPIView):
             document = ed.update(index=index, doc_id=document_id, doc=request.data)
             return Response(document)
         except elasticsearch.exceptions.RequestError as e:
+            #print(e)
             if e.error == "mapper_parsing_exception":  # TODO Extend the decorator with different variants of the request error instead.
                 return Response(e.info["error"]["root_cause"], status=status.HTTP_400_BAD_REQUEST)
+        except texta_elastic.exceptions.NotFoundError:
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
 
 class UpdateSplitDocument(GenericAPIView):

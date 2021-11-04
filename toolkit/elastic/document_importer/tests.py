@@ -115,22 +115,22 @@ class DocumentImporterAPITestCase(APITestCase):
         self.assertTrue(self.project.indices.filter(name=normalized_project_title).exists())
         print_output("test_adding_document_without_specified_index_and_that_index_is_added_into_project:response.data", response.data)
 
-    '''
+
     def test_updating_non_existing_document(self):
         sample_id = "random_id"
         url = reverse(f"{VERSION_NAMESPACE}:document_instance", kwargs={"pk": self.project.pk, "index": self.test_index_name, "document_id": sample_id})
         response = self.client.patch(url, data={"hello": "world"}, format="json")
         print_output("test_updating_non_existing_document:response.data", response.data)
         self.assertTrue(response.status_code == status.HTTP_404_NOT_FOUND)
-    '''
-    '''
+
+
     def test_deleting_non_existing_document(self):
         sample_id = "random_id"
         url = reverse(f"{VERSION_NAMESPACE}:document_instance", kwargs={"pk": self.project.pk, "index": self.test_index_name, "document_id": sample_id})
         response = self.client.delete(url, data={"hello": "world"}, format="json")
         print_output("test_deleting_non_existing_document:response.data", response.data)
         self.assertTrue(response.status_code == status.HTTP_404_NOT_FOUND)
-    '''
+
 
     def test_that_specified_field_is_being_split(self):
         url = reverse(f"{VERSION_NAMESPACE}:document_import", kwargs={"pk": self.project.pk})
