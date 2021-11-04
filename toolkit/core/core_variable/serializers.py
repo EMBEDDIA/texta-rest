@@ -51,7 +51,7 @@ class CoreVariableSerializer(serializers.HyperlinkedModelSerializer):
             try:
                 service_alive = get_elastic_status(ES_URL=value)["alive"]
             except Exception:
-                raise serializers.ValidationError("Invalid TEXTA_ES_URL")
+                raise serializers.ValidationError(f"Invalid TEXTA_ES_URL {value}")
         if name == "TEXTA_EVALUATOR_MEMORY_BUFFER_GB":
             if value:
                 try:
