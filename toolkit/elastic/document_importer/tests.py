@@ -70,7 +70,7 @@ class DocumentImporterAPITestCase(APITestCase):
         else:
             raise Exception("Elasticsearch indexed a document it shouldn't have!")
 
-    '''
+
     def test_updating_document(self):
         url = reverse(f"{VERSION_NAMESPACE}:document_instance", kwargs={"pk": self.project.pk, "index": self.test_index_name, "document_id": self.document_id})
         response = self.client.patch(url, data={"hello": "night", "goodbye": "world"})
@@ -78,7 +78,7 @@ class DocumentImporterAPITestCase(APITestCase):
         document = self.ec.es.get(index=self.test_index_name, id=self.document_id)["_source"]
         self.assertTrue(document["hello"] == "night" and document["goodbye"] == "world")
         print_output("test_updating_document:response.data", response.data)
-    '''
+
 
     def test_deleting_document(self):
         url = reverse(f"{VERSION_NAMESPACE}:document_instance", kwargs={"pk": self.project.pk, "index": self.test_index_name, "document_id": self.document_id})
