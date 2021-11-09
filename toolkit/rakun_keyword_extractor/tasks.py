@@ -4,6 +4,7 @@ from celery.decorators import task
 from texta_elastic.core import ElasticCore
 from texta_elastic.document import ElasticDocument
 from texta_elastic.searcher import ElasticSearcher
+from toolkit.core.task.models import Task
 from toolkit.base_tasks import TransactionAwareTask
 from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, ERROR_LOGGER, INFO_LOGGER
 from toolkit.rakun_keyword_extractor.models import RakunExtractor
@@ -51,6 +52,8 @@ def apply_rakun_extractor_to_index(self, object_id: int, indices: List[str], fie
     logging.getLogger(INFO_LOGGER).info(f"Starting task 'apply_rakun_extractor_to_index' with ID: {object_id}!")
     rakun_extractor_object = RakunExtractor.objects.get(id=object_id)
     try:
+        rakun_extractor_object.task.update_type(Task.TASK_APPLY)
+        rakun_extractor_object.task.task.update_status(Task.STATUS_RUNNING)
         progress = ShowProgress(rakun_extractor_object.task)
 
         # retrieve fields

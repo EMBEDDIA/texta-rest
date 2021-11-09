@@ -9,6 +9,7 @@ from toolkit.base_tasks import TransactionAwareTask
 from texta_elastic.core import ElasticCore
 from texta_elastic.document import ElasticDocument
 from texta_elastic.searcher import ElasticSearcher
+from toolkit.core.task.models import Task
 from toolkit.regex_tagger.models import RegexTaggerGroup, RegexTagger, load_matcher
 from toolkit.regex_tagger.choices import PRIORITY_CHOICES
 from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, ERROR_LOGGER
@@ -72,6 +73,9 @@ def apply_regex_tagger(object_id: int, object_type: str, indices: List[str], fie
             tagger_object = RegexTaggerGroup.objects.get(pk=object_id)
         else:
             tagger_object = RegexTagger.objects.get(pk=object_id)
+
+        tagger_object.task.update_type(Task.TASK_APPLY)
+        tagger_object.task.task.update_status(Task.STATUS_RUNNING)
 
         progress = ShowProgress(tagger_object.task)
 

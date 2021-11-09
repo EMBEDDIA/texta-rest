@@ -18,6 +18,10 @@ class Task(models.Model):
     STATUS_CANCELLED = 'cancelled'
     STATUS_FAILED = 'failed'
 
+    TASK_TRAIN = 'train'
+    TASK_APPLY = 'apply'
+
+    task_type = models.CharField(max_length=MAX_DESC_LEN, default=TASK_TRAIN)
     status = models.CharField(max_length=MAX_DESC_LEN)
     num_processed = models.IntegerField(default=0)
     total = models.IntegerField(default=0, help_text="Total amount of documents/items that are tracked with this model.")
@@ -34,6 +38,19 @@ class Task(models.Model):
         progress = self.num_processed / self.total if self.total != 0 else 0
         progress = progress * 100
         return round(progress, 2)
+
+
+    @avoid_db_timeout
+    def update_type(self, new_type):
+        self.task_type = new_type
+        self.save()
+
+
+    @avoid_db_timeout
+    def update_step(self, step):
+        self.status = Task.STATUS_COMPLETED
+        self.step = step
+        self.save()
 
 
     @avoid_db_timeout
