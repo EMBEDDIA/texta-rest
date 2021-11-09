@@ -74,8 +74,8 @@ def apply_regex_tagger(object_id: int, object_type: str, indices: List[str], fie
         else:
             tagger_object = RegexTagger.objects.get(pk=object_id)
 
-        tagger_object.task.update_type(Task.TASK_APPLY)
-        tagger_object.task.task.update_status(Task.STATUS_RUNNING)
+        tagger_object.task.update_type(Task.TYPE_APPLY)
+        tagger_object.task.update_status(Task.STATUS_RUNNING)
 
         progress = ShowProgress(tagger_object.task)
 

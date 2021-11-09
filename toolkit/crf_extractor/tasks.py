@@ -210,8 +210,8 @@ def apply_crf_extractor_to_index(
         crf_object = CRFExtractorObject.objects.get(pk=object_id)
         extractor = crf_object.load_extractor()
 
-        crf_object.task.update_type(Task.TASK_APPLY)
-        crf_object.task.task.update_status(Task.STATUS_RUNNING)
+        crf_object.task.update_type(Task.TYPE_APPLY)
+        crf_object.task.update_status(Task.STATUS_RUNNING)
         # progress
         progress = ShowProgress(crf_object.task)
         # add fact field if missing

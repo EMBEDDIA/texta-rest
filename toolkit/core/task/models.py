@@ -18,10 +18,10 @@ class Task(models.Model):
     STATUS_CANCELLED = 'cancelled'
     STATUS_FAILED = 'failed'
 
-    TASK_TRAIN = 'train'
-    TASK_APPLY = 'apply'
+    TYPE_TRAIN = 'train'
+    TYPE_APPLY = 'apply'
 
-    task_type = models.CharField(max_length=MAX_DESC_LEN, default=TASK_TRAIN)
+    task_type = models.CharField(max_length=MAX_DESC_LEN, default=TYPE_TRAIN)
     status = models.CharField(max_length=MAX_DESC_LEN)
     num_processed = models.IntegerField(default=0)
     total = models.IntegerField(default=0, help_text="Total amount of documents/items that are tracked with this model.")
