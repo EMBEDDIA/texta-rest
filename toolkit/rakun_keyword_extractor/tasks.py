@@ -52,8 +52,6 @@ def apply_rakun_extractor_to_index(self, object_id: int, indices: List[str], fie
     logging.getLogger(INFO_LOGGER).info(f"Starting task 'apply_rakun_extractor_to_index' with ID: {object_id}!")
     rakun_extractor_object = RakunExtractor.objects.get(id=object_id)
     try:
-        rakun_extractor_object.task.update_type(Task.TYPE_APPLY)
-        rakun_extractor_object.task.update_status(Task.STATUS_RUNNING)
         progress = ShowProgress(rakun_extractor_object.task)
 
         # retrieve fields

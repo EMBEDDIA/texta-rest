@@ -439,9 +439,6 @@ def apply_tagger_to_index(object_id: int, indices: List[str], fields: List[str],
         else:
             tagger_object = TaggerGroup.objects.get(pk=object_id)
 
-        tagger_object.task.update_type(Task.TYPE_APPLY)
-        tagger_object.task.update_status(Task.STATUS_RUNNING)
-
         progress = ShowProgress(tagger_object.task)
 
         ec = ElasticCore()
