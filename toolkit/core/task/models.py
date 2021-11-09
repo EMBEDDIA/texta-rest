@@ -41,19 +41,6 @@ class Task(models.Model):
 
 
     @avoid_db_timeout
-    def update_type(self, new_type):
-        self.task_type = new_type
-        self.save()
-
-
-    @avoid_db_timeout
-    def update_step(self, step):
-        self.status = Task.STATUS_COMPLETED
-        self.step = step
-        self.save()
-
-
-    @avoid_db_timeout
     def update_status(self, status, set_time_completed=False):
         self.status = status
         self.last_update = now()
