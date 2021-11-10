@@ -12,24 +12,15 @@ from django.core import serializers
 from django.db import models, transaction
 from django.dispatch import receiver
 from django.http import HttpResponse
-
 from texta_bert_tagger.tagger import BertTagger as TextBertTagger
+from texta_elastic.searcher import EMPTY_QUERY
 
 from toolkit.bert_tagger import choices
 from toolkit.constants import MAX_DESC_LEN
 from toolkit.core.project.models import Project
 from toolkit.core.task.models import Task
 from toolkit.elastic.index.models import Index
-from texta_elastic.searcher import EMPTY_QUERY
-from toolkit.settings import (
-    BASE_DIR,
-    BERT_FINETUNED_MODEL_DIRECTORY,
-    CELERY_LONG_TERM_TASK_QUEUE,
-    BERT_PRETRAINED_MODEL_DIRECTORY,
-    BERT_CACHE_DIR
-)
 from toolkit.elastic.tools.feedback import Feedback
-from toolkit.elastic.tools.searcher import EMPTY_QUERY
 from toolkit.settings import (BASE_DIR, BERT_CACHE_DIR, BERT_FINETUNED_MODEL_DIRECTORY, BERT_PRETRAINED_MODEL_DIRECTORY, CELERY_LONG_TERM_TASK_QUEUE)
 
 
