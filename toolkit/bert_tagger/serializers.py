@@ -7,6 +7,8 @@ from toolkit.bert_tagger.models import BertTagger
 from toolkit.core.task.serializers import TaskSerializer
 from toolkit.core.user_profile.serializers import UserSerializer
 from toolkit.elastic.tools.searcher import EMPTY_QUERY
+from texta_elastic.searcher import EMPTY_QUERY
+from texta_elastic.aggregator import ElasticAggregator
 from toolkit.helper_functions import get_downloaded_bert_models
 from toolkit.serializer_constants import (ElasticScrollMixIn, FieldParseSerializer, IndicesSerializerMixin, ProjectFilteredPrimaryKeyRelatedField, ProjectResourceUrlSerializer)
 from toolkit.settings import ALLOW_BERT_MODEL_DOWNLOADS, BERT_PRETRAINED_MODEL_DIRECTORY

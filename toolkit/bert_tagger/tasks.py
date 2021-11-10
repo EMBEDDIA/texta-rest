@@ -19,14 +19,28 @@ from toolkit.elastic.tools.document import ElasticDocument
 from toolkit.elastic.tools.searcher import ElasticSearcher
 from toolkit.helper_functions import get_indices_from_object
 from toolkit.settings import BERT_CACHE_DIR, BERT_FINETUNED_MODEL_DIRECTORY, BERT_PRETRAINED_MODEL_DIRECTORY, CELERY_LONG_TERM_TASK_QUEUE, ERROR_LOGGER, INFO_LOGGER
+from toolkit.elastic.tools.data_sample import DataSample
+from toolkit.elastic.tools.feedback import Feedback
+from texta_elastic.searcher import ElasticSearcher
+from texta_elastic.core import ElasticCore
+from texta_elastic.document import ElasticDocument
 from toolkit.tools.plots import create_tagger_plot
 from toolkit.tools.show_progress import ShowProgress
+from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, BERT_PRETRAINED_MODEL_DIRECTORY, BERT_FINETUNED_MODEL_DIRECTORY, BERT_CACHE_DIR, INFO_LOGGER, ERROR_LOGGER
+from toolkit.helper_functions import get_core_setting, get_indices_from_object
+from toolkit.bert_tagger import choices
 
+from texta_bert_tagger.tagger import BertTagger
+
+from typing import List, Union, Dict
+
+from nltk.tokenize import sent_tokenize
+from collections import defaultdict
+import numpy as np
 
 # Global object for the worker so tagger models won't get reloaded on each task
 # Essentially an indefinite cache
 PERSISTENT_BERT_TAGGERS = {}
-
 
 @task(name="apply_persistent_bert_tagger", base=BaseTask)
 def apply_persistent_bert_tagger(tagger_input: Union[str, Dict], tagger_id: int, input_type: str = 'text', feedback: bool = False):
