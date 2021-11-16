@@ -2,7 +2,6 @@ import unittest
 from urllib.parse import parse_qs, urlparse
 
 import bs4
-import jwt
 import json
 import requests
 from rest_framework.test import APILiveServerTestCase
@@ -44,6 +43,7 @@ class UAATests(APILiveServerTestCase):
         self.run_that_user_without_projadmin_scope_cant_do_proj_admin_procedures()
         self.run_that_normal_user_in_scope_does_not_have_admin_access()
         self.run_that_normally_added_user_still_has_access_even_if_not_in_set_scope()
+        self.run_login_with_texta_admin_scope_only()
 
     def create_users(self):
         # Encode the redirect_uri
@@ -879,3 +879,69 @@ class UAATests(APILiveServerTestCase):
         response = self.client.login(username="normaluser", password="pw")
         print_output("normal user login", response)
         self.assertTrue(response)
+
+    def run_login_with_texta_admin_scope_only(self):
+        '''
+        Test if the redirect_uri callback gives the correct response on a valid code for texta_admin scope,
+        if the refresh-token endpoint works with the received refresh_token, as well as
+        whether or not the UaaAuthentication works with the correct access_token for texta_admin scope.
+        '''
+
+        # Encode the redirect_uri
+        encoded_redirect_uri = requests.utils.quote(UAA_REDIRECT_URI)
+        uaa_login_url = f'{UAA_URL}/oauth/authorize?response_type=code&client_id={UAA_CLIENT_ID}&scope=openid texta.admin&redirect_uri={encoded_redirect_uri}'
+
+        # Get the csrf token from the login page HTML
+        html_resp = requests.get(uaa_login_url)
+        soup = bs4.BeautifulSoup(html_resp.text, 'lxml')
+        csrf_token = soup.select_one('[name="X-Uaa-Csrf"]')['value']
+        print_output("run_callback_and_refresh_and_access_token_success_for_texta_admin:csrf_token", csrf_token)
+        self.assertTrue(csrf_token)
+
+        headers = {
+            "content-type": "application/x-www-form-urlencoded",
+            "cookie": f'X-Uaa-Csrf={csrf_token}'
+        }
+
+        # The form_redirect_uri will be the encoded version of the uaa_login_uri
+        body = f'X-Uaa-Csrf={csrf_token}&username={TEST_UAA_USERNAME}&password={TEST_UAA_PASSWORD}&form_redirect_uri={requests.utils.quote(uaa_login_url)}'
+
+        try:
+            # POST to the login.do endpoint to trigger the redirect_uri callback in the view.
+            login_resp = requests.post(f'{UAA_URL}/login.do', headers=headers, data=body)
+            print_output("run_callback_login_resp_for_texta_admin", login_resp)
+        except requests.exceptions.ConnectionError as e:
+            # The callback view redirects the user back to the frontend,
+            # since frontend is not running during tests, it will throw a ConnectionError.
+            # Check the URL which gave the ConnectionError and verify that it has the access and refresh tokens as qparams
+            url = e.request.url
+            print_output("run_callback_and_refresh_and_access_token_success_for_texta_admin:url", url)
+
+            query_params = parse_qs(urlparse(url).query)
+            print_output("run_callback_and_refresh_and_access_token_success_for_texta_admin:query_params", query_params)
+            self.assertTrue('access_token' in query_params)
+            self.assertTrue('refresh_token' in query_params)
+
+            # Validate if the UaaAuthentication gives the correct response on a correct token
+            # Auth the root url
+            self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {query_params["access_token"][0]}')
+            auth_resp = self.client.get(f'{TEST_VERSION_PREFIX}/', format='json')
+            # Stop including any credentials
+            self.client.credentials()
+            print_output("run_callback_and_refresh_and_access_token_success_for_texta_admin:auth_resp.data", auth_resp.data)
+            # Check if the UaaAuthentication returned 200
+            self.assertEqual(200, auth_resp.status_code)
+
+            # Validate if the refresh-token endpoint works with the correct refresh_token
+            # Post to the refresh-token endpoint
+            refresh_resp = self.client.post(f'{self.url}/refresh-token/',
+                                            {'refresh_token': query_params['refresh_token'][0]}, format='json')
+
+            print_output("run_callback_and_refresh_and_access_token_success_for_texta_admin:refresh_resp.data", refresh_resp.data)
+            print_output("run_callback_and_refresh_and_access_token_success_for_texta_admin:refresh_resp.data",
+                         refresh_resp.status_code)
+            # Check if the refresh-token endpoint returned 200
+            self.assertEqual(200, refresh_resp.status_code)
+            # Check if a new refresh_token and access_token are attached
+            self.assertTrue('refresh_token' in refresh_resp.data)
+            self.assertTrue('access_token' in refresh_resp.data)
