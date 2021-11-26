@@ -43,7 +43,6 @@ class UAATests(APILiveServerTestCase):
         self.run_that_user_without_projadmin_scope_cant_do_proj_admin_procedures()
         self.run_that_normal_user_in_scope_does_not_have_admin_access()
         self.run_that_normally_added_user_still_has_access_even_if_not_in_set_scope()
-        self.run_login_with_texta_admin_scope_only()
 
     def create_users(self):
         # Encode the redirect_uri
@@ -879,36 +878,3 @@ class UAATests(APILiveServerTestCase):
         response = self.client.login(username="normaluser", password="pw")
         print_output("normal user login", response)
         self.assertTrue(response)
-
-    def run_login_with_texta_admin_scope_only(self):
-        '''
-        Test if the redirect_uri callback gives the correct response on a valid code for texta_admin scope,
-        if the refresh-token endpoint works with the received refresh_token, as well as
-        whether or not the UaaAuthentication works with the correct access_token for texta_admin scope.
-        '''
-
-        # Encode the redirect_uri
-        encoded_redirect_uri = requests.utils.quote(UAA_REDIRECT_URI)
-        uaa_login_url = f'{UAA_URL}/oauth/authorize?response_type=code&client_id={UAA_CLIENT_ID}&scope=openid texta.whatever&redirect_uri={encoded_redirect_uri}'
-
-        # Get the csrf token from the login page HTML
-        html_resp = requests.get(uaa_login_url)
-        soup = bs4.BeautifulSoup(html_resp.text, 'lxml')
-        csrf_token = soup.select_one('[name="X-Uaa-Csrf"]')['value']
-        print_output("run_callback_and_refresh_and_access_token_success_for_texta_admin:csrf_token", csrf_token)
-        self.assertTrue(csrf_token)
-
-        headers = {
-            "content-type": "application/x-www-form-urlencoded",
-            "cookie": f'X-Uaa-Csrf={csrf_token}'
-        }
-
-        # The form_redirect_uri will be the encoded version of the uaa_login_uri
-        body = f'X-Uaa-Csrf={csrf_token}&username={TEST_UAA_USERNAME}&password={TEST_UAA_PASSWORD}&form_redirect_uri={requests.utils.quote(uaa_login_url)}'
-
-
-        # POST to the login.do endpoint to trigger the redirect_uri callback in the view.
-        login_resp = requests.post(f'{UAA_URL}/login.do', headers=headers, data=body)
-        json_resp = json.loads(login_resp.content)
-        print_output("run_callback_login_resp_for_non_texta_admin", json_resp['invalid_parameters']['error'])
-        self.assertTrue('invalid_scope' in json_resp['invalid_parameters']['error'])
