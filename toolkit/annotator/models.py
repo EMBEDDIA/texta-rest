@@ -4,12 +4,14 @@ from typing import List, Optional
 
 from django.contrib.auth.models import User
 from django.db import models
+from django.db.models import signals
 
 from toolkit.core.project.models import Project
+from toolkit.core.task.models import Task
 from toolkit.elastic.index.models import Index
 from texta_elastic.document import ESDocObject
 from toolkit.model_constants import TaskModel
-from toolkit.settings import DESCRIPTION_CHAR_LIMIT
+from toolkit.settings import DESCRIPTION_CHAR_LIMIT, CELERY_LONG_TERM_TASK_QUEUE
 
 
 # Create your models here.
@@ -39,6 +41,9 @@ class Label(models.Model):
 
 
 class Labelset(models.Model):
+    indices = models.ManyToManyField(Index)
+    fact_names = models.TextField(null=True)
+    value_limit = models.IntegerField(null=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
     values = models.ManyToManyField(Label)
 
@@ -62,6 +67,10 @@ class Annotator(TaskModel):
     annotation_type = models.CharField(max_length=DESCRIPTION_CHAR_LIMIT, choices=ANNOTATION_CHOICES, help_text="Which type of annotation does the user wish to perform")
 
     annotator_users = models.ManyToManyField(User, default=None, related_name="annotators", help_text="Who are the users who will be annotating.")
+
+    task = models.OneToOneField(Task, on_delete=models.SET_NULL, null=True)
+
+    add_facts_mapping = models.BooleanField(default=True)
 
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     modified_at = models.DateTimeField(auto_now=True, null=True)
@@ -103,8 +112,16 @@ class Annotator(TaskModel):
 
     @property
     def skipped(self):
-        restraint = Record.objects.filter(annotated_utc__isnull=True, skipped_utc__isnull=False)
+        restraint = Record.objects.filter(annotated_utc__isnull=True, skipped_utc__isnull=False, annotation_job=self)
         return restraint.count()
+
+    def create_annotator_task(self):
+        new_task = Task.objects.create(annotator=self, status='created')
+        self.task = new_task
+        self.save()
+
+        from toolkit.annotator.tasks import annotator_task
+        annotator_task.apply_async(args=(self.pk,), queue=CELERY_LONG_TERM_TASK_QUEUE)
 
 
     def add_pos_label(self, document_id: str, index: str, user):
@@ -150,7 +167,7 @@ class Annotator(TaskModel):
         self.generate_record(document_id, index=index, user_pk=user.pk, fact=fact, do_annotate=True, fact_id=fact["id"])
 
 
-    def add_labels(self, document_id: str, labels: List[str], index: str):
+    def add_labels(self, document_id: str, labels: List[str], index: str, user):
         """
         Adds a label to Elasticsearch documents during multilabel annotations.
         :param index:
@@ -161,7 +178,7 @@ class Annotator(TaskModel):
         ed = ESDocObject(document_id=document_id, index=index)
         for label in labels:
             ed.add_fact(fact_value=label, fact_name=self.multilabel_configuration.labelset.category.value, doc_path=self.target_field)
-        ed.add_annotated()
+        ed.add_annotated(self, user)
         ed.update()
 
 
@@ -170,7 +187,7 @@ class Annotator(TaskModel):
         return fact_name, value, spans, field, fact_id
 
 
-    def add_entity(self, document_id: str, spans: List, fact_name: str, field: str, fact_value: str, index: str):
+    def add_entity(self, document_id: str, spans: List, fact_name: str, field: str, fact_value: str, index: str, user):
         """
         Adds an entity label to Elasticsearch documents during entity annotations.
         :param index:
@@ -184,7 +201,7 @@ class Annotator(TaskModel):
         ed = ESDocObject(document_id=document_id, index=index)
         first, last = spans
         ed.add_fact(fact_value=fact_value, fact_name=fact_name, doc_path=field, spans=json.dumps([first, last]))
-        ed.add_annotated()
+        ed.add_annotated(self, user)
         ed.update()
 
 

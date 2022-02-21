@@ -53,6 +53,7 @@ class AnnotatorViewset(mixins.CreateModelMixin,
                        mixins.ListModelMixin,
                        mixins.RetrieveModelMixin,
                        mixins.DestroyModelMixin,
+                       mixins.UpdateModelMixin,
                        viewsets.GenericViewSet,
                        BulkDelete):
     serializer_class = AnnotatorSerializer
@@ -62,7 +63,7 @@ class AnnotatorViewset(mixins.CreateModelMixin,
     )
 
     filter_backends = (drf_filters.OrderingFilter, filters.DjangoFilterBackend)
-
+    http_method_names = ["get", "post", "patch", "delete", "options"]
 
     def _enrich_document_with_meta(self, document: dict, annotator: Annotator):
 
@@ -180,8 +181,10 @@ class AnnotatorViewset(mixins.CreateModelMixin,
             document_id=serializer.validated_data["document_id"],
             fact_name=serializer.validated_data["fact_name"],
             fact_value=serializer.validated_data["fact_value"],
+            field=serializer.validated_data["field"],
             spans=serializer.validated_data["spans"],
-            index=serializer.validated_data["index"]
+            index=serializer.validated_data["index"],
+            user=request.user
         )
         return Response({"detail": f"Skipped document with ID: {serializer.validated_data['document_id']}"})
 
@@ -208,8 +211,8 @@ class AnnotatorViewset(mixins.CreateModelMixin,
         serializer: MultilabelAnnotationSerializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         annotator: Annotator = self.get_object()
-        annotator.add_labels(serializer.validated_data["document_id"], serializer.validated_data["labels"], index=serializer.validated_data["index"])
-        return Response({"detail": f"Annotated document with ID: {serializer.validated_data['document_id']} with the neg label '{annotator.binary_configuration.neg_value}'"})
+        annotator.add_labels(serializer.validated_data["document_id"], serializer.validated_data["labels"], index=serializer.validated_data["index"], user=request.user)
+        return Response({"detail": f"Annotated document with ID: {serializer.validated_data['document_id']}"})
 
 
     @action(detail=True, methods=["POST"], serializer_class=CommentSerializer)

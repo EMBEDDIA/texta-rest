@@ -198,9 +198,13 @@ class GetFactsView(APIView):
 
         vals_per_name = serializer.validated_data['values_per_name']
         include_values = serializer.validated_data['output_type']
-        fact_map = ElasticAggregator(indices=project_indices).facts(size=vals_per_name, include_values=include_values)
+        fact_name = serializer.validated_data['fact_name']
+        doc_path = serializer.validated_data['doc_path']
+        fact_map = ElasticAggregator(indices=project_indices).facts(size=vals_per_name, include_values=include_values, filter_by_fact_name=fact_name, include_doc_path=doc_path)
 
-        if include_values:
+        if fact_name:
+            fact_map_list = [v for v in fact_map]
+        elif include_values:
             fact_map_list = [{'name': k, 'values': v} for k, v in fact_map.items()]
         else:
             fact_map_list = [v for v in fact_map]
@@ -296,11 +300,12 @@ class SearchByQueryView(APIView):
 
 
 class DocumentView(GenericAPIView):
-    permission_classes = [IsAuthenticated, ProjectAccessInApplicationsAllowed]
+    """Get document by ID from specified indices."""
 
+    permission_classes = [IsAuthenticated, ProjectAccessInApplicationsAllowed]
+    serializer_class = ProjectDocumentSerializer
 
     def post(self, request, project_pk: int):
-        """Get document by ID from specified indices."""
         project: Project = get_object_or_404(Project, pk=project_pk)
         self.check_object_permissions(request, project)
 
