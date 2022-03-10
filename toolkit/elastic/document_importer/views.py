@@ -18,7 +18,10 @@ from toolkit.elastic.index.models import Index
 from texta_elastic.searcher import ElasticSearcher
 from toolkit.permissions.project_permissions import ProjectEditAccessAllowed
 from toolkit.serializer_constants import EmptySerializer
-from toolkit.settings import DEPLOY_KEY, ES_MAX_DOCS_PER_INDEX
+from toolkit.settings import DEPLOY_KEY
+
+from toolkit.helper_functions import get_core_setting
+ES_MAX_DOCS_PER_INDEX = get_core_setting("TEXTA_ES_MAX_DOCS_PER_INDEX")
 
 
 def validate_index_and_project_perms(request, pk, index):
