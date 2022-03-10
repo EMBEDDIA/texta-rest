@@ -1,4 +1,5 @@
 # Create your views here.
+from email.mime import base
 from typing import List
 
 import elasticsearch
@@ -17,7 +18,7 @@ from toolkit.elastic.index.models import Index
 from texta_elastic.searcher import ElasticSearcher
 from toolkit.permissions.project_permissions import ProjectEditAccessAllowed
 from toolkit.serializer_constants import EmptySerializer
-from toolkit.settings import DEPLOY_KEY
+from toolkit.settings import DEPLOY_KEY, ES_MAX_DOCS_PER_INDEX
 
 
 def validate_index_and_project_perms(request, pk, index):
@@ -35,13 +36,27 @@ class DocumentImportView(GenericAPIView):
 
 
     @staticmethod
-    def get_new_index_name(project_id: int):
-        index_name = f"texta-{DEPLOY_KEY}-import-project-{project_id}"
-        return index_name
+    def get_new_index_name(project_id: int, indices: List[str] = []):
+        base_index_name = f"texta-{DEPLOY_KEY}-import-project-{project_id}"
+        # get all indices, sort them by name & filter them based on name (starting with latest)
+        sorted_indices = [i for i in sorted(indices, reverse=True) if i.startswith(base_index_name)]
+        # if no indices exist for the pattern, use base name
+        if not sorted_indices:
+            return base_index_name
+        # get last index name
+        last_index_name = sorted_indices[0]
+        # count documents in last index
+        ed = ElasticDocument(indices=last_index_name)
+        last_index_count = ed.count()
+        # compare count
+        if last_index_count >= ES_MAX_DOCS_PER_INDEX:
+            new_index_name = f"{base_index_name}-{len(sorted_indices)}"
+            return new_index_name
+        return last_index_name
 
 
-    def _normalize_missing_index_values(self, documents: List[dict], project_id: int):
-        index_name = DocumentImportView.get_new_index_name(project_id)
+    def _normalize_missing_index_values(self, documents: List[dict], project_id: int, indices: List):
+        index_name = DocumentImportView.get_new_index_name(project_id, indices = indices)
         new_index = False
         for document in documents:
             document["_index"] = index_name
@@ -107,7 +122,7 @@ class DocumentImportView(GenericAPIView):
         indices = project.get_indices()
 
         correct_actions, failed_actions, missing_actions = self._split_documents_per_index(indices, documents)
-        missing_actions, index_name, has_new_index = self._normalize_missing_index_values(missing_actions, project.pk)
+        missing_actions, index_name, has_new_index = self._normalize_missing_index_values(missing_actions, project.pk, indices)
         split_actions = self._split_text(correct_actions + missing_actions, split_fields)
 
         if has_new_index:
