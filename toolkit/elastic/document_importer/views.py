@@ -40,6 +40,11 @@ class DocumentImportView(GenericAPIView):
 
     @staticmethod
     def get_new_index_name(project_id: int, indices: List[str] = []):
+        """
+        Creates a name for the new index based on the number of documents already in the project-related indices.
+        New name is given based on the number of indices matching the base name pattern.
+        This prevents the indices from getting too large during production.
+        """
         base_index_name = f"texta-{DEPLOY_KEY}-import-project-{project_id}"
         # get all indices, sort them by name & filter them based on name (starting with latest)
         sorted_indices = [i for i in sorted(indices, reverse=True) if i.startswith(base_index_name)]
@@ -49,10 +54,10 @@ class DocumentImportView(GenericAPIView):
         # get last index name
         last_index_name = sorted_indices[0]
         # count documents in last index
-        ed = ElasticDocument(indices=last_index_name)
-        last_index_count = ed.count()
+        last_index_count = ElasticDocument(indices=last_index_name).count()
         # compare count
         if last_index_count >= ES_MAX_DOCS_PER_INDEX:
+            # generate new name based on number of existing indices
             new_index_name = f"{base_index_name}-{len(sorted_indices)}"
             return new_index_name
         return last_index_name
