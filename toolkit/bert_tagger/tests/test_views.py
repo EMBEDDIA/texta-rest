@@ -518,7 +518,7 @@ class BertTaggerObjectViewTests(APITransactionTestCase):
 
     def run_bert_download_pretrained_model(self):
         """Test endpoint for downloading pretrained BERT model."""
-        self.login("AdminBertUser", 'pw', )
+        self.client.login(username="AdminBertUser", password='pw')
         url = f'{self.url}download_pretrained_model/'
         # Test endpoint with valid payload
         valid_payload = {"bert_model": "prajjwal1/bert-tiny"}
@@ -760,18 +760,19 @@ class BertTaggerObjectViewTests(APITransactionTestCase):
         assert end_2 < end_1
 
 
-
     def run_test_that_user_cant_delete_pretrained_model(self):
-        url = reverse("v2:bert_tagger-delete-pretrained-model")
+        self.client.login(username='BertTaggerOwner', password='pw')
+
+        url = reverse("v2:bert_tagger-delete-pretrained-model", kwargs={"project_pk": self.project.pk})
         resp = self.client.post(url, data={"model_name": "EMBEDDIA/finest-bert"})
         print_output("run_test_that_user_cant_delete_pretrained_model:response.data", data=resp.data)
         self.assertTrue(resp.status_code == status.HTTP_401_UNAUTHORIZED or resp.status_code == status.HTTP_403_FORBIDDEN)
 
 
     def run_test_that_admin_users_can_delete_pretrained_model(self):
-        self.login("AdminBertUser", 'pw', )
+        self.client.login(username="AdminBertUser", password='pw')
 
-        url = reverse("v2:bert_tagger-delete-pretrained-model")
+        url = reverse("v2:bert_tagger-delete-pretrained-model", kwargs={"project_pk": self.project.pk})
         model_name = "prajjwal1/bert-tiny"
         file_name = BertTagger.normalize_name(model_name)
         model_path = pathlib.Path(BERT_PRETRAINED_MODEL_DIRECTORY) / file_name
