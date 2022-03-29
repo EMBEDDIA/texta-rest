@@ -120,11 +120,11 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 ACCOUNT_EMAIL_VERIFICATION = "none"
 
 # For corsheaders/external frontend
-CSRF_HEADER_NAME = "HTTP_X_XSRF_TOKEN"
-CSRF_COOKIE_NAME = "XSRF-TOKEN"
+CSRF_HEADER_NAME = env("TEXTA_CSRF_HEADER_NAME", default="HTTP_X_XSRF_TOKEN")
+CSRF_COOKIE_NAME = env("TEXTA_CSRF_COOKIE_NAME", default="XSRF-TOKEN")
 # For accessing a live backend server locally.
-CORS_ORIGIN_WHITELIST = ["http://localhost:4200", 'https://law-test-8795b.web.app']
-CSRF_TRUSTED_ORIGINS = ["localhost"]
+CORS_ORIGIN_WHITELIST = env.list("TEXTA_CORS_ORIGIN_WHITELIST", default=["http://localhost:4200", 'https://law-test-8795b.web.app'])
+CSRF_TRUSTED_ORIGINS = env.list("TEXTA_CSRF_TRUSTED_ORIGINS", default=["localhost"])
 CORS_ALLOW_HEADERS = list(default_headers) + ["x-xsrf-token"]
 CORS_ALLOW_CREDENTIALS = env.bool("TEXTA_CORS_ALLOW_CREDENTIALS", default=True)
 CORS_ALLOW_ALL_ORIGINS = env.bool("TEXTA_CORS_ALLOW_ALL_ORIGINS", default=False)
@@ -272,10 +272,10 @@ STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
 ELASTIC_CLUSTER_VERSION = env.int("TEXTA_ELASTIC_VERSION", default=7)
 
+# Constants for various serializers and defaults.
 DESCRIPTION_CHAR_LIMIT = 100
 ES_TIMEOUT_MAX = 100
 ES_BULK_SIZE_MAX = 500
-
 
 # OTHER ELASTICSEARCH OPTIONS
 ES_CONNECTION_PARAMETERS = {
