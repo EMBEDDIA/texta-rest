@@ -1,5 +1,4 @@
 # Create your views here.
-from email.mime import base
 from typing import List
 
 import elasticsearch
@@ -9,19 +8,18 @@ from rest_framework import permissions, status
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.generics import GenericAPIView, get_object_or_404
 from rest_framework.response import Response
+from texta_elastic.document import ElasticDocument
+from texta_elastic.searcher import ElasticSearcher
 from texta_tools.text_splitter import TextSplitter
 
 from toolkit.core.project.models import Project
 from toolkit.elastic.document_importer.serializers import InsertDocumentsSerializer, UpdateSplitDocumentSerializer
-from texta_elastic.document import ElasticDocument
 from toolkit.elastic.index.models import Index
-from texta_elastic.searcher import ElasticSearcher
+from toolkit.helper_functions import get_core_setting
 from toolkit.permissions.project_permissions import ProjectEditAccessAllowed
 from toolkit.serializer_constants import EmptySerializer
 from toolkit.settings import DEPLOY_KEY
 
-from toolkit.helper_functions import get_core_setting
-ES_MAX_DOCS_PER_INDEX = get_core_setting("TEXTA_ES_MAX_DOCS_PER_INDEX")
 
 
 def validate_index_and_project_perms(request, pk, index):
@@ -54,9 +52,9 @@ class DocumentImportView(GenericAPIView):
         # get last index name
         last_index_name = sorted_indices[0]
         # count documents in last index
-        last_index_count = ElasticDocument(indices=last_index_name).count()
+        last_index_count = ElasticDocument(index=last_index_name).count()
         # compare count
-        if last_index_count >= ES_MAX_DOCS_PER_INDEX:
+        if last_index_count >= get_core_setting("TEXTA_ES_MAX_DOCS_PER_INDEX"):
             # generate new name based on number of existing indices
             new_index_name = f"{base_index_name}-{len(sorted_indices)}"
             return new_index_name
@@ -64,7 +62,14 @@ class DocumentImportView(GenericAPIView):
 
 
     def _normalize_missing_index_values(self, documents: List[dict], project_id: int, indices: List):
-        index_name = DocumentImportView.get_new_index_name(project_id, indices = indices)
+        """
+        Adds an _index value to documents lacking it, indexes without it will also be rolled over.
+        :param documents: Elasticsearch documents that are being changed.
+        :param project_id: Project id that's used in the naming process to distinguish between duplicates.
+        :param indices: List of index names already in the project, used to fetch rollover number.
+        :return:
+        """
+        index_name = DocumentImportView.get_new_index_name(project_id, indices=indices)
         new_index = False
         for document in documents:
             document["_index"] = index_name
@@ -73,12 +78,19 @@ class DocumentImportView(GenericAPIView):
 
 
     def _split_documents_per_index(self, allowed_indices: List[str], documents: List[dict]):
+        """
+        Splits documents into three groups of allowed_permissions, failed_permissions and lacking
+        any information of it at all (failed).
+        :param allowed_indices: List of indices that are allowed.
+        :param documents: List of Elasticsearch documents that should contain index information.
+        :return: Three lists of the grouped permissions.
+        """
         correct_permissions_indices = []
         failed_permissions_indices = []
         missing_indices = []
 
         for document in documents:
-            index = document["_index"]
+            index = document.get("_index", None)
             if index is None:
                 missing_indices.append(document)
             elif index in allowed_indices:
@@ -90,6 +102,12 @@ class DocumentImportView(GenericAPIView):
 
 
     def _split_text(self, documents: List[dict], fields: List[str]):
+        """
+        Splits texts that are too large inside the list of documents.
+        :param documents: Documents to split by size.
+        :param fields: Which fields should be used for the splitting process.
+        :return: Potentially split documents for the bulk insert generator.
+        """
         if fields:
             splitter = TextSplitter()
             container = []
@@ -114,7 +132,6 @@ class DocumentImportView(GenericAPIView):
 
 
     def post(self, request, pk: int):
-        # Synchronize indices between Toolkit and Elastic
         ed = ElasticDocument(index=None)
 
         # Validate payload and project permissions.
