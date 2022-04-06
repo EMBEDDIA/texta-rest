@@ -31,11 +31,11 @@ def reform_float_info(input_str):
     return float(input_str.replace("gb", "").replace("tb", "").replace("mb", ""))
 
 
-def get_elastic_status(is_anon=False):
+def get_elastic_status(is_anon=False, uri=None):
     """
     Checks Elasticsearch connection status and version.
     """
-    es_url = get_core_setting("TEXTA_ES_URL")
+    es_url = uri or get_core_setting("TEXTA_ES_URL")
     es_info = {"alive": False}
     try:
         es_core = ElasticCore(ES_URL=es_url)
