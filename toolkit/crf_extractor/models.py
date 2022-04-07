@@ -71,6 +71,10 @@ class CRFExtractor(models.Model):
     task = models.OneToOneField(Task, on_delete=models.SET_NULL, null=True)
 
 
+    @property
+    def mlp_analyzers(self):
+        return list(set(self.context_feature_fields + self.feature_fields))
+
     def get_labels(self):
         return json.loads(self.labels)
 
