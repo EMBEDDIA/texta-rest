@@ -78,6 +78,8 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "rest_framework.authtoken",
+    "dj_rest_auth",
+    "dj_rest_auth.registration",
     # Apps
     "toolkit.core",
     "toolkit.elastic",
@@ -103,12 +105,9 @@ INSTALLED_APPS = [
     # https://github.com/goinnn/django-multiselectfield
     "multiselectfield",
     "django_filters",
-    # "rest_auth" https://github.com/Tivix/django-rest-auth
-    "rest_auth",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
-    "rest_auth.registration",
     "django_extensions",
     "drf_yasg",
 ]
