@@ -216,19 +216,17 @@ class Annotator(TaskModel):
         :return:
         """
         ed = ESDocObject(document_id=document_id, index=index)
+        ed.clear_facts()
         if texta_facts:
             for fact in texta_facts:
                 spans = []
-                if "id" in fact:
-                    continue
-                else:
-                    for span in json.loads(fact["spans"]):
-                        first, last = span
-                        spans.append([first, last])
-                    ed.add_fact(fact_value=fact["str_val"], fact_name=fact["fact"], doc_path=fact["doc_path"], spans=json.dumps(spans))
+                for span in json.loads(fact["spans"]):
+                    first, last = span
+                    spans.append([first, last])
+                ed.add_fact(fact_value=fact["str_val"], fact_name=fact["fact"], doc_path=fact["doc_path"], spans=json.dumps(spans), sent_index=fact["sent_index"], author=user.pk)
 
-                    # TODO Look if this can be pulled outside the loop, should be done once per document.
-                    ed.add_annotated(self, user)
+                # TODO Look if this can be pulled outside the loop, should be done once per document.
+                ed.add_annotated(self, user)
 
                 self.generate_record(document_id, index=index, user_pk=user.pk, fact=fact, do_annotate=True)
 
