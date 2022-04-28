@@ -224,7 +224,7 @@ class Annotator(TaskModel):
                 for span in json.loads(fact["spans"]):
                     first, last = span
                     spans.append([first, last])
-                ed.add_fact(source=fact["source"], fact_value=fact["str_val"], fact_name=fact["fact"], doc_path=fact["doc_path"], spans=json.dumps(spans), sent_index=fact["sent_index"], author=str(user))
+                ed.add_fact(source=fact.get("source" or ""), fact_value=fact["str_val"], fact_name=fact["fact"], doc_path=fact["doc_path"], spans=json.dumps(spans), sent_index=fact.get("sent_index", 0), author=str(user))
 
                 # TODO Look if this can be pulled outside the loop, should be done once per document.
                 ed.add_annotated(self, user)
