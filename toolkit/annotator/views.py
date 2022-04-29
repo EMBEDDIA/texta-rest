@@ -167,13 +167,15 @@ class AnnotatorViewset(mixins.CreateModelMixin,
                 processed_timestamp = texta_annotation.get("processed_timestamp_utc", None)
 
                 if processed_timestamp:
+                    print("already processed")
                     return Response(
                         {"detail": f"Document with ID: {serializer.validated_data['document_id']} is already annotated"})
-                else:
-                    annotator.skip_document(serializer.validated_data["document_id"], serializer.validated_data["index"],
-                                            user=request.user)
-                    return Response({"detail": f"Skipped document with ID: {serializer.validated_data['document_id']}"})
+            print("skipping")
+            annotator.skip_document(serializer.validated_data["document_id"], serializer.validated_data["index"],
+                                    user=request.user)
+            return Response({"detail": f"Skipped document with ID: {serializer.validated_data['document_id']}"})
         else:
+            print("skipping")
             annotator.skip_document(serializer.validated_data["document_id"], serializer.validated_data["index"],
                                     user=request.user)
             return Response({"detail": f"Skipped document with ID: {serializer.validated_data['document_id']}"})
