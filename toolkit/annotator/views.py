@@ -155,7 +155,17 @@ class AnnotatorViewset(mixins.CreateModelMixin,
         serializer: DocumentIDSerializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         annotator: Annotator = self.get_object()
-        if annotator.annotated >= 1:
+
+        ed = ElasticDocument(index=annotator.get_indices())
+        document_id = serializer.validated_data["document_id"]
+        document = ed.get(document_id)
+        texta_annotator = document["_source"].get("texta_annotator", [])
+
+        processed_timestamp = None
+        if texta_annotator:
+            processed_timestamp = texta_annotator[0].get("processed_timestamp_utc", None)
+
+        if processed_timestamp:
             return Response(
                 {"detail": f"Document with ID: {serializer.validated_data['document_id']} is already annotated"})
         else:
