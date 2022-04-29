@@ -155,7 +155,7 @@ class AnnotatorViewset(mixins.CreateModelMixin,
         serializer: DocumentIDSerializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         annotator: Annotator = self.get_object()
-        if annotator.annotated == 0:
+        if annotator.annotated <= 1:
             annotator.skip_document(serializer.validated_data["document_id"], serializer.validated_data["index"],
                                     user=request.user)
             return Response({"detail": f"Skipped document with ID: {serializer.validated_data['document_id']}"})
