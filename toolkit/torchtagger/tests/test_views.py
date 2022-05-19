@@ -7,11 +7,12 @@ from time import sleep
 from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITransactionTestCase
+from texta_elastic.aggregator import ElasticAggregator
+from texta_elastic.core import ElasticCore
+from texta_torch_tagger.tagger import TORCH_MODELS
 
 from toolkit.core.task.models import Task
 from toolkit.elastic.reindexer.models import Reindexer
-from texta_elastic.aggregator import ElasticAggregator
-from texta_elastic.core import ElasticCore
 from toolkit.helper_functions import reindex_test_dataset
 from toolkit.test_settings import (
     TEST_BIN_FACT_QUERY,
@@ -24,7 +25,7 @@ from toolkit.test_settings import (
 )
 from toolkit.tools.utils_for_tests import create_test_user, print_output, project_creation, remove_file
 from toolkit.torchtagger.models import TorchTagger
-from texta_torch_tagger.tagger import TORCH_MODELS
+
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
 class TorchTaggerViewTests(APITransactionTestCase):
@@ -65,6 +66,7 @@ class TorchTaggerViewTests(APITransactionTestCase):
         self.reindexer_object = Reindexer.objects.get(pk=resp.json()["id"])
         self.ec = ElasticCore()
 
+
     def import_test_model(self, file_path: str):
         """Import models for testing."""
         print_output("Importing model from file:", file_path)
@@ -90,8 +92,8 @@ class TorchTaggerViewTests(APITransactionTestCase):
         self.run_train_binary_multiclass_tagger_using_fact_name_invalid_payload()
         self.run_tag_text()
         self.run_model_export_import()
-        #self.run_tag_with_imported_gpu_model()
-        #self.run_tag_with_imported_cpu_model()
+        # self.run_tag_with_imported_gpu_model()
+        # self.run_tag_with_imported_cpu_model()
         self.run_tag_random_doc()
         self.run_epoch_reports_get()
         self.run_epoch_reports_post()
@@ -439,6 +441,12 @@ class TorchTaggerViewTests(APITransactionTestCase):
     def run_tag_and_feedback_and_retrain(self):
         """Tests feeback extra action."""
         tagger_id = self.test_tagger_id
+
+        tagger_orm: TorchTagger = TorchTagger.objects.get(pk=self.test_tagger_id)
+        model_path = pathlib.Path(tagger_orm.model.path)
+        print_output('run_tag_and_feedback_and_retrain:assert that previous model doesnt exist', data=model_path.exists())
+        self.assertTrue(model_path.exists())
+
         payload = {
             "text": "This is some test text for the Tagger Test",
             "feedback_enabled": True
@@ -482,6 +490,14 @@ class TorchTaggerViewTests(APITransactionTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue('result' in response.data)
         self.assertTrue('probability' in response.data)
+
+        # Ensure that previous tagger is deleted properly.
+        print_output('test_model_retrain:assert that previous model doesnt exist', data=model_path.exists())
+        self.assertFalse(model_path.exists())
+        # Ensure that the freshly created model wasn't deleted.
+        tagger_orm.refresh_from_db()
+        self.assertNotEqual(tagger_orm.model.path, str(model_path))
+
         # delete feedback
         feedback_delete_url = f'{self.url}{tagger_id}/feedback/'
         response = self.client.delete(feedback_delete_url)
