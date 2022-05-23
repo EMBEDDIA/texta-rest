@@ -114,9 +114,9 @@ def __add_meta_to_original_index(indices: List[str], index_fields: List[str], sh
             logging.getLogger(ERROR_LOGGER).exception(json.dumps(info))
 
 @task(name="add_entity_task", base=BaseTask, bind=True)
-def add_entity_task(self, pk, document_id, texta_facts, index, user):
+def add_entity_task(self, pk: int, document_id: str, texta_facts: List[dict], index: str, user_pk: int):
     annotator_obj = Annotator.objects.get(pk=pk)
-    user_obj = User.objects.get(pk=user)
+    user_obj = User.objects.get(pk=user_pk)
     ed = ESDocObject(document_id=document_id, index=index)
     filtered_facts = ed.filter_facts(fact_name=annotator_obj.entity_configuration.fact_name, doc_path=json.loads(annotator_obj.fields)[0])
     new_facts = filtered_facts + texta_facts
