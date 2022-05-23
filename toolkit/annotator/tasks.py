@@ -114,9 +114,11 @@ def __add_meta_to_original_index(indices: List[str], index_fields: List[str], sh
             logging.getLogger(ERROR_LOGGER).exception(json.dumps(info))
 
 @task(name="add_entity_task", base=BaseTask, bind=True)
-def add_entity_task(self, document_id, texta_facts, index, user):
+def add_entity_task(self, pk, document_id, texta_facts, index, user):
+    annotator_obj = Annotator.objects.get(pk=pk)
+    user_obj = User.objects.get(pk=user)
     ed = ESDocObject(document_id=document_id, index=index)
-    filtered_facts = ed.filter_facts(fact_name=self.entity_configuration.fact_name, doc_path=json.loads(self.fields)[0])
+    filtered_facts = ed.filter_facts(fact_name=annotator_obj.entity_configuration.fact_name, doc_path=json.loads(annotator_obj.fields)[0])
     new_facts = filtered_facts + texta_facts
     if new_facts:
         for fact in new_facts:
@@ -126,19 +128,19 @@ def add_entity_task(self, document_id, texta_facts, index, user):
                 spans.append([first, last])
             ed.add_fact(source=fact.get("source", "annotator"), fact_value=fact["str_val"], fact_name=fact["fact"],
                         doc_path=fact["doc_path"], spans=json.dumps(spans), sent_index=fact.get("sent_index", 0),
-                        author=user.username)
+                        author=user_obj.username)
 
             # TODO Look if this can be pulled outside the loop, should be done once per document.
-            ed.add_annotated(self, user)
+            ed.add_annotated(annotator_obj, user_obj)
 
-            self.generate_record(document_id, index=index, user_pk=user.pk, fact=fact, do_annotate=True)
+            annotator_obj.generate_record(document_id, index=index, user_pk=user_obj.pk, fact=fact, do_annotate=True)
 
         ed.update()
     else:
         # In case the users marks the document as 'done' but it has no Facts to add.
-        ed.add_annotated(self, user)
+        ed.add_annotated(annotator_obj, user_obj)
         ed.update()
-        self.generate_record(document_id, index=index, user_pk=user.pk, do_annotate=True)
+        annotator_obj.generate_record(document_id, index=index, user_pk=user_obj.pk, do_annotate=True)
 
 
 @task(name="annotator_task", base=BaseTask, bind=True)

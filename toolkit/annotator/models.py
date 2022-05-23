@@ -223,7 +223,7 @@ class Annotator(TaskModel):
         :return:
         """
         from toolkit.annotator.tasks import add_entity_task
-        add_entity_task.apply_async(args=(self, document_id, texta_facts, index, user), queue=CELERY_LONG_TERM_TASK_QUEUE)
+        add_entity_task.apply_async(args=(self.pk, document_id, texta_facts, index, user.pk), queue=CELERY_LONG_TERM_TASK_QUEUE)
 
     def pull_document(self) -> Optional[dict]:
         """
