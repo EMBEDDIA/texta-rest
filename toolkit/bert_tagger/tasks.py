@@ -125,6 +125,7 @@ def train_bert_tagger(tagger_id, testing=False):
             tagger.config.use_state_dict = False
             pos_label = ""
 
+
         # train tagger and get result statistics
         report = tagger.train(
             data_sample.data,
@@ -166,6 +167,7 @@ def train_bert_tagger(tagger_id, testing=False):
         tagger_object.num_examples = json.dumps({k: len(v) for k, v in list(data_sample.data.items())})
         tagger_object.adjusted_batch_size = tagger.config.batch_size
         tagger_object.confusion_matrix = json.dumps(report.confusion.tolist())
+        tagger_object.classes = json.dumps(report.classes, ensure_ascii=False)
         # save tagger object
         tagger_object.save()
         # declare the job done
@@ -179,8 +181,10 @@ def train_bert_tagger(tagger_id, testing=False):
 
 
     except Exception as e:
-        task_object.add_error(str(e))
-        task_object.update_status(Task.STATUS_FAILED)
+        logging.getLogger(ERROR_LOGGER).exception(e)
+        error_message = f"{str(e)[:100]}..."  # Take first 100 characters in case the error message is massive.
+        tagger_object.task.add_error(error_message)
+        tagger_object.task.update_status(Task.STATUS_FAILED)
         raise
 
 
