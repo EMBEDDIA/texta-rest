@@ -140,7 +140,20 @@ def index_splitting_task(index_splitting_task_id):
         if (distribution == LABEL_DISTRIBUTION[0][0]):  # random
             logging.getLogger(INFO_LOGGER).info("Splitting documents randomly.")
 
-            elastic_search = ElasticSearcher(indices=indices, field_data=fields, callback_progress=show_progress, query=query, scroll_size=scroll_size, flatten=FLATTEN_DOC, filter_callback=lambda x: x)
+            elastic_search = ElasticSearcher(
+                indices=indices,
+                field_data=fields,
+                callback_progress=show_progress,
+                query=query,
+                scroll_size=scroll_size,
+                flatten=FLATTEN_DOC,
+                # ElasticSearcher has a legacy method for filtering fields depending on field data which doesn't work with objects, which is risky to remove.
+                # Hence, that behavior is just removed through a passable callback.
+                filter_callback=lambda x: x
+            )
+            task_object.set_total(elastic_search.count())
+
+
             actions = elastic_random_split_generator(elastic_search, test_size, train_index, test_index)
 
             # Since the index name is specified in the generator already, we can use either one of the ElasticDocument object.
@@ -162,8 +175,18 @@ def index_splitting_task(index_splitting_task_id):
             filtered_query = {"query": {"bool": {"must": [query["query"],
                                                           fact_filter_query["query"]]}}}
 
-            elastic_search = ElasticSearcher(indices=indices, field_data=fields, callback_progress=show_progress, query=filtered_query, scroll_size=scroll_size, flatten=FLATTEN_DOC, filter_callback=lambda x: x)
-
+            elastic_search = ElasticSearcher(
+                indices=indices,
+                field_data=fields,
+                callback_progress=show_progress,
+                query=filtered_query,
+                scroll_size=scroll_size,
+                flatten=FLATTEN_DOC,
+                # ElasticSearcher has a legacy method for filtering fields depending on field data which doesn't work with objects, which is risky to remove.
+                # Hence, that behavior is just removed through a passable callback.
+                filter_callback=lambda x: x
+            )
+            task_object.set_total(elastic_search.count())
             aggregator = ElasticAggregator(indices=indices, query=copy.deepcopy(filtered_query))
             labels_distribution = aggregator.get_fact_values_distribution(fact_name)
 
