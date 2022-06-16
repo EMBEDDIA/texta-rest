@@ -81,7 +81,7 @@ class TaggerGroupViewTests(APITransactionTestCase):
         self.run_apply_tagger_group_to_index_invalid_input()
         self.run_model_export_import()
         self.run_tagger_instances_have_mention_to_tagger_group()
-
+        self.run_check_that_filtering_taggers_by_tagger_group_description_works()
 
     def add_cleanup_files(self, tagger_id):
         tagger_object = Tagger.objects.get(pk=tagger_id)
