@@ -86,7 +86,8 @@ class FieldParseSerializer(FieldsValidationSerializerMixin):
         # Without this, taggers will throw an exception that they don't
         # have enough classes in them.
         # TODO Look for an alternative to this.
-        instance = self.Meta.model.objects.get(id=instance.id)
+        if instance.__class__.__name__ != "Project":
+            instance = self.Meta.model.objects.get(id=instance.id)
 
         for field in fields_to_parse:
             if getattr(instance, field):
