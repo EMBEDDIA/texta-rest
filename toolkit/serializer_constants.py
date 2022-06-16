@@ -82,6 +82,12 @@ class FieldParseSerializer(FieldsValidationSerializerMixin):
         # self is the parent class obj in this case
         result = super(FieldParseSerializer, self).to_representation(instance)
         fields_to_parse = self.Meta.fields_to_parse
+
+        # Without this, taggers will throw an exception that they don't
+        # have enough classes in them.
+        # TODO Look for an alternative to this.
+        instance = self.Meta.model.objects.get(id=instance.id)
+
         for field in fields_to_parse:
             if getattr(instance, field):
                 try:
