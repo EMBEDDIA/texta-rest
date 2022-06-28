@@ -131,6 +131,8 @@ class RegexTagger(CommonModelMixin):
                 del model_json["project"]
                 del model_json["author"]
                 del model_json["task"]
+                model_json.pop("favorited_users", None)
+
                 # create new object
                 new_model = RegexTagger(**model_json)
                 # update user & project

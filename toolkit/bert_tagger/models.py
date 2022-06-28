@@ -118,6 +118,7 @@ class BertTagger(CommonModelMixin):
                 bert_tagger_json = json.loads(json_string)
 
                 indices = bert_tagger_json.pop("indices")
+                bert_tagger_json.pop("favorited_users", None)
 
                 bert_tagger_model = BertTagger(**bert_tagger_json)
 

@@ -160,6 +160,7 @@ class Tagger(CommonModelMixin):
                 json_string = archive.read(Tagger.MODEL_JSON_NAME).decode()
                 model_json = json.loads(json_string)
                 indices = model_json.pop("indices")
+                model_json.pop("favorited_users", None)
 
                 new_model = Tagger(**model_json)
 
@@ -318,6 +319,8 @@ class TaggerGroup(CommonModelMixin):
             with zipfile.ZipFile(zip_file, 'r') as archive:
                 json_string = archive.read(Tagger.MODEL_JSON_NAME).decode()
                 model_json: dict = json.loads(json_string)
+                model_json.pop("favorited_users", None)
+
                 tg_data = {key: model_json[key] for key in model_json if key != 'taggers'}
                 new_model = TaggerGroup(**tg_data)
                 new_model.task = Task.objects.create(taggergroup=new_model, status=Task.STATUS_COMPLETED)

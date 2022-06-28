@@ -170,6 +170,8 @@ class Embedding(CommonModelMixin):
             json_string = archive.read(Embedding.MODEL_JSON_NAME).decode()
             original_json = json.loads(json_string)
             model_json = original_json["fields"]
+            model_json.pop("favorited_users", None)
+
             # Create the new embedding object and save it to the DB.
             new_model = Embedding.create_embedding_object(model_json, request.user.id, pk)
             new_model = Embedding.add_file_to_embedding_object(archive, new_model, model_json, "embedding", "embedding_model")

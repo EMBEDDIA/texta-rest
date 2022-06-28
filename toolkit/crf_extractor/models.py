@@ -157,6 +157,7 @@ class CRFExtractor(CommonModelMixin):
                 json_string = archive.read(CRFExtractor.MODEL_JSON_NAME).decode()
                 model_json = json.loads(json_string)
                 indices = model_json.pop("indices")
+                model_json.pop("favorited_users", None)
                 new_model = CRFExtractor(**model_json)
                 new_model.task = Task.objects.create(crfextractor=new_model, status=Task.STATUS_COMPLETED)
                 new_model.author = User.objects.get(id=request.user.id)

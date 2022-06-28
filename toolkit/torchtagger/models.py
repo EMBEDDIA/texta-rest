@@ -122,6 +122,7 @@ class TorchTagger(CommonModelMixin):
 
                 indices = torchtagger_json.pop("indices")
                 torchtagger_json.pop("embedding", None)
+                torchtagger_json.pop("favorited_users", None)
 
                 torchtagger_model = TorchTagger(**torchtagger_json)
 
