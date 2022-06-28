@@ -322,6 +322,7 @@ class TaggerGroup(CommonModelMixin):
                 model_json.pop("favorited_users", None)
 
                 tg_data = {key: model_json[key] for key in model_json if key != 'taggers'}
+                tg_data.pop("favorited_users", None)
                 new_model = TaggerGroup(**tg_data)
                 new_model.task = Task.objects.create(taggergroup=new_model, status=Task.STATUS_COMPLETED)
                 new_model.author = User.objects.get(id=request.user.id)
@@ -330,6 +331,8 @@ class TaggerGroup(CommonModelMixin):
 
                 for tagger in model_json["taggers"]:
                     indices = tagger.pop("indices")
+                    tagger.pop("favorited_users", None)
+
                     tagger_model = Tagger(**tagger)
 
                     tagger_model.task = Task.objects.create(tagger=tagger_model, status=Task.STATUS_COMPLETED)
