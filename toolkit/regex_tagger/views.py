@@ -14,6 +14,8 @@ from toolkit.core.task.models import Task
 from texta_elastic.core import ElasticCore
 from texta_elastic.document import ElasticDocument
 from texta_elastic.searcher import ElasticSearcher
+
+from toolkit.filter_constants import FavoriteFilter
 from toolkit.permissions.project_permissions import ProjectAccessInApplicationsAllowed
 from toolkit.regex_tagger.models import RegexTagger, RegexTaggerGroup
 from toolkit.regex_tagger.serializers import (
@@ -23,10 +25,10 @@ from toolkit.regex_tagger.serializers import (
 )
 from toolkit.serializer_constants import GeneralTextSerializer, ProjectResourceImportModelSerializer
 from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE
-from toolkit.view_constants import BulkDelete
+from toolkit.view_constants import BulkDelete, FavoriteModelViewMixing
 
 
-class RegexTaggerFilter(filters.FilterSet):
+class RegexTaggerFilter(FavoriteFilter):
     description = filters.CharFilter('description', lookup_expr='icontains')
 
 
@@ -35,7 +37,7 @@ class RegexTaggerFilter(filters.FilterSet):
         fields = []
 
 
-class RegexTaggerViewSet(viewsets.ModelViewSet, BulkDelete):
+class RegexTaggerViewSet(viewsets.ModelViewSet, BulkDelete, FavoriteModelViewMixing):
     serializer_class = RegexTaggerSerializer
     permission_classes = (
         ProjectAccessInApplicationsAllowed,
@@ -306,7 +308,7 @@ class RegexTaggerViewSet(viewsets.ModelViewSet, BulkDelete):
             return Response({"message": message}, status=status.HTTP_201_CREATED)
 
 
-class RegexTaggerGroupFilter(filters.FilterSet):
+class RegexTaggerGroupFilter(FavoriteFilter):
     description = filters.CharFilter('description', lookup_expr='icontains')
 
 
@@ -315,7 +317,7 @@ class RegexTaggerGroupFilter(filters.FilterSet):
         fields = []
 
 
-class RegexTaggerGroupViewSet(viewsets.ModelViewSet, BulkDelete):
+class RegexTaggerGroupViewSet(viewsets.ModelViewSet, BulkDelete, FavoriteModelViewMixing):
     serializer_class = RegexTaggerGroupSerializer
     permission_classes = (
         ProjectAccessInApplicationsAllowed,

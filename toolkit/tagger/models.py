@@ -25,6 +25,7 @@ from toolkit.elastic.choices import DEFAULT_SNOWBALL_LANGUAGE, get_snowball_choi
 from toolkit.elastic.index.models import Index
 from texta_elastic.searcher import EMPTY_QUERY
 from toolkit.embedding.models import Embedding
+from toolkit.model_constants import CommonModelMixin
 from toolkit.settings import BASE_DIR, CELERY_LONG_TERM_TASK_QUEUE, INFO_LOGGER, RELATIVE_MODELS_PATH
 from toolkit.helper_functions import load_stop_words
 from toolkit.tools.lemmatizer import CeleryLemmatizer, ElasticAnalyzer
@@ -32,7 +33,7 @@ from toolkit.tagger import choices
 from toolkit.elastic.tools.feedback import Feedback
 
 
-class Tagger(models.Model):
+class Tagger(CommonModelMixin):
     MODEL_TYPE = 'tagger'
     MODEL_JSON_NAME = "model.json"
 
@@ -69,6 +70,8 @@ class Tagger(models.Model):
     model_size = models.FloatField(default=None, null=True)
     plot = models.FileField(upload_to="data/media", null=True, verbose_name="")
     task = models.OneToOneField(Task, on_delete=models.SET_NULL, null=True)
+
+
 
     tagger_groups = models.TextField(default="[]", null=True, blank=True)
 
@@ -276,7 +279,7 @@ def auto_delete_file_on_delete(sender, instance: Tagger, **kwargs):
             os.remove(instance.model.path)
 
 
-class TaggerGroup(models.Model):
+class TaggerGroup(CommonModelMixin):
     MODEL_JSON_NAME = "model.json"
     MODEL_TYPE = "tagger_group"
 
