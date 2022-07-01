@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('embedding', '0016_auto_20211006_0348'),
+        ('embedding', '0017_embedding_stop_words'),
     ]
 
     operations = [

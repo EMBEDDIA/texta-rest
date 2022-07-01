@@ -1,17 +1,12 @@
 from rest_framework import serializers
+from texta_elastic.searcher import EMPTY_QUERY
 
 from toolkit.core.task.serializers import TaskSerializer
 from toolkit.core.user_profile.serializers import UserSerializer
-from texta_elastic.searcher import EMPTY_QUERY
 from toolkit.regex_tagger import choices
 from toolkit.regex_tagger.models import RegexTagger, RegexTaggerGroup
 from toolkit.regex_tagger.validators import validate_patterns
-from toolkit.serializer_constants import (
-    CommonModelMixinSerializer, FieldParseSerializer,
-    IndicesSerializerMixin,
-    ProjectResourceUrlSerializer,
-    ElasticScrollMixIn
-)
+from toolkit.serializer_constants import (CommonModelMixinSerializer, ElasticScrollMixIn, FieldParseSerializer, IndicesSerializerMixin, ProjectResourceUrlSerializer)
 
 
 class RegexTaggerSerializer(FieldParseSerializer, serializers.ModelSerializer, ProjectResourceUrlSerializer, CommonModelMixinSerializer):

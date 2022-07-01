@@ -12,10 +12,9 @@ from texta_elastic.core import ElasticCore
 from texta_elastic.document import ElasticDocument
 from texta_elastic.searcher import ElasticSearcher
 
-from toolkit.filter_constants import FavoriteFilter
-
 from toolkit.core.project.models import Project
 from toolkit.core.task.models import Task
+from toolkit.filter_constants import FavoriteFilter
 from toolkit.permissions.project_permissions import ProjectAccessInApplicationsAllowed
 from toolkit.regex_tagger.models import RegexTagger, RegexTaggerGroup
 from toolkit.regex_tagger.serializers import (ApplyRegexTaggerGroupSerializer, ApplyRegexTaggerSerializer, RegexGroupTaggerTagTextSerializer, RegexMultitagTextSerializer, RegexTaggerGroupMultitagDocsSerializer, RegexTaggerGroupMultitagTextSerializer, RegexTaggerGroupSerializer,
