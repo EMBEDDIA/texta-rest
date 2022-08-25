@@ -7,7 +7,7 @@ import uuid
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0021_add_timestamps_to_project'),
+        ('core', '0022_make_last_update_automatic'),
     ]
 
     operations = [
