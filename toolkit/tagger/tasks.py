@@ -129,9 +129,10 @@ def train_tagger_task(tagger_id: int):
             "classes": tagger.report.classes
         }
 
-    # Here the exception is ignored to avoid causing trouble when training Tagger Groups as they use Celery chords.
+
     except Exception as e:
         task_object.handle_failed_task(e)
+        raise e
 
 
 @task(name="save_tagger_results", base=TransactionAwareTask, queue=CELERY_LONG_TERM_TASK_QUEUE)
