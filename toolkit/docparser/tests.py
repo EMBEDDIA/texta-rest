@@ -103,7 +103,7 @@ class TestDocparserAPIView(APITestCase):
         url = reverse("protected_serve", kwargs={"project_id": self.project.pk, "application": "docparser", "file_name": file_name})
         response = self.client.get(url)
         print_output("test_that_serving_media_works_for_authenticated_users", True)
-        self.assertTrue(response.status_code == status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
     def test_that_serving_media_doesnt_work_for_unauthenticated_users(self):
@@ -112,7 +112,7 @@ class TestDocparserAPIView(APITestCase):
         url = reverse("protected_serve", kwargs={"project_id": self.project.pk, "application": "docparser", "file_name": file_name})
         response = self.client.get(url)
         print_output("test_that_serving_media_doesnt_work_for_unauthenticated_users", True)
-        self.assertTrue(response.status_code == status.HTTP_302_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
     def test_media_access_for_unauthorized_projects(self):
@@ -121,7 +121,7 @@ class TestDocparserAPIView(APITestCase):
         url = reverse("protected_serve", kwargs={"project_id": self.project.pk, "application": "docparser", "file_name": file_name})
         response = self.client.get(url)
         print_output("test_media_access_for_unauthorized_projects", True)
-        self.assertTrue(response.status_code == status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
     def test_that_saved_file_size_isnt_zero(self):

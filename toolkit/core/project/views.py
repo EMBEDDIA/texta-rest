@@ -13,7 +13,7 @@ from django.utils._os import safe_join
 from django_filters import rest_framework as filters
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.generics import GenericAPIView, get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -54,7 +54,7 @@ class ProtectedServeApi(APIView):
         path = safe_join(document_root, path)
         path_exists = pathlib.Path(path).exists()
         if path_exists is False:
-            raise ValidationError("File does not exist!")
+            raise PermissionDenied("File does not exist!")
 
         return StreamingHttpResponse(FileWrapper(open(path, "rb")))
 
@@ -70,9 +70,9 @@ class ProtectedFileServe(APIView):
         is_authorized = Project.objects.filter(pk=project_id, users__in=[request.user]).exists()
         path_exists = pathlib.Path(path).exists()
         if is_authorized is False:
-            raise ValidationError("Given user is not added in the project!")
+            raise PermissionDenied("Given user is not added in the project!")
         if path_exists is False:
-            raise ValidationError("File does not exist!")
+            raise PermissionDenied("File does not exist!")
 
         # Return nicely if it passes all the checks.
         return StreamingHttpResponse(FileWrapper(open(path, "rb")))
