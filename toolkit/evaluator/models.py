@@ -18,10 +18,10 @@ from toolkit.core.project.models import Project
 from toolkit.core.task.models import Task
 from toolkit.elastic.index.models import Index
 from toolkit.evaluator import choices
-from toolkit.model_constants import CommonModelMixin
+from toolkit.model_constants import CommonModelMixin, FavoriteModelMixin
 
 
-class Evaluator(CommonModelMixin):
+class Evaluator(CommonModelMixin, FavoriteModelMixin):
     MODEL_TYPE = "evaluator"
     MODEL_JSON_NAME = "model.json"
 
