@@ -73,9 +73,10 @@ class Evaluator(CommonModelMixin, FavoriteModelMixin):
     def to_json(self) -> dict:
         serialized = serializers.serialize("json", [self])
         json_obj = json.loads(serialized)[0]["fields"]
-        json_obj.pop("project")
-        json_obj.pop("author")
-        json_obj.pop("tasks")
+        json_obj.pop("project", None)
+        json_obj.pop("author", None)
+        json_obj.pop("tasks", [])
+        json_obj.pop("favorited_users", None)
         return json_obj
 
 
@@ -86,7 +87,8 @@ class Evaluator(CommonModelMixin, FavoriteModelMixin):
                 json_string = archive.read(Evaluator.MODEL_JSON_NAME).decode()
                 evaluator_json = json.loads(json_string)
 
-                indices = evaluator_json.pop("indices")
+                indices = evaluator_json.pop("indices", [])
+                evaluator_json.pop("favorited_users", None)
 
                 evaluator_model = Evaluator(**evaluator_json)
 
