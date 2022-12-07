@@ -32,6 +32,7 @@ from toolkit.helper_functions import load_stop_words, get_core_setting, get_mini
 from toolkit.model_constants import CommonModelMixin, FavoriteModelMixin, S3ModelMixin
 from toolkit.tagger import choices
 from toolkit.tools.lemmatizer import CeleryLemmatizer, ElasticAnalyzer
+from toolkit.tools.common_utils import format_tagger_prediction
 
 
 class Tagger(FavoriteModelMixin, CommonModelMixin, S3ModelMixin):
@@ -229,12 +230,12 @@ class Tagger(FavoriteModelMixin, CommonModelMixin, S3ModelMixin):
         # Use tagger description as tag for binary taggers and tagger prediction as tag for multiclass taggers
         tag = tagger.description if tagger_result["prediction"] in {"true", "false"} else tagger_result["prediction"]
         # create output dict
-        prediction = {
-            'tag': tag,
-            'probability': tagger_result['probability'],
-            'tagger_id': self.pk,
-            'result': result
-        }
+        prediction = format_tagger_prediction(
+            tag = tag,
+            probability = tagger_result["probability"],
+            tagger_id = self.pk,
+            result = result
+        )
         # add feedback if asked
         if feedback:
             logging.getLogger(settings.INFO_LOGGER).info(f"Adding feedback for Tagger id: {self.pk}")
@@ -269,8 +270,10 @@ class TaggerGroup(FavoriteModelMixin, CommonModelMixin, S3ModelMixin):
 
     fact_name = models.CharField(max_length=MAX_DESC_LEN)
     blacklisted_facts = models.TextField(default='[]')
-    num_tags = models.IntegerField(default=0)
+    ner_lexicons = models.ManyToManyField(Lexicon, default=[])
     minimum_sample_size = models.IntegerField(default=choices.DEFAULT_MIN_SAMPLE_SIZE)
+    num_tags = models.IntegerField(default=0)
+    use_taggers_as_ner_filter = models.BooleanField(default=True)
 
     taggers = models.ManyToManyField(Tagger, default=None)
 
