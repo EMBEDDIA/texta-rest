@@ -323,6 +323,7 @@ class TaggerGroup(FavoriteModelMixin, CommonModelMixin, S3ModelMixin):
                 json_string = archive.read(Tagger.MODEL_JSON_NAME).decode()
                 model_json: dict = json.loads(json_string)
                 model_json.pop("favorited_users", None)
+                model_json.pop("ner_lexicons", [])
 
                 tg_data = {key: model_json[key] for key in model_json if key != 'taggers'}
                 tg_data.pop("favorited_users", None)
