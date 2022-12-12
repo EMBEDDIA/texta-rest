@@ -1,9 +1,10 @@
 import json
 import pathlib
 import uuid
+from collections import Counter
 from io import BytesIO
 from time import sleep
-
+from typing import List
 from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
@@ -15,6 +16,7 @@ from texta_elastic.searcher import ElasticSearcher
 from toolkit.core.task.models import Task
 from toolkit.elastic.reindexer.models import Reindexer
 from toolkit.helper_functions import reindex_test_dataset, set_core_setting, get_minio_client, get_core_setting
+from toolkit.core.lexicon.models import Lexicon
 from toolkit.tagger.models import Tagger, TaggerGroup
 from toolkit.test_settings import (TEST_FACT_NAME, TEST_FIELD, TEST_FIELD_CHOICE, TEST_KEEP_PLOT_FILES, TEST_QUERY, TEST_TAGGER_GROUP, TEST_VALUE_2, TEST_VALUE_3, TEST_VERSION_PREFIX, VERSION_NAMESPACE)
 from toolkit.tools.utils_for_tests import create_test_user, print_output, project_creation, remove_file
@@ -70,6 +72,8 @@ class TaggerGroupViewTests(APITransactionTestCase):
 
 
     def test_run(self):
+        self.run_test_tagger_group_with_lexicon()
+        self.run_test_training_tagger_group_with_blacklisted_values()
         self.run_create_and_delete_tagger_group_removes_related_children_models_plots()
         self.run_create_tagger_group_training_and_task_signal()
         self.run_create_balanced_tagger_group_training_and_task_signal()
@@ -81,7 +85,8 @@ class TaggerGroupViewTests(APITransactionTestCase):
         self.run_apply_tagger_group_to_index()
         self.run_apply_tagger_group_to_index_with_tag_limit()
         self.run_apply_tagger_group_to_index_invalid_input()
-        self.run_model_export_import()
+        self.run_model_export_import(self.test_tagger_group_id)
+        self.run_model_export_import(self.test_tagger_group_ner_lex_id)
         self.run_tagger_instances_have_mention_to_tagger_group()
         self.run_check_that_filtering_taggers_by_tagger_group_description_works()
 
@@ -92,6 +97,8 @@ class TaggerGroupViewTests(APITransactionTestCase):
         self.run_check_for_downloading_model_from_s3_with_wrong_faulty_access_configuration()
         self.run_check_for_doing_s3_operation_while_its_disabled_in_settings()
         self.run_check_for_downloading_model_from_s3_that_doesnt_exist()
+
+        self.run_test_training_taggergroup_with_embedding()
 
 
     def add_cleanup_files(self, tagger_id):
@@ -109,7 +116,17 @@ class TaggerGroupViewTests(APITransactionTestCase):
         ec.delete_index(index=self.test_index_name, ignore=[400, 404])
         print_output(f"Delete apply_taggers test index {self.test_index_copy}", res)
 
-        self.minio_client.remove_object(self.bucket_name, self.minio_tagger_path)
+        #self.minio_client.remove_object(self.bucket_name, self.minio_tagger_path)
+
+    def __create_lexicon(self, name: str, entries: List[str]) -> int:
+        lexicon = Lexicon.objects.create(
+            project=self.project,
+            author=self.user,
+            description=name,
+            positives_used=json.dumps(entries)
+        )
+        return lexicon.pk
+
 
     def __cleanup_tagger_groups(self, created_tagger_group: TaggerGroup):
         for tagger in created_tagger_group.taggers.all():
@@ -140,7 +157,109 @@ class TaggerGroupViewTests(APITransactionTestCase):
         return response.data["id"]
 
 
-    def test_training_taggergroup_with_embedding(self):
+    def run_test_tagger_group_with_lexicon(self):
+        """Tests the endpoint with NER lexicons."""
+        lex_v1 = self.__create_lexicon(name="persons v1", entries=["Lennart Meri", "Kersti Kaljulaid", "Alar Karis"])
+        lex_v2 = self.__create_lexicon(name="persons v2", entries=["Kaja Kallas", "Andrus Ansip"])
+        lex_v3 = self.__create_lexicon(name="locations", entries=["Eesti", "Läti", "Leedu", "Tartu", "Soome"])
+
+        payload = {
+            "description": self.description,
+            "minimum_sample_size": 50,
+            "fact_name": TEST_FACT_NAME,
+            "ner_lexicons": [lex_v1, lex_v2, lex_v3],
+            "use_taggers_as_ner_filter": False,
+            "tagger": {
+                "fields": TEST_FIELD_CHOICE,
+                "vectorizer": "Hashing Vectorizer",
+                "classifier": "LinearSVC",
+                "feature_selector": "SVM Feature Selector",
+                "maximum_sample_size": 50,
+                "negative_multiplier": 1.0,
+                "indices": [{"name": self.test_index_name}],
+                "stop_words": ["ei", "ja"]
+            }
+        }
+        response = self.client.post(self.url, payload, format='json')
+
+        # Check if TaggerGroup gets created
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        print_output('test_create_tagger_group_with_ner_lexicons_training_and_task_signal:response.data', response.data)
+
+        created_tagger_group = TaggerGroup.objects.get(id=response.data['id'])
+        tagger_group_id = created_tagger_group.pk
+
+        self.test_tagger_group_ner_lex_id = tagger_group_id
+
+        lex_test_text = "Eesti president on Alar Karis. Eesti peaminister on Kaja Kallas. Varasemateks presidentideks on nt. Lennart Meri, Kersti Kaljulaid, Arnold Rüütel ja Toomas Hendrik Ilves."
+        tag_text_url = f'{self.url}{tagger_group_id}/tag_text/'
+
+        # 1. Test tagging text with NER enabled
+        payload = {
+            "text": lex_test_text,
+            "use_ner": True
+        }
+
+        response = self.client.post(tag_text_url, payload)
+
+        result = response.data
+        print_output('test_tag_text_with_ner_lexicons_tagger_group_ner_lex:response.data', result)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Check if response is list
+        self.assertTrue(isinstance(result, list))
+
+        # Check that lex-based NER tagging is working properly
+        ner_tags = [tag.get("tag") for tag in result if tag.get("ner_match")]
+        lex_tags = ["Eesti", "Alar Karis", "Lennart Meri", "Kersti Kaljulaid", "Kaja Kallas"]
+        assert Counter(ner_tags) == Counter(lex_tags)
+
+        # 2. Test tagging text with NER disabled
+        payload = {
+            "text": lex_test_text,
+            "use_ner": False
+        }
+        response = self.client.post(tag_text_url, payload)
+
+        result = response.data
+        print_output('test_tag_text_with_ner_lexicons_tagger_group_no_ner:response.data', result)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Check if response is list
+        self.assertTrue(isinstance(result, list))
+
+        # If use_ner is disabled, the output should not contain any NER tags
+        ner_tags = [tag.get("tag") for tag in result if tag.get("ner_match")]
+        assert not ner_tags
+
+        # 3. Test tagging text with NER enabled AFTER removing one lexicon
+        patch_url = f'{self.url}{tagger_group_id}/'
+        payload = {"ner_lexicons": [lex_v2, lex_v3]}
+        response = self.client.patch(patch_url, payload)
+
+        result = response.data
+        print_output('test_tag_text_with_ner_lexicons_tagger_group_patch:response.data', result)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        payload = {
+            "text": lex_test_text,
+            "use_ner": True
+        }
+        response = self.client.post(tag_text_url, payload)
+
+        result = response.data
+        print_output('test_tag_text_with_ner_lexicons_tagger_group_ner_lex_after_patch:response.data', result)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Check if response is list
+        self.assertTrue(isinstance(result, list))
+
+        # The output should not contain the NER tags present in the removed lexicon
+        ner_tags = [tag.get("tag") for tag in result if tag.get("ner_match")]
+        lex_tags = ["Eesti", "Kaja Kallas"]
+        assert Counter(ner_tags) == Counter(lex_tags)
+
+        self.__cleanup_tagger_groups(created_tagger_group)
+
+
+    def run_test_training_taggergroup_with_embedding(self):
         url = reverse(f"{VERSION_NAMESPACE}:tagger_group-list", kwargs={"project_pk": self.project.pk})
         embedding_id = self.__train_embedding_for_tagger()
         payload = {
@@ -470,9 +589,10 @@ class TaggerGroupViewTests(APITransactionTestCase):
             self.assertEqual(has_plot_file, False)
 
 
-    def run_model_export_import(self):
+    def run_model_export_import(self, test_tagger_group_id: int = None):
         """Tests endpoint for model export and import"""
-        test_tagger_group_id = self.test_tagger_group_id
+        if not test_tagger_group_id:
+            test_tagger_group_id = self.test_tagger_group_id
 
         # retrieve model zip
         url = f'{self.url}{test_tagger_group_id}/export_model/'
@@ -525,7 +645,7 @@ class TaggerGroupViewTests(APITransactionTestCase):
             self.add_cleanup_files(tagger.id)
 
 
-    def test_training_tagger_group_with_blacklisted_values(self):
+    def run_test_training_tagger_group_with_blacklisted_values(self):
         url = reverse(f"{VERSION_NAMESPACE}:tagger_group-list", kwargs={"project_pk": self.project.pk})
         payload = {
             "description": "TestTaggerGroup",

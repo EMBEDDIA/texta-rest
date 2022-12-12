@@ -3,7 +3,7 @@ import logging
 import os
 import pathlib
 import secrets
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Tuple
 
 from celery import group, chain
 from celery.decorators import task
@@ -27,6 +27,7 @@ from toolkit.mlp.tasks import apply_mlp_on_list
 from toolkit.tagger.models import Tagger, TaggerGroup
 from toolkit.tools.plots import create_tagger_plot
 from toolkit.tools.show_progress import ShowProgress
+from toolkit.tools.common_utils import format_tagger_prediction
 
 
 def prepare_tagger_objects(tg: TaggerGroup, tags: List[str], tagger_serializer: dict, tag_queries: List[dict]) -> List[int]:
@@ -344,7 +345,36 @@ def save_tagger_results(result_data: dict):
         task_object.handle_failed_task(e)
 
 
-def get_mlp(tagger_group_id: int, text: str, lemmatize: bool = False, use_ner: bool = True):
+
+def load_ner_lexicon(hybrid_tagger_object: TaggerGroup) -> Dict[str, dict]:
+    """ Loads the NER lexicons stored in a Tagger Group object into a single dict
+    for more convenient look-ups.
+    """
+    ner_lex_objects = hybrid_tagger_object.ner_lexicons
+    ner_lexicon = {}
+    for lex_object in ner_lex_objects.all():
+        lex_id = lex_object.pk
+        lexicon_list = json.loads(lex_object.positives_used)
+        lexicon_dict = {
+            lex_entry.lower().strip(): {"tag": lex_entry.strip(), "lex_id": lex_id}
+            for lex_entry in lexicon_list
+        }
+        ner_lexicon.update(lexicon_dict)
+    return ner_lexicon
+
+
+def get_mlp_analyzers(lemmatize: bool, use_ner: bool) -> List[str]:
+    """ Returns the correct MLP analyzers based on user choices.
+    """
+    analyzers = []
+    if lemmatize:
+        analyzers.append("lemmas")
+    if use_ner:
+        analyzers.append("ner")
+    return analyzers
+
+
+def get_mlp(tagger_group_id: int, text: str, lemmatize: bool = False, use_ner: bool = True) -> Tuple[str, List[dict]]:
     """
     Retrieves lemmas.
     Retrieves tags predicted by MLP NER and present in models.
@@ -352,17 +382,26 @@ def get_mlp(tagger_group_id: int, text: str, lemmatize: bool = False, use_ner: b
     """
     tags = []
     hybrid_tagger_object = TaggerGroup.objects.get(pk=tagger_group_id)
+    use_taggers_as_ner_filter = hybrid_tagger_object.use_taggers_as_ner_filter
 
-    taggers = {t.description.lower(): {"tag": t.description, "id": t.id} for t in hybrid_tagger_object.taggers.all()}
+    if use_taggers_as_ner_filter:
+        logging.getLogger(settings.INFO_LOGGER).info(f"[Get MLP] Collecting taggers for filtering NER tags...")
+        taggers = {t.description.lower(): {"tag": t.description, "id": t.id} for t in hybrid_tagger_object.taggers.all()}
+    else:
+        logging.getLogger(settings.INFO_LOGGER).info(f"[Get MLP] Filtering NER tags based on tagger descriptions is turned OFF.")
+        taggers = {}
+
+    ner_lexicon = load_ner_lexicon(hybrid_tagger_object)
 
     if lemmatize or use_ner:
-        logging.getLogger(settings.INFO_LOGGER).info(f"[Get MLP] Applying lemmatization and NER...")
+        mlp_analyzers = get_mlp_analyzers(lemmatize, use_ner)
+        logging.getLogger(settings.INFO_LOGGER).info(f"[Get MLP] Applying lemmatization and/or NER...")
         with allow_join_result():
-            mlp = apply_mlp_on_list.apply_async(kwargs={"texts": [text], "analyzers": ["all"]}, queue=settings.CELERY_MLP_TASK_QUEUE).get()
+            mlp = apply_mlp_on_list.apply_async(kwargs={"texts": [text], "analyzers": mlp_analyzers}, queue=settings.CELERY_MLP_TASK_QUEUE).get()
             mlp_result = mlp[0]
             logging.getLogger(settings.INFO_LOGGER).info(f"[Get MLP] Finished applying MLP.")
 
-    # lemmatize
+    # use lemmas as the base text
     if lemmatize and mlp_result:
         text = mlp_result["text_mlp"]["lemmas"]
         lemmas_exists = True if text.strip() else False
@@ -370,21 +409,39 @@ def get_mlp(tagger_group_id: int, text: str, lemmatize: bool = False, use_ner: b
 
     # retrieve tags
     if use_ner and mlp_result:
-        seen_tags = {}
+        seen_tags = set()
+
         for fact in mlp_result["texta_facts"]:
             fact_val = fact["str_val"].lower().strip()
-            if fact_val in taggers and fact_val not in seen_tags:
-                fact_val_dict = {
-                    "tag": taggers[fact_val]["tag"],
-                    "probability": 1.0,
-                    "tagger_id": taggers[fact_val]["id"],
-                    "ner_match": True
-                }
-                tags.append(fact_val_dict)
-                seen_tags[fact_val] = True
+            prediction = None
+
+            if fact_val in ner_lexicon and fact_val not in seen_tags:
+                # Adds NER facts present in one of the NER lexicons
+                prediction = format_tagger_prediction(
+                    tag = ner_lexicon[fact_val]["tag"],
+                    probability = 1.0,
+                    ner_match = True,
+                    lexicon_id = ner_lexicon[fact_val]["lex_id"],
+                    result = True
+                )
+
+            elif fact_val in taggers and fact_val not in seen_tags:
+                # Adds NER facts present in the list of tagger descriptions
+                prediction = format_tagger_prediction(
+                    tag = taggers[fact_val]["tag"],
+                    probability = 1.0,
+                    tagger_id = taggers[fact_val]["id"],
+                    ner_match = True,
+                    result = True
+                )
+
+            if prediction:
+                tags.append(prediction)
+                seen_tags.add(fact_val)
+
         logging.getLogger(settings.INFO_LOGGER).info(f"[Get MLP] Detected {len(tags)} with NER.")
 
-    return text, tags
+    return (text, tags)
 
 
 def get_tag_candidates(tagger_group_id: int, text: str, ignore_tags: List[str] = [], n_similar_docs: int = 10, max_candidates: int = 10):
