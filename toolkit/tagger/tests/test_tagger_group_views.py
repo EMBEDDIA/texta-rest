@@ -85,7 +85,8 @@ class TaggerGroupViewTests(APITransactionTestCase):
         self.run_apply_tagger_group_to_index()
         self.run_apply_tagger_group_to_index_with_tag_limit()
         self.run_apply_tagger_group_to_index_invalid_input()
-        self.run_model_export_import()
+        self.run_model_export_import(self.test_tagger_group_id)
+        self.run_model_export_import(self.test_tagger_group_ner_lex_id)
         self.run_tagger_instances_have_mention_to_tagger_group()
         self.run_check_that_filtering_taggers_by_tagger_group_description_works()
 
@@ -187,6 +188,8 @@ class TaggerGroupViewTests(APITransactionTestCase):
 
         created_tagger_group = TaggerGroup.objects.get(id=response.data['id'])
         tagger_group_id = created_tagger_group.pk
+
+        self.test_tagger_group_ner_lex_id = tagger_group_id
 
         lex_test_text = "Eesti president on Alar Karis. Eesti peaminister on Kaja Kallas. Varasemateks presidentideks on nt. Lennart Meri, Kersti Kaljulaid, Arnold Rüütel ja Toomas Hendrik Ilves."
         tag_text_url = f'{self.url}{tagger_group_id}/tag_text/'
@@ -586,9 +589,10 @@ class TaggerGroupViewTests(APITransactionTestCase):
             self.assertEqual(has_plot_file, False)
 
 
-    def run_model_export_import(self):
+    def run_model_export_import(self, test_tagger_group_id: int = None):
         """Tests endpoint for model export and import"""
-        test_tagger_group_id = self.test_tagger_group_id
+        if not test_tagger_group_id:
+            test_tagger_group_id = self.test_tagger_group_id
 
         # retrieve model zip
         url = f'{self.url}{test_tagger_group_id}/export_model/'
