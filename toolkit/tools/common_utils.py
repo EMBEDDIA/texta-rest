@@ -35,6 +35,21 @@ def grouper(n, iterable, fillvalue=None):
     return container[0]
 
 
+def format_tagger_prediction(tag: str, probability: float, tagger_id: int = None, ner_match: bool = False,
+                      lexicon_id: int = None, result: bool = True) -> dict:
+    """ Formats Tagger prediction to ensure the same set of keys from different output sources.
+    """
+    prediction = {
+        "tag": tag,
+        "probability": probability,
+        "tagger_id": tagger_id,
+        "ner_match": ner_match,
+        "lexicon_id": lexicon_id,
+        "result": result
+    }
+    return prediction
+    
+
 class DisableCSRFMiddleware(object):
 
     def __init__(self, get_response):

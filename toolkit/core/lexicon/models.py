@@ -1,6 +1,7 @@
 import json
 
 from django.contrib.auth.models import User
+from django.core import serializers
 from django.db import models
 
 from toolkit.constants import MAX_DESC_LEN
@@ -19,3 +20,10 @@ class Lexicon(models.Model):
 
     def __str__(self):
         return self.description
+
+    def to_json(self) -> dict:
+        serialized = serializers.serialize('json', [self])
+        json_obj = json.loads(serialized)[0]["fields"]
+        del json_obj["project"]
+        del json_obj["author"]
+        return json_obj
