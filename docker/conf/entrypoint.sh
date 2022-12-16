@@ -17,10 +17,11 @@ chown -R www-data /opt/conda/envs/texta-rest/var/tmp/nginx
 chown -R www-data /opt/conda/envs/texta-rest/var/log/nginx
 
 # ACTIVATE & MIGRATE
-source activate texta-rest && \
-  python3 migrate.py -o && \
-  # prepare front conf file
-  python3 create_front_conf.py > /var/texta-rest/front/assets/config/config.json
+source activate texta-rest
+python3 migrate.py -o
+
+# prepare front conf file
+python3 create_front_conf.py > /var/texta-rest/front/assets/config/config.json
 
 # OWNERSHIP TO WWW-DATA
 chown www-data:www-data -R /var/texta-rest/static/ && chmod 777 -R /var/texta-rest/static/
