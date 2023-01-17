@@ -34,6 +34,7 @@ class LabelsetViewset(mixins.CreateModelMixin,
                       mixins.ListModelMixin,
                       mixins.RetrieveModelMixin,
                       mixins.DestroyModelMixin,
+                      mixins.UpdateModelMixin,
                       viewsets.GenericViewSet,
                       BulkDelete):
     serializer_class = LabelsetSerializer
