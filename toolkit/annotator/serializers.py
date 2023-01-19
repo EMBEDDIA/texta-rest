@@ -8,12 +8,12 @@ from texta_elastic.aggregator import ElasticAggregator
 from texta_elastic.searcher import ElasticSearcher
 
 from toolkit.annotator.choices import MAX_VALUE
-from toolkit.annotator.models import Annotator, AnnotatorGroup, BinaryAnnotatorConfiguration, Category, Comment, EntityAnnotatorConfiguration, Label, Labelset, MultilabelAnnotatorConfiguration, Record
+from toolkit.annotator.models import Annotator, AnnotatorGroup, BinaryAnnotatorConfiguration, Comment, EntityAnnotatorConfiguration, Labelset, \
+    MultilabelAnnotatorConfiguration, Record
 from toolkit.core.project.models import Project
 from toolkit.core.user_profile.serializers import UserSerializer
 from toolkit.elastic.index.models import Index
 from toolkit.serializer_constants import CommonModelSerializerMixin, FieldParseSerializer, ToolkitTaskSerializer
-
 
 ANNOTATION_MAPPING = {
     "entity": EntityAnnotatorConfiguration,
@@ -30,19 +30,26 @@ class RecordSerializer(serializers.ModelSerializer):
         data["username"] = instance.user.username
         return data
 
-
     class Meta:
         model = Record
         fields = "__all__"
 
 
-class LabelsetSerializer(serializers.ModelSerializer):
+class LabelsetSerializer(FieldParseSerializer, serializers.ModelSerializer):
+    indices = serializers.ListSerializer(child=serializers.CharField(), default="[]", required=False, help_text="List of indices to automatically pull labels from if selected.")
+    fact_names = serializers.ListSerializer(child=serializers.CharField(), default="[]", required=False, help_text="List of fact_names.")
+    value_limit = serializers.IntegerField(
+        default=500, max_value=MAX_VALUE,
+        required=False,
+        help_text=f"Limit the number of values added. To include all values, the number should be greater than or equal with the number of unique fact values corresponding to the selected fact(s). NB! Including all values is not possible if the number of unique values is > {MAX_VALUE}."
+    )
+    category = serializers.CharField(help_text="Category under which the labels belong to.")
+    values = serializers.ListSerializer(child=serializers.CharField(), help_text="Labels to be added.")
 
     def to_representation(self, instance: Labelset):
         data = super(LabelsetSerializer, self).to_representation(instance)
         data["id"] = instance.id
         return data
-
 
     class Meta:
         model = Labelset
@@ -54,16 +61,19 @@ class LabelsetSerializer(serializers.ModelSerializer):
             'value_limit',
             'category',
         )
-        fields_to_parse = ("fields",)
+        fields_to_parse = ("values",)
 
+    def update(self, instance, validated_data):
+        values = validated_data.pop("values", None)
+        indices = validated_data.pop("indices", None)
+        instance = super().update(instance, validated_data)
+        if values:
+            instance.values = json.dumps(values, ensure_ascii=False)
+        if indices:
+            raise ValidationError("Indices can not be edited after creation!")
 
-    indices = serializers.ListSerializer(child=serializers.CharField(), default="[]", required=False, help_text="List of indices.")
-    fact_names = serializers.ListSerializer(child=serializers.CharField(), default="[]", required=False, help_text="List of fact_names.")
-    value_limit = serializers.IntegerField(default=500, max_value=MAX_VALUE, required=False,
-                                           help_text=f"Limit the number of values added. To include all values, the number should be greater than or equal with the number of unique fact values corresponding to the selected fact(s). NB! Including all values is not possible if the number of unique values is > {MAX_VALUE}.")
-    category = serializers.CharField(help_text="Category name.")
-    values = serializers.ListSerializer(child=serializers.CharField(), help_text="Values to be added.")
-
+        instance.save()
+        return instance
 
     def create(self, validated_data):
         request = self.context.get('request')
@@ -78,8 +88,6 @@ class LabelsetSerializer(serializers.ModelSerializer):
         category = validated_data["category"]
         values = validated_data["values"]
 
-        category, is_created = Category.objects.get_or_create(value=category)
-
         index_container = []
         value_container = []
 
@@ -89,29 +97,27 @@ class LabelsetSerializer(serializers.ModelSerializer):
                     index_obj = Index.objects.get(name=index)
                 except Exception as e:
                     raise serializers.ValidationError(e)
+
                 if fact_names:
                     for fact_name in fact_names:
                         fact_map = ElasticAggregator(indices=index).facts(filter_by_fact_name=fact_name, size=int(value_limit))
                         for factm in fact_map:
-                            label, is_created = Label.objects.get_or_create(value=factm)
-                            value_container.append(label)
+                            value_container.append(factm)
                 else:
                     fact_map = ElasticAggregator(indices=index).facts(size=int(value_limit))
                     for fact_name in fact_map:
                         for fact_value in fact_map[fact_name]:
-                            label, is_created = Label.objects.get_or_create(value=fact_value)
-                            value_container.append(label)
+                            value_container.append(fact_value)
                 index_container.append(index_obj)
 
         for value in values:
-            label, is_created = Label.objects.get_or_create(value=value)
-            value_container.append(label)
+            value_container.append(value)
 
         labelset, is_created = Labelset.objects.get_or_create(project=project_obj, category=category)
         labelset.indices.add(*index_container)
         labelset.fact_names = fact_names
         labelset.value_limit = value_limit
-        labelset.values.add(*value_container)
+        labelset.values = json.dumps(value_container, ensure_ascii=False)
 
         return labelset
 
@@ -141,7 +147,6 @@ class CommentSerializer(serializers.Serializer):
     document_id = serializers.CharField()
     user = UserSerializer(read_only=True, default=serializers.CurrentUserDefault())
     text = serializers.CharField()
-
 
     def to_representation(self, instance: Comment):
         return {
@@ -177,7 +182,6 @@ class MultilabelAnnotatorConfigurationSerializer(serializers.ModelSerializer):
         data["category"] = str(instance.labelset.category)
         return data
 
-
     class Meta:
         model = MultilabelAnnotatorConfiguration
         fields = "__all__"
@@ -206,7 +210,6 @@ class AnnotatorSerializer(FieldParseSerializer, ToolkitTaskSerializer, CommonMod
         help_text='Add texta facts mapping. NB! If texta_facts is present in annotator fields, the mapping is always created.',
         required=False, default=True)
 
-
     def update(self, instance: Annotator, validated_data: dict):
         request = self.context.get('request')
         project_pk = request.parser_context.get('kwargs').get("project_pk")
@@ -219,7 +222,6 @@ class AnnotatorSerializer(FieldParseSerializer, ToolkitTaskSerializer, CommonMod
 
         return instance
 
-
     def get_url(self, obj):
         index = reverse(f"v2:annotator-detail", kwargs={"project_pk": obj.project.pk, "pk": obj.pk})
         if "request" in self.context:
@@ -228,7 +230,6 @@ class AnnotatorSerializer(FieldParseSerializer, ToolkitTaskSerializer, CommonMod
             return url
         else:
             return None
-
 
     def __get_configurations(self, validated_data):
         # Get what type of annotation is used.
@@ -242,11 +243,9 @@ class AnnotatorSerializer(FieldParseSerializer, ToolkitTaskSerializer, CommonMod
         configuration.save()
         return {configuration_field: configuration}
 
-
     def __get_total(self, indices, query):
         ec = ElasticSearcher(indices=indices, query=query)
         return ec.count()
-
 
     def create(self, validated_data):
         request = self.context.get('request')
@@ -297,7 +296,6 @@ class AnnotatorSerializer(FieldParseSerializer, ToolkitTaskSerializer, CommonMod
 
         return annotator
 
-
     def validate(self, attrs: dict):
         annotator_type = ""
         if self.context['request'].method != "PATCH":
@@ -326,7 +324,6 @@ class AnnotatorSerializer(FieldParseSerializer, ToolkitTaskSerializer, CommonMod
                     raise ValidationError("Please ensure at least 'one' user is chosen.")
 
         return attrs
-
 
     class Meta:
         model = Annotator
@@ -364,7 +361,6 @@ class AnnotatorSerializer(FieldParseSerializer, ToolkitTaskSerializer, CommonMod
 
 class AnnotatorProjectSerializer(AnnotatorSerializer):
 
-
     def to_representation(self, instance: Annotator):
         result = super(AnnotatorProjectSerializer, self).to_representation(instance)
         result["project_pk"] = instance.project.pk
@@ -381,13 +377,11 @@ class AnnotatorGroupSerializer(serializers.ModelSerializer):
         )
         fields_to_parse = ("fields",)
 
-
     def to_representation(self, instance: AnnotatorGroup):
         result = super(AnnotatorGroupSerializer, self).to_representation(instance)
         result["parent"] = AnnotatorSerializer(instance=instance.parent, context={'request': self.context['request']}).data
         result["children"] = AnnotatorSerializer(instance=instance.children, many=True, context={'request': self.context['request']}).data
         return result
-
 
     def create(self, validated_data):
         request = self.context.get('request')

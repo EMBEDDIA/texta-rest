@@ -26,29 +26,13 @@ ANNOTATION_CHOICES = (
 )
 
 
-class Category(models.Model):
-    value = models.CharField(max_length=SIZE_LIMIT, unique=True)
-
-
-    def __str__(self):
-        return self.value
-
-
-class Label(models.Model):
-    value = models.CharField(max_length=SIZE_LIMIT, unique=True)
-
-
-    def __str__(self):
-        return self.value
-
-
 class Labelset(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, default=None, null=True)
     indices = models.ManyToManyField(Index)
     fact_names = models.TextField(null=True)
     value_limit = models.IntegerField(null=True)
-    category = models.ForeignKey(Category, on_delete=models.CASCADE)
-    values = models.ManyToManyField(Label)
+    category = models.CharField(max_length=50, default="")
+    values = models.TextField(default=json.dumps([]))
 
 
 class MultilabelAnnotatorConfiguration(models.Model):
