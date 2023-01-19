@@ -36,7 +36,6 @@ class BinaryAnnotatorTests(APITestCase):
         self.annotator = self._create_annotator()
         self.pull_document_url = reverse("v2:annotator-pull-document", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
 
-
     def test_all(self):
         self.run_binary_annotator_group()
         self.run_create_annotator_for_multi_user()
@@ -48,7 +47,6 @@ class BinaryAnnotatorTests(APITestCase):
         self.run_check_proper_skipping_functionality()
         self.run_annotating_to_the_end()
         self.run_create_labelset()
-
 
     def _create_annotator(self):
         payload = {
@@ -73,7 +71,6 @@ class BinaryAnnotatorTests(APITestCase):
         self.assertTrue(total_count > response.data["total"])
         return response.data
 
-
     def _pull_random_document(self):
         url = reverse("v2:annotator-pull-document", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
         response = self.client.post(url, format="json")
@@ -92,7 +89,6 @@ class BinaryAnnotatorTests(APITestCase):
         group_response = self.client.post(group_url, data=group_payload, format="json")
         print_output("run_binary_annotator_group:response.status", group_response.status_code)
         self.assertTrue(group_response.status_code == status.HTTP_201_CREATED)
-
 
     def run_create_annotator_for_multi_user(self):
         payload = {
@@ -118,7 +114,6 @@ class BinaryAnnotatorTests(APITestCase):
 
         total_count = self.ec.es.count(index=f"{self.test_index_name},{self.secondary_index}").get("count", 0)
         self.assertTrue(total_count > response.data["total"])
-
 
     def run_binary_annotation(self):
         annotation_url = reverse("v2:annotator-annotate-binary", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
@@ -157,7 +152,6 @@ class BinaryAnnotatorTests(APITestCase):
             elif payload["annotation_type"] == "neg":
                 self.assertTrue(model_object.binary_configuration.neg_value in [fact["str_val"] for fact in facts])
 
-
     def run_annotating_to_the_end(self):
         model_object = Annotator.objects.get(pk=self.annotator["id"])
         total = model_object.total
@@ -177,7 +171,6 @@ class BinaryAnnotatorTests(APITestCase):
         random_document = self._pull_random_document()
         self.assertTrue(random_document["detail"] == 'No more documents left!')
 
-
     def run_create_labelset(self):
         payload = {
             "indices": [self.test_index_name, self.secondary_index],
@@ -189,7 +182,6 @@ class BinaryAnnotatorTests(APITestCase):
         response = self.client.post(reverse("v2:labelset-list", kwargs={"project_pk": self.project.pk}), data=payload, format="json")
         print_output("run_create_labelset:response.status", response.status_code)
         self.assertTrue(response.status_code == status.HTTP_201_CREATED)
-
 
     def run_pulling_comment_for_document(self, document_id):
         url = reverse("v2:annotator-get-comments", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
@@ -205,7 +197,6 @@ class BinaryAnnotatorTests(APITestCase):
         self.assertTrue(comment.get("user", "") == self.user.username)
         self.assertTrue(comment.get("created_at", ""))
 
-
     def run_pulling_document(self):
         url = reverse("v2:annotator-pull-document", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
         # Test pulling documents several times as that will be a common behavior.
@@ -217,7 +208,6 @@ class BinaryAnnotatorTests(APITestCase):
             self.assertTrue(response.data.get("_source", None))
             self.assertTrue(response.data.get("_index", None))
             self.assertTrue(response.data["_source"].get(TEST_FIELD), None)
-
 
     def run_adding_comment_to_document(self):
         random_document = self._pull_random_document()
@@ -232,13 +222,11 @@ class BinaryAnnotatorTests(APITestCase):
         self.assertTrue(response.status_code == status.HTTP_200_OK)
         return document_id
 
-
     def run_that_query_limits_pulled_document(self):
         random_document = self._pull_random_document()
         content = random_document["_source"]
         print_output("run_that_query_limits_pulled_document:source", content)
         self.assertTrue(TEST_MATCH_TEXT in content.get(TEST_FIELD, ""))
-
 
     def run_check_proper_skipping_functionality(self):
         random_document = self._pull_random_document()
@@ -254,9 +242,9 @@ class BinaryAnnotatorTests(APITestCase):
         annotator_dict = [dictionary for dictionary in annotator_list if dictionary["job_id"] == self.annotator["id"]][0]
         self.assertTrue(annotator_dict["skipped_timestamp_utc"])
 
-
     def run_that_double_skipped_document_wont_be_counted(self):
         pass
+
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
 class EntityAnnotatorTests(APITestCase):
@@ -280,11 +268,9 @@ class EntityAnnotatorTests(APITestCase):
         self.annotator = self._create_annotator()
         self.pull_document_url = reverse("v2:annotator-pull-document", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
 
-
     def test_all(self):
         self.run_entity_annotator_group()
         self.run_entity_annotation()
-
 
     def _create_annotator(self):
         payload = {
@@ -306,7 +292,6 @@ class EntityAnnotatorTests(APITestCase):
         self.assertTrue(total_count > response.data["total"])
         return response.data
 
-
     def _pull_random_document(self):
         url = reverse("v2:annotator-pull-document", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
         response = self.client.post(url, format="json")
@@ -326,7 +311,6 @@ class EntityAnnotatorTests(APITestCase):
         print_output("run_entity_annotator_group:response.status", group_response.status_code)
         self.assertTrue(group_response.status_code == status.HTTP_201_CREATED)
 
-
     def run_entity_annotation(self):
         annotation_url = reverse("v2:annotator-annotate-entity", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
         print_output("run_entity_annotation:annotation_url", annotation_url)
@@ -334,13 +318,15 @@ class EntityAnnotatorTests(APITestCase):
         for i in range(2):
             random_document = self._pull_random_document()
             annotation_payloads.append(
-                {"index": random_document["_index"], "document_id": random_document["_id"], "texta_facts": [{"doc_path": TEST_FIELD, "fact": "TOXICITY", "spans": "[[0,0]]", "str_val": "bar", "source": "annotator"}]}
+                {"index": random_document["_index"], "document_id": random_document["_id"],
+                 "texta_facts": [{"doc_path": TEST_FIELD, "fact": "TOXICITY", "spans": "[[0,0]]", "str_val": "bar", "source": "annotator"}]}
             )
         print_output("annotation_document_before_0", annotation_payloads[0]['document_id'])
         print_output("annotation_document_before_1", annotation_payloads[1]['document_id'])
         while annotation_payloads[0]['document_id'] == annotation_payloads[1]['document_id']:
             random_document = self._pull_random_document()
-            annotation_payloads[1] = {"index": random_document["_index"], "document_id": random_document["_id"], "texta_facts": [{"doc_path": TEST_FIELD, "fact": "TOXICITY", "spans": "[[0,0]]", "str_val": "bar", "source": "annotator"}]}
+            annotation_payloads[1] = {"index": random_document["_index"], "document_id": random_document["_id"],
+                                      "texta_facts": [{"doc_path": TEST_FIELD, "fact": "TOXICITY", "spans": "[[0,0]]", "str_val": "bar", "source": "annotator"}]}
         print_output("run_entity_annotation:annotation_payloads", annotation_payloads)
         for index_count, payload in enumerate(annotation_payloads):
             print_output(f"run_entity_annotation:annotation_payload{index_count}", payload['document_id'])
@@ -389,6 +375,7 @@ class MultilabelAnnotatorTests(APITestCase):
     def test_all(self):
         self.run_multilabel_annotation()
         self.run_empty_multilabel_annotation()
+        self.run_test_that_you_can_edit_labels_and_category()
 
     def _create_annotator(self):
         payload = {
@@ -487,3 +474,22 @@ class MultilabelAnnotatorTests(APITestCase):
         annotations_after = model_object_after.annotated
         print_output("run_empty_multilabel_annotation:annotations_after", annotations_after)
         self.assertTrue(annotations_after == annotations_before + 1)
+
+    def run_test_that_you_can_edit_labels_and_category(self):
+        url = reverse("v2:labelset-detail", kwargs={"project_pk": self.project.pk, "pk": self.labelset["id"]})
+        detail_response = self.client.get(url)
+        is_list = isinstance(detail_response.data["values"], list)
+        self.assertTrue(is_list)
+
+        new_category = "booleans galore"
+        new_values = ["true", "false", "1", "0"]
+        payload = {
+            "values": new_values,
+            "category": new_category
+        }
+        edit_response = self.client.patch(url, data=payload, format="json")
+        print_output("run_test_that_you_can_edit_labels_and_category:response.data", edit_response.data)
+        self.assertEqual(edit_response.status_code, status.HTTP_200_OK)
+        detail_response = self.client.get(url)
+        self.assertTrue(detail_response.data["values"] == new_values)
+        self.assertTrue(detail_response.data["category"] == new_category)
