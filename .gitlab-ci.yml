@@ -21,7 +21,7 @@ variables:
   #TEXTA_ADMIN_PASSWORD: "1234"
   # MLP lang codes
   TEXTA_LANGUAGE_CODES: et,en
-  TEXTA_EXTERNAL_DATA_DIR: /cache
+#  TEXTA_EXTERNAL_DATA_DIR: /cache
 
   # S3 components
   TEXTA_S3_ENABLED: "true"
