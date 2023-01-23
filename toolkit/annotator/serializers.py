@@ -61,7 +61,7 @@ class LabelsetSerializer(FieldParseSerializer, serializers.ModelSerializer):
             'value_limit',
             'category',
         )
-        fields_to_parse = ("values",)
+        fields_to_parse = ("values", "fact_names")
 
     def update(self, instance, validated_data):
         values = validated_data.pop("values", None)
@@ -116,7 +116,7 @@ class LabelsetSerializer(FieldParseSerializer, serializers.ModelSerializer):
         labelset = Labelset.objects.create(
             project=project_obj,
             category=category,
-            fact_names=fact_names,
+            fact_names=json.dumps(fact_names, ensure_ascii=False),
             value_limit=value_limit,
             values=json.dumps(value_container, ensure_ascii=False)
         )
@@ -292,8 +292,6 @@ class AnnotatorSerializer(FieldParseSerializer, ToolkitTaskSerializer, CommonMod
             annotator.indices.add(index)
 
         annotator.save()
-
-        annotator.add_annotation_mapping(indices)
 
         annotator.create_annotator_task()
 

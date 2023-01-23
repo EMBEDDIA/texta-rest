@@ -238,8 +238,7 @@ class BinaryAnnotatorTests(APITestCase):
         self.assertTrue(response.status_code == status.HTTP_200_OK)
         elastic_doc = self.ec.es.get(index=doc_index, id=doc_id)
 
-        annotator_list = elastic_doc["_source"][TEXTA_ANNOTATOR_KEY]
-        annotator_dict = [dictionary for dictionary in annotator_list if dictionary["job_id"] == self.annotator["id"]][0]
+        annotator_dict = elastic_doc["_source"][TEXTA_ANNOTATOR_KEY]
         self.assertTrue(annotator_dict["skipped_timestamp_utc"])
 
     def run_that_double_skipped_document_wont_be_counted(self):

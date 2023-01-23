@@ -186,18 +186,6 @@ class AnnotatorViewset(mixins.CreateModelMixin,
             return Response({"detail": f"Skipped document with ID: {serializer.validated_data['document_id']}"})
 
 
-    @action(detail=True, methods=["POST"], serializer_class=ValidateDocumentSerializer)
-    def validate_document(self, request, pk=None, project_pk=None):
-        serializer: ValidateDocumentSerializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        annotator: Annotator = self.get_object()
-        annotator.validate_document(
-            document_id=serializer.validated_data["document_id"],
-            facts=serializer.validated_data["facts"],
-            is_valid=serializer.validated_data["is_valid"]
-        )
-        return Response({"detail": f"Validated document with ID: {serializer.validated_data['document_id']}"})
-
 
     @action(detail=True, methods=["POST"], serializer_class=EntityAnnotationSerializer)
     def annotate_entity(self, request, pk=None, project_pk=None):
