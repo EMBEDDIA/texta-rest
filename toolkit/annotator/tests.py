@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from texta_elastic.core import ElasticCore
 
-from toolkit.annotator.models import Annotator
+from toolkit.annotator.models import Annotator, Labelset
 from toolkit.elastic.index.models import Index
 from toolkit.helper_functions import reindex_test_dataset
 from toolkit.settings import TEXTA_ANNOTATOR_KEY
@@ -318,15 +318,19 @@ class EntityAnnotatorTests(APITestCase):
         for i in range(2):
             random_document = self._pull_random_document()
             annotation_payloads.append(
-                {"index": random_document["_index"], "document_id": random_document["_id"],
-                 "texta_facts": [{"doc_path": TEST_FIELD, "fact": "TOXICITY", "spans": "[[0,0]]", "str_val": "bar", "source": "annotator"}]}
+                {
+                    "index": random_document["_index"], "document_id": random_document["_id"],
+                    "texta_facts": [{"doc_path": TEST_FIELD, "fact": "TOXICITY", "spans": "[[0,0]]", "str_val": "bar", "source": "annotator"}]
+                }
             )
         print_output("annotation_document_before_0", annotation_payloads[0]['document_id'])
         print_output("annotation_document_before_1", annotation_payloads[1]['document_id'])
         while annotation_payloads[0]['document_id'] == annotation_payloads[1]['document_id']:
             random_document = self._pull_random_document()
-            annotation_payloads[1] = {"index": random_document["_index"], "document_id": random_document["_id"],
-                                      "texta_facts": [{"doc_path": TEST_FIELD, "fact": "TOXICITY", "spans": "[[0,0]]", "str_val": "bar", "source": "annotator"}]}
+            annotation_payloads[1] = {
+                "index": random_document["_index"], "document_id": random_document["_id"],
+                "texta_facts": [{"doc_path": TEST_FIELD, "fact": "TOXICITY", "spans": "[[0,0]]", "str_val": "bar", "source": "annotator"}]
+            }
         print_output("run_entity_annotation:annotation_payloads", annotation_payloads)
         for index_count, payload in enumerate(annotation_payloads):
             print_output(f"run_entity_annotation:annotation_payload{index_count}", payload['document_id'])
@@ -412,6 +416,9 @@ class MultilabelAnnotatorTests(APITestCase):
         response = self.client.post(self.labelset_url, data=payload, format="json")
         print_output("_create_labelset:response.status", response.status_code)
         self.assertTrue(response.status_code == status.HTTP_201_CREATED)
+
+        self.assertTrue("true" in response.data["values"])
+        self.assertTrue(Labelset.objects.count() != 0)
         return response.data
 
     def _pull_random_document(self):
