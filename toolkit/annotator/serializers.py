@@ -113,11 +113,14 @@ class LabelsetSerializer(FieldParseSerializer, serializers.ModelSerializer):
         for value in values:
             value_container.append(value)
 
-        labelset, is_created = Labelset.objects.get_or_create(project=project_obj, category=category)
+        labelset = Labelset.objects.create(
+            project=project_obj,
+            category=category,
+            fact_names=fact_names,
+            value_limit=value_limit,
+            values=json.dumps(value_container, ensure_ascii=False)
+        )
         labelset.indices.add(*index_container)
-        labelset.fact_names = fact_names
-        labelset.value_limit = value_limit
-        labelset.values = json.dumps(value_container, ensure_ascii=False)
 
         return labelset
 

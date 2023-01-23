@@ -12,7 +12,6 @@ from toolkit.elastic.index.models import Index
 from toolkit.model_constants import TaskModel
 from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, DESCRIPTION_CHAR_LIMIT
 
-
 # Create your models here.
 
 # MySQL does not allow higher char limits for unique fields than 255.
@@ -89,18 +88,15 @@ class Annotator(TaskModel):
         help_text="Settings for entity type annotations."
     )
 
-
     @property
     def annotated(self):
         restraint = Record.objects.filter(annotated_utc__isnull=False, skipped_utc__isnull=True, annotation_job=self)
         return restraint.count()
 
-
     @property
     def skipped(self):
         restraint = Record.objects.filter(annotated_utc__isnull=True, skipped_utc__isnull=False, annotation_job=self)
         return restraint.count()
-
 
     def create_annotator_task(self):
         self.save()
@@ -116,7 +112,6 @@ class Annotator(TaskModel):
 
         from toolkit.annotator.tasks import annotator_task
         annotator_task.apply_async(args=(self.pk,), queue=CELERY_LONG_TERM_TASK_QUEUE)
-
 
     def add_pos_label(self, document_id: str, index: str, user):
         """
@@ -141,7 +136,6 @@ class Annotator(TaskModel):
         ed.update()
         self.generate_record(document_id, index=index, user_pk=user.pk, fact=fact, do_annotate=True, fact_id=fact["id"])
 
-
     def generate_record(self, document_id, index, user_pk, fact=None, fact_id=None, do_annotate=False, do_skip=False):
         user = User.objects.get(pk=user_pk)
         record, is_created = Record.objects.get_or_create(document_id=document_id, index=index, user=user, annotation_job=self)
@@ -154,7 +148,6 @@ class Annotator(TaskModel):
             record.annotated_utc = None
             record.skipped_utc = datetime.utcnow()
         record.save()
-
 
     def add_neg_label(self, document_id: str, index: str, user):
         """
@@ -178,7 +171,6 @@ class Annotator(TaskModel):
         ed.update()
         self.generate_record(document_id, index=index, user_pk=user.pk, fact=fact, do_annotate=True, fact_id=fact["id"])
 
-
     def add_labels(self, document_id: str, labels: List[str], index: str, user: User):
         """
         Adds a label to Elasticsearch documents during multilabel annotations.
@@ -190,22 +182,18 @@ class Annotator(TaskModel):
         ed = ESDocObject(document_id=document_id, index=index)
         if labels:
             for label in labels:
-                fact = ed.add_fact(fact_value=label, fact_name=self.multilabel_configuration.labelset.category.value, doc_path=self.target_field, author=user.username)
+                fact = ed.add_fact(fact_value=label, fact_name=self.multilabel_configuration.labelset.category, doc_path=self.target_field, author=user.username)
                 ed.add_annotated(self, user)
-                self.generate_record(document_id, index=index, user_pk=user.pk, fact=fact, do_annotate=True,
-                                     fact_id=fact["id"])
+                self.generate_record(document_id, index=index, user_pk=user.pk, fact=fact, do_annotate=True, fact_id=fact["id"])
         else:
             ed.add_annotated(self, user)
-            self.generate_record(document_id, index=index, user_pk=user.pk, fact=None, do_annotate=True,
-                                 fact_id=None)
+            self.generate_record(document_id, index=index, user_pk=user.pk, fact=None, do_annotate=True, fact_id=None)
 
         ed.update()
-
 
     def __split_fact(self, fact: dict):
         fact_name, value, spans, field, fact_id = fact["fact"], fact.get("str_val") or fact.get("num_val"), fact.get("spans"), fact.get("doc_path"), fact.get("id", "")
         return fact_name, value, spans, field, fact_id
-
 
     def add_entity(self, document_id: str, texta_facts: List[dict], index: str, user: User):
         """
@@ -218,7 +206,6 @@ class Annotator(TaskModel):
         """
         from toolkit.annotator.tasks import add_entity_task
         add_entity_task.apply_async(args=(self.pk, document_id, texta_facts, index, user.pk), queue=CELERY_LONG_TERM_TASK_QUEUE)
-
 
     def pull_document(self) -> Optional[dict]:
         """
@@ -238,7 +225,6 @@ class Annotator(TaskModel):
         else:
             return None
 
-
     def skip_document(self, document_id: str, index: str, user) -> bool:
         """
         Add the skip label to the document and update the progress accordingly.
@@ -254,7 +240,6 @@ class Annotator(TaskModel):
 
         return True
 
-
     def add_comment(self, document_id: str, comment: str, user: User) -> bool:
         """
         Adds an annotators comment into the document in question.
@@ -265,7 +250,6 @@ class Annotator(TaskModel):
         """
         Comment.objects.create(annotation_job=self, text=comment, document_id=document_id, user=user)
         return True
-
 
     def pull_skipped_document(self):
         """
@@ -285,7 +269,6 @@ class Annotator(TaskModel):
         else:
             return None
 
-
     def pull_annotated_document(self) -> Optional[dict]:
         """
         Returns an already annotated document for validation purposes.
@@ -304,7 +287,6 @@ class Annotator(TaskModel):
         else:
             return None
 
-
     def reset_processed_records(self, indices: List[str], query: dict):
         """
         Resets the timestamp for all documents matching the query that have the "processed" timestamp.
@@ -313,7 +295,6 @@ class Annotator(TaskModel):
         :return:
         """
         pass
-
 
     @staticmethod
     def add_annotation_mapping(indices: List[str]):
@@ -327,7 +308,6 @@ class Annotator(TaskModel):
         ec = ElasticCore()
         for index in indices:
             ec.add_annotator_mapping(index)
-
 
     @staticmethod
     def add_texta_meta_mapping(indices: List[str]):
@@ -356,7 +336,6 @@ class Comment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     annotation_job = models.ForeignKey(Annotator, on_delete=models.SET_NULL, null=True)
-
 
     def __str__(self):
         return f"{self.user.username}: {self.text} @{str(self.created_at)}"
