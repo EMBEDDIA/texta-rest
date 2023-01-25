@@ -245,9 +245,8 @@ class AnnotatorViewset(mixins.CreateModelMixin,
     def get_comments(self, request, pk=None, project_pk=None):
         serializer: DocumentIDSerializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        annotator: Annotator = self.get_object()
         document_id = serializer.validated_data["document_id"]
-        comments = annotator.get_comments(document_id, user=request.user)
+        comments = Comment.objects.filter(document_id=document_id).order_by("-created_at")[:10]
         data = CommentSerializer(comments, many=True).data
         return Response({"count": len(data), "results": data})
 
