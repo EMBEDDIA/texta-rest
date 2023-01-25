@@ -297,19 +297,6 @@ class Annotator(TaskModel):
         pass
 
     @staticmethod
-    def add_annotation_mapping(indices: List[str]):
-        """
-        Adds the mapping for the annotator into indices to ensure smooth sailing.
-        :param indices: Which indices to target for the schemas.
-        :return:
-        """
-        from texta_elastic.core import ElasticCore
-
-        ec = ElasticCore()
-        for index in indices:
-            ec.add_annotator_mapping(index)
-
-    @staticmethod
     def add_texta_meta_mapping(indices: List[str]):
         """
         Adds the mapping for texta_meta.
