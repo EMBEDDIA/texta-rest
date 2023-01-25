@@ -4,13 +4,14 @@ from typing import List, Optional
 
 from django.contrib.auth.models import User
 from django.db import models
-from texta_elastic.document import ESDocObject
+from django.db.models import Q
+from texta_elastic.document import ESDocObject, ElasticDocument
 
 from toolkit.core.project.models import Project
 from toolkit.core.task.models import Task
 from toolkit.elastic.index.models import Index
 from toolkit.model_constants import TaskModel
-from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, DESCRIPTION_CHAR_LIMIT
+from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, DESCRIPTION_CHAR_LIMIT, TEXTA_ANNOTATOR_KEY
 
 # Create your models here.
 
@@ -248,8 +249,35 @@ class Annotator(TaskModel):
         :param document_id: Elasticsearch document ID of the comment in question.
         :return:
         """
-        Comment.objects.create(annotation_job=self, text=comment, document_id=document_id, user=user)
+        indices = ",".join(self.get_available_or_all_indices())
+        ed = ElasticDocument(index=indices)
+        document = ed.get(document_id)["_source"]
+        document_uuid = document["texta_meta"]["document_uuid"]
+
+        if TEXTA_ANNOTATOR_KEY not in document:
+            document[TEXTA_ANNOTATOR_KEY] = {"comments": [comment]}
+
+        else:
+            comments = document[TEXTA_ANNOTATOR_KEY].get("comments", [])
+            if comment not in comments:
+                comments.append(comment)
+
+        ed.update(index=indices, doc_id=document_id, doc={TEXTA_ANNOTATOR_KEY: document[TEXTA_ANNOTATOR_KEY]})
+        Comment.objects.create(annotation_job=self, text=comment, document_uuid=document_uuid, document_id=document_id, user=user)
         return True
+
+    def get_comments(self, document_id: str, user: User):
+        """
+        Adds an annotators comment into the document in question.
+        :param user: Django user who is pulling the comments.
+        :param document_id: Elasticsearch document ID of the comment in question.
+        :return:
+        """
+        indices = ",".join(self.get_available_or_all_indices())
+        ed = ElasticDocument(index=indices)
+        document = ed.get(document_id)["_source"]
+        document_uuid = document["texta_meta"]["document_uuid"]
+        return Comment.objects.filter(Q(user__username=user.username) | Q(document_uuid=document_uuid)).order_by("-created_at")[:10]
 
     def pull_skipped_document(self):
         """
@@ -319,6 +347,7 @@ class AnnotatorGroup(models.Model):
 class Comment(models.Model):
     text = models.TextField()
     document_id = models.CharField(max_length=DESCRIPTION_CHAR_LIMIT)
+    document_uuid = models.CharField(max_length=DESCRIPTION_CHAR_LIMIT, default="")
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
