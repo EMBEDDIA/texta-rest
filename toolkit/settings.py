@@ -148,7 +148,7 @@ ACCOUNT_EMAIL_VERIFICATION = "none"
 CSRF_HEADER_NAME = "HTTP_X_XSRF_TOKEN"
 CSRF_COOKIE_NAME = "XSRF-TOKEN"
 # For accessing a live backend server locally.
-CORS_ORIGIN_WHITELIST = env.list("TEXTA_CORS_ORIGIN_WHITELIST", default=["http://localhost:4200", 'https://law-test-8795b.web.app'])
+CORS_ORIGIN_WHITELIST = env.list("TEXTA_CORS_ORIGIN_WHITELIST", default=["http://localhost:4200", 'http://localhost:37867', 'https://law-test-8795b.web.app'])
 CSRF_TRUSTED_ORIGINS = env.list("TEXTA_CSRF_TRUSTED_ORIGINS", default=["localhost"])
 CORS_ALLOW_HEADERS = list(default_headers) + ["x-xsrf-token"]
 CORS_ALLOW_CREDENTIALS = env.bool("TEXTA_CORS_ALLOW_CREDENTIALS", default=True)
