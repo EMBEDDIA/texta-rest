@@ -4,12 +4,12 @@ from rest_framework import mixins, permissions, status, viewsets
 # Create your views here.
 from rest_framework.decorators import action
 from rest_framework.response import Response
-
-from toolkit.annotator.models import Annotator, AnnotatorGroup, Comment, Labelset, Record
-from toolkit.annotator.serializers import AnnotatorProjectSerializer, AnnotatorGroupSerializer, AnnotatorSerializer, BinaryAnnotationSerializer, CommentSerializer, DocumentEditSerializer, DocumentIDSerializer, EntityAnnotationSerializer, LabelsetSerializer, MultilabelAnnotationSerializer, RecordSerializer, \
-    ValidateDocumentSerializer
 from texta_elastic.core import ElasticCore
 from texta_elastic.document import ElasticDocument
+
+from toolkit.annotator.models import Annotator, AnnotatorGroup, Comment, Labelset, Record
+from toolkit.annotator.serializers import AnnotatorProjectSerializer, AnnotatorGroupSerializer, AnnotatorSerializer, BinaryAnnotationSerializer, CommentSerializer, \
+    DocumentEditSerializer, DocumentIDSerializer, EntityAnnotationSerializer, LabelsetSerializer, MultilabelAnnotationSerializer, RecordSerializer
 from toolkit.permissions.project_permissions import ProjectAccessInApplicationsAllowed
 from toolkit.serializer_constants import EmptySerializer
 from toolkit.settings import TEXTA_ANNOTATOR_KEY
@@ -24,7 +24,6 @@ class RecordViewset(mixins.ListModelMixin, viewsets.GenericViewSet, BulkDelete):
     )
 
     filter_backends = (drf_filters.OrderingFilter, filters.DjangoFilterBackend)
-
 
     def get_queryset(self):
         return Record.objects.filter().order_by('-id')
@@ -44,7 +43,6 @@ class LabelsetViewset(mixins.CreateModelMixin,
     )
 
     filter_backends = (drf_filters.OrderingFilter, filters.DjangoFilterBackend)
-
 
     def get_queryset(self):
         return Labelset.objects.filter(project=self.kwargs['project_pk']).order_by('-id')
@@ -66,23 +64,41 @@ class AnnotatorViewset(mixins.CreateModelMixin,
     filter_backends = (drf_filters.OrderingFilter, filters.DjangoFilterBackend)
     http_method_names = ["get", "post", "patch", "delete", "options"]
 
+    def _construct_meta(self, document_id: str, annotator: Annotator) -> dict:
+        return {
+            "comment_count": Comment.objects.filter(document_id=document_id).count(),
+            "total_count": annotator.total,
+            "annotated_count": annotator.annotated,
+            "skipped_count": annotator.skipped,
+
+        }
+
     def _enrich_document_with_meta(self, document: dict, annotator: Annotator):
 
         # Add comment count to the elastic document
         document_id = document["_id"]
-        meta_list = document["_source"].get(TEXTA_ANNOTATOR_KEY, [])
-        job_list = [document for document in meta_list if document["job_id"] == annotator.pk]
-        meta_dict = job_list[0] if len(job_list) > 0 else {}
-        meta_dict["comment_count"] = Comment.objects.filter(document_id=document_id).count()
 
-        # Add counts of things to the document.
-        meta_dict["total_count"] = annotator.total
-        meta_dict["annotated_count"] = annotator.annotated
-        meta_dict["skipped_count"] = annotator.skipped
-        meta_dict["validated_count"] = annotator.validated
-        document["_source"][TEXTA_ANNOTATOR_KEY] = meta_dict
+        # Handle the legacy list methods and the newest dictionary schema.
+        meta_data = document["_source"].get(TEXTA_ANNOTATOR_KEY, None)
+
+        # Default to the newest dict structure.
+        if meta_data is None:
+            document["_source"][TEXTA_ANNOTATOR_KEY] = self._construct_meta(document_id, annotator)
+        elif isinstance(meta_data, dict):
+            document["_source"][TEXTA_ANNOTATOR_KEY] = self._construct_meta(document_id, annotator)
+
+        elif isinstance(meta_data, list):
+            job_list = [document for document in meta_data if document["job_id"] == annotator.pk]
+            meta_dict = job_list[-1] if len(job_list) > 0 else {}
+            meta_dict["comment_count"] = Comment.objects.filter(document_id=document_id).count()
+            # Add counts of things to the document.
+            meta_dict["total_count"] = annotator.total
+            meta_dict["annotated_count"] = annotator.annotated
+            meta_dict["skipped_count"] = annotator.skipped
+            meta_dict["validated_count"] = annotator.validated
+            document["_source"][TEXTA_ANNOTATOR_KEY] = meta_dict
+
         return document
-
 
     def _flatten_document(self, document):
         ec = ElasticCore()
@@ -94,12 +110,10 @@ class AnnotatorViewset(mixins.CreateModelMixin,
         document["_source"] = flattened_source
         return document
 
-
     def _process_document_output(self, document, annotator):
         document = self._enrich_document_with_meta(document, annotator)
         document = self._flatten_document(document)
         return document
-
 
     @action(detail=True, methods=["POST"], serializer_class=EmptySerializer)
     def pull_document(self, request, pk=None, project_pk=None):
@@ -110,7 +124,6 @@ class AnnotatorViewset(mixins.CreateModelMixin,
             return Response(document)
         else:
             return Response({"detail": "No more documents left!"}, status=status.HTTP_404_NOT_FOUND)
-
 
     # TODO Put the functional logic inside the model for a more common standard.
     @action(detail=True, methods=["POST"], serializer_class=DocumentIDSerializer)
@@ -128,7 +141,6 @@ class AnnotatorViewset(mixins.CreateModelMixin,
         else:
             return Response({"message": "No such document!"}, status=status.HTTP_404_NOT_FOUND)
 
-
     @action(detail=True, methods=["POST"], serializer_class=EmptySerializer)
     def pull_annotated(self, request, pk=None, project_pk=None):
         annotator: Annotator = self.get_object()
@@ -139,7 +151,6 @@ class AnnotatorViewset(mixins.CreateModelMixin,
         else:
             return Response({"detail": "No more documents left!"}, status=status.HTTP_404_NOT_FOUND)
 
-
     @action(detail=True, methods=["POST"], serializer_class=EmptySerializer)
     def pull_skipped(self, request, pk=None, project_pk=None):
         annotator: Annotator = self.get_object()
@@ -149,7 +160,6 @@ class AnnotatorViewset(mixins.CreateModelMixin,
             return Response(document)
         else:
             return Response({"detail": "No more documents left!"}, status=status.HTTP_404_NOT_FOUND)
-
 
     @action(detail=True, methods=["POST"], serializer_class=DocumentEditSerializer)
     def skip_document(self, request, pk=None, project_pk=None):
@@ -185,8 +195,6 @@ class AnnotatorViewset(mixins.CreateModelMixin,
             )
             return Response({"detail": f"Skipped document with ID: {serializer.validated_data['document_id']}"})
 
-
-
     @action(detail=True, methods=["POST"], serializer_class=EntityAnnotationSerializer)
     def annotate_entity(self, request, pk=None, project_pk=None):
         serializer: EntityAnnotationSerializer = self.get_serializer(data=request.data)
@@ -199,7 +207,6 @@ class AnnotatorViewset(mixins.CreateModelMixin,
             user=request.user
         )
         return Response({"detail": f"Annotated document with ID: {serializer.validated_data['document_id']}"})
-
 
     @action(detail=True, methods=["POST"], serializer_class=BinaryAnnotationSerializer)
     def annotate_binary(self, request, pk=None, project_pk=None):
@@ -217,7 +224,6 @@ class AnnotatorViewset(mixins.CreateModelMixin,
             annotator.add_neg_label(serializer.validated_data["document_id"], index=index, user=request.user)
             return Response({"detail": f"Annotated document with ID: {serializer.validated_data['document_id']} with the neg label '{annotator.binary_configuration.neg_value}'"})
 
-
     @action(detail=True, methods=["POST"], serializer_class=MultilabelAnnotationSerializer)
     def annotate_multilabel(self, request, pk=None, project_pk=None):
         serializer: MultilabelAnnotationSerializer = self.get_serializer(data=request.data)
@@ -225,7 +231,6 @@ class AnnotatorViewset(mixins.CreateModelMixin,
         annotator: Annotator = self.get_object()
         annotator.add_labels(serializer.validated_data["document_id"], serializer.validated_data["labels"], index=serializer.validated_data["index"], user=request.user)
         return Response({"detail": f"Annotated document with ID: {serializer.validated_data['document_id']}"})
-
 
     @action(detail=True, methods=["POST"], serializer_class=CommentSerializer)
     def add_comment(self, request, pk=None, project_pk=None):
@@ -236,7 +241,6 @@ class AnnotatorViewset(mixins.CreateModelMixin,
         annotator.add_comment(document_id=document_id, comment=serializer.validated_data["text"], user=request.user)
         return Response({"detail": f"Successfully added comment to the document for document with ID: {document_id}."})
 
-
     @action(detail=True, methods=["POST"], serializer_class=DocumentIDSerializer)
     def get_comments(self, request, pk=None, project_pk=None):
         serializer: DocumentIDSerializer = self.get_serializer(data=request.data)
@@ -245,7 +249,6 @@ class AnnotatorViewset(mixins.CreateModelMixin,
         comments = Comment.objects.filter(document_id=document_id).order_by("-created_at")[:10]
         data = CommentSerializer(comments, many=True).data
         return Response({"count": len(data), "results": data})
-
 
     def get_queryset(self):
         return Annotator.objects.filter(project=self.kwargs['project_pk']).order_by('-id')
@@ -259,18 +262,17 @@ class AnnotatorProjectViewset(mixins.ListModelMixin, viewsets.GenericViewSet):
 
     filter_backends = (drf_filters.OrderingFilter, filters.DjangoFilterBackend)
 
-
     def get_queryset(self):
         return Annotator.objects.filter(annotator_users=self.request.user).order_by('-id')
 
 
 class AnnotatorGroupViewset(mixins.CreateModelMixin,
-                       mixins.ListModelMixin,
-                       mixins.RetrieveModelMixin,
-                       mixins.DestroyModelMixin,
-                       mixins.UpdateModelMixin,
-                       viewsets.GenericViewSet,
-                       BulkDelete):
+                            mixins.ListModelMixin,
+                            mixins.RetrieveModelMixin,
+                            mixins.DestroyModelMixin,
+                            mixins.UpdateModelMixin,
+                            viewsets.GenericViewSet,
+                            BulkDelete):
     serializer_class = AnnotatorGroupSerializer
     permission_classes = (
         ProjectAccessInApplicationsAllowed,
