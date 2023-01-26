@@ -325,6 +325,33 @@ class Annotator(TaskModel):
         else:
             return None
 
+    def pull_commented_document(self, user: User) -> Optional[dict]:
+        """
+        Returns an already annotated document for validation purposes.
+        :return:
+        """
+        from texta_elastic.core import ElasticCore
+        from elasticsearch_dsl import Q as ElasticQ
+        ec = ElasticCore()
+        json_query = json.loads(self.query)
+        indices = self.get_indices()
+
+        positive_queries = [
+            ElasticQ(json_query["query"]),
+            ElasticQ("match", **{f"{TEXTA_ANNOTATOR_KEY}.job_id": self.pk}),
+            ElasticQ("match", **{f"{TEXTA_ANNOTATOR_KEY}.user": user.username}),
+            ElasticQ("exists", field=f"{TEXTA_ANNOTATOR_KEY}.comments")
+        ]
+        s = ElasticQ("bool", must=positive_queries, must_not=ElasticQ("terms", **{f"{TEXTA_ANNOTATOR_KEY}.comments": []}))
+
+        query = s.to_dict()
+        document = ESDocObject.random_document(indices=indices, query=query)
+        # At one point in time, the documents will run out.
+        if document:
+            return document.document
+        else:
+            return None
+
     def reset_processed_records(self, indices: List[str], query: dict):
         """
         Resets the timestamp for all documents matching the query that have the "processed" timestamp.

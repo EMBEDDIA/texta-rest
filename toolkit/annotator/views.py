@@ -83,22 +83,7 @@ class AnnotatorViewset(mixins.CreateModelMixin,
         meta_data = document["_source"].get(TEXTA_ANNOTATOR_KEY, None)
         document_uuid = document["_source"]["texta_meta"]["document_uuid"]
 
-        # Default to the newest dict structure.
-        if meta_data is None:
-            document["_source"][TEXTA_ANNOTATOR_KEY] = self._construct_meta(document_id, document_uuid, user, annotator)
-        elif isinstance(meta_data, dict):
-            document["_source"][TEXTA_ANNOTATOR_KEY] = self._construct_meta(document_id, document_uuid, user, annotator)
-
-        elif isinstance(meta_data, list):
-            job_list = [document for document in meta_data if document["job_id"] == annotator.pk]
-            meta_dict = job_list[-1] if len(job_list) > 0 else {}
-            meta_dict["comment_count"] = Comment.objects.filter(document_id=document_id).count()
-            # Add counts of things to the document.
-            meta_dict["total_count"] = annotator.total
-            meta_dict["annotated_count"] = annotator.annotated
-            meta_dict["skipped_count"] = annotator.skipped
-            meta_dict["validated_count"] = annotator.validated
-            document["_source"][TEXTA_ANNOTATOR_KEY] = meta_dict
+        document["_source"][TEXTA_ANNOTATOR_KEY] = self._construct_meta(document_id, document_uuid, user, annotator)
 
         return document
 
@@ -147,6 +132,16 @@ class AnnotatorViewset(mixins.CreateModelMixin,
     def pull_annotated(self, request, pk=None, project_pk=None):
         annotator: Annotator = self.get_object()
         document = annotator.pull_annotated_document()
+        if document:
+            document = self._process_document_output(document, request.user, annotator)
+            return Response(document)
+        else:
+            return Response({"detail": "No more documents left!"}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=["POST"], serializer_class=EmptySerializer)
+    def pull_commented(self, request, pk=None, project_pk=None):
+        annotator: Annotator = self.get_object()
+        document = annotator.pull_commented_document(request.user)
         if document:
             document = self._process_document_output(document, request.user, annotator)
             return Response(document)
