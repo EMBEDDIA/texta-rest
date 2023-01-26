@@ -57,7 +57,7 @@ class Annotator(TaskModel):
     annotator_users = models.ManyToManyField(User, default=None, related_name="annotators", help_text="Who are the users who will be annotating.")
 
     add_facts_mapping = models.BooleanField(default=True)
-
+    use_shared_comments = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     modified_at = models.DateTimeField(auto_now=True, null=True)
     completed_at = models.DateTimeField(null=True, default=None)
@@ -266,6 +266,15 @@ class Annotator(TaskModel):
         Comment.objects.create(annotation_job=self, text=comment, document_uuid=document_uuid, document_id=document_id, user=user)
         return True
 
+    def get_comment_queryset(self, document_id: str, document_uuid: str, user: User):
+        if self.use_shared_comments:
+            queryset = Comment.objects.filter(
+                Q(user__username=user.username, annotation_job__pk=self.pk, document_id=document_id) | Q(document_uuid=document_uuid)
+            )
+        else:
+            queryset = Comment.objects.filter(user__username=user.username, annotation_job__pk=self.pk, document_id=document_id)
+        return queryset
+
     def get_comments(self, document_id: str, user: User):
         """
         Adds an annotators comment into the document in question.
@@ -277,7 +286,8 @@ class Annotator(TaskModel):
         ed = ElasticDocument(index=indices)
         document = ed.get(document_id)["_source"]
         document_uuid = document["texta_meta"]["document_uuid"]
-        return Comment.objects.filter(Q(user__username=user.username) | Q(document_uuid=document_uuid)).order_by("-created_at")[:10]
+        queryset = self.get_comment_queryset(document_id, document_uuid, user)
+        return queryset.order_by("-created_at")[:10]
 
     def pull_skipped_document(self):
         """

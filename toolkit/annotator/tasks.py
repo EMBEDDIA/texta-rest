@@ -94,7 +94,6 @@ def add_doc_uuid(generator: ElasticSearcher):
 def bulk_add_documents(elastic_search: ElasticSearcher, elastic_doc: ElasticDocument, index: str, chunk_size: int, flatten_doc=False):
     new_docs = apply_elastic_search(elastic_search, flatten_doc)
     actions = annotator_bulk_generator(new_docs, index)
-    # No need to wait for indexing to actualize, hence refresh is False.
     elastic_doc.bulk_add_generator(actions=actions, chunk_size=chunk_size, refresh="wait_for")
 
 
@@ -208,6 +207,7 @@ def annotator_task(self, annotator_task_id):
                 total=annotator_obj.total,
                 fields=annotator_obj.fields,
                 add_facts_mapping=add_facts_mapping,
+                use_shared_comments=annotator_obj.use_shared_comments,
                 annotation_type=annotator_obj.annotation_type,
                 binary_configuration=annotator_obj.binary_configuration,
                 multilabel_configuration=annotator_obj.multilabel_configuration,
@@ -247,7 +247,6 @@ def annotator_task(self, annotator_task_id):
             annotator_group_children.append(new_annotator_obj.id)
             logging.getLogger(INFO_LOGGER).info(f"Saving new annotator object ID {new_annotator_obj.id}")
 
-            new_annotator_obj.add_texta_meta_mapping(new_indices)
 
         annotator_obj.annotator_users.clear()
         annotator_obj.save()
@@ -262,5 +261,5 @@ def annotator_task(self, annotator_task_id):
         task_object.handle_failed_task(e)
         raise e
 
-    logging.getLogger(INFO_LOGGER).info(f"Annotator with Task ID {annotator_obj.pk} successfully completed.")
+    logging.getLogger(INFO_LOGGER).info(f"Annotator with ID {annotator_obj.pk} successfully completed.")
     return True
