@@ -247,7 +247,6 @@ def annotator_task(self, annotator_task_id):
             annotator_group_children.append(new_annotator_obj.id)
             logging.getLogger(INFO_LOGGER).info(f"Saving new annotator object ID {new_annotator_obj.id}")
 
-            new_annotator_obj.add_texta_meta_mapping(new_indices)
 
         annotator_obj.annotator_users.clear()
         annotator_obj.save()
