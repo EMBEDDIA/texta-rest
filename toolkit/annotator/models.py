@@ -253,6 +253,7 @@ class Annotator(TaskModel):
         ed = ElasticDocument(index=indices)
         document = ed.get(document_id)
         source = document["_source"]
+        print(source, indices)  # TODO Remove this
         document_uuid = source["texta_meta"]["document_uuid"]
 
         if TEXTA_ANNOTATOR_KEY not in source:
