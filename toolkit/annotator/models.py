@@ -220,7 +220,7 @@ class Annotator(TaskModel):
         indices = self.get_indices()
         query = ec.get_annotation_query(json_query, job_pk=self.pk)
         document = ESDocObject.random_document(indices=indices, query=query)
-        # At one point in time, the documents will rune out.
+        # At one point in time, the documents will run out.
         if document:
             return document.document
         else:
@@ -241,6 +241,10 @@ class Annotator(TaskModel):
 
         return True
 
+    def __generate_annotator_meta(self, user: User) -> dict:
+        """Function for facilitating a common structure for the annotator meta."""
+        return {"job_id": self.pk, "user": user.username}
+
     def add_comment(self, document_id: str, comment: str, user: User) -> bool:
         """
         Adds an annotators comment into the document in question.
@@ -251,18 +255,19 @@ class Annotator(TaskModel):
         """
         indices = ",".join(self.get_available_or_all_indices())
         ed = ElasticDocument(index=indices)
-        document = ed.get(document_id)["_source"]
-        document_uuid = document["texta_meta"]["document_uuid"]
+        document = ed.get(document_id)
+        source = document["_source"]
+        document_uuid = source["texta_meta"]["document_uuid"]
 
-        if TEXTA_ANNOTATOR_KEY not in document:
-            document[TEXTA_ANNOTATOR_KEY] = {"comments": [comment]}
+        if TEXTA_ANNOTATOR_KEY not in source:
+            source[TEXTA_ANNOTATOR_KEY] = {"comments": [comment], **self.__generate_annotator_meta(user)}
 
         else:
-            comments = document[TEXTA_ANNOTATOR_KEY].get("comments", [])
+            comments = source[TEXTA_ANNOTATOR_KEY].get("comments", [])
             if comment not in comments:
                 comments.append(comment)
 
-        ed.update(index=indices, doc_id=document_id, doc={TEXTA_ANNOTATOR_KEY: document[TEXTA_ANNOTATOR_KEY]})
+        ed.update(index=document["_index"], doc_id=document_id, doc={TEXTA_ANNOTATOR_KEY: source[TEXTA_ANNOTATOR_KEY]})
         Comment.objects.create(annotation_job=self, text=comment, document_uuid=document_uuid, document_id=document_id, user=user)
         return True
 
