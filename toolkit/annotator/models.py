@@ -287,7 +287,7 @@ class Annotator(TaskModel):
         document = ed.get(document_id)["_source"]
         document_uuid = document["texta_meta"]["document_uuid"]
         queryset = self.get_comment_queryset(document_id, document_uuid, user)
-        return queryset.order_by("-created_at")[:10]
+        return queryset.order_by("-created_at")
 
     def pull_skipped_document(self):
         """

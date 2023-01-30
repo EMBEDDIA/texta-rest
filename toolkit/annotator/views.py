@@ -126,7 +126,7 @@ class AnnotatorViewset(mixins.CreateModelMixin,
             document = self._process_document_output(document, request.user, annotator)
             return Response(document)
         else:
-            return Response({"message": "No such document!"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "No such document!"}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=True, methods=["POST"], serializer_class=EmptySerializer)
     def pull_annotated(self, request, pk=None, project_pk=None):
