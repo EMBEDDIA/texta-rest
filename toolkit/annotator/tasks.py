@@ -106,7 +106,6 @@ def __add_meta_to_original_index(indices: List[str], index_fields: List[str], sh
     )
     index_actions = add_doc_uuid(generator=index_elastic_search)
     for success, info in streaming_bulk(client=elastic_wrapper.es, actions=index_actions, refresh="wait_for", chunk_size=scroll_size, max_retries=3):
-        logging.getLogger(INFO_LOGGER).exception(json.dumps(info))
         if not success:
             logging.getLogger(ERROR_LOGGER).exception(json.dumps(info))
 

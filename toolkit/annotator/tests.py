@@ -15,6 +15,7 @@ from toolkit.test_settings import TEST_FIELD, TEST_MATCH_TEXT, TEST_QUERY, TEST_
 from toolkit.tools.utils_for_tests import create_test_user, print_output, project_creation
 
 
+@override_settings(CELERY_ALWAYS_EAGER=True)
 class BinaryAnnotatorTests(APITestCase):
 
     def setUp(self):
