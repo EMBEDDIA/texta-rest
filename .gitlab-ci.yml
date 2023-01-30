@@ -61,7 +61,7 @@ TestBack:
     - ci-test
   script:
     - sh wait-for-uaa.sh
-    - python manage.py test annotator
+    - python manage.py test toolkit.annotator
   except:
     - tags
 
