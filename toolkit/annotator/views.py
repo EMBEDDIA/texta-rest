@@ -70,8 +70,7 @@ class AnnotatorViewset(mixins.CreateModelMixin,
             "comment_count": annotator.get_comment_queryset(document_id, document_uuid, user).count(),
             "total_count": annotator.total,
             "annotated_count": annotator.annotated,
-            "skipped_count": annotator.skipped,
-
+            "skipped_count": annotator.skipped
         }
 
     def _enrich_document_with_meta(self, document: dict, user: User, annotator: Annotator):

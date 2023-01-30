@@ -283,7 +283,7 @@ class EntityAnnotatorTests(APITestCase):
             }
         }
         response = self.client.post(self.list_view_url, data=payload, format="json")
-        print_output("_create_annotator:response.status", response.status_code)
+        print_output("_create_annotator:response.data", response.data)
         self.assertTrue(response.status_code == status.HTTP_201_CREATED)
 
         total_count = self.ec.es.count(index=f"{self.test_index_name},{self.secondary_index}").get("count", 0)
@@ -551,11 +551,6 @@ class MultilabelAnnotatorTests(APITestCase):
         self.assertTrue(second_comments[0]["document_id"] == second_id)
 
     def test_that_comment_filter_returns_a_document_that_has_a_comment(self):
-        # Remove the query for this test since the random document we pulled might not match it.
-        annotator = Annotator.objects.get(pk=self.annotator["id"])
-        annotator.query = json.dumps(TEST_EMPTY_QUERY, ensure_ascii=False)
-        annotator.save()
-
         document = self._pull_random_document()
         text = "The number of seconds you shall wait is 3, not 2, 4 is totally out of question."
         self._add_comment_to_document(document["_id"], text, self.annotator["id"])
