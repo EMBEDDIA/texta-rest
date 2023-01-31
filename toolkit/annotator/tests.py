@@ -11,10 +11,11 @@ from toolkit.annotator.models import Annotator, Labelset
 from toolkit.elastic.index.models import Index
 from toolkit.helper_functions import reindex_test_dataset
 from toolkit.settings import TEXTA_ANNOTATOR_KEY
-from toolkit.test_settings import TEST_FIELD, TEST_MATCH_TEXT, TEST_QUERY
+from toolkit.test_settings import TEST_FIELD, TEST_MATCH_TEXT, TEST_QUERY, TEST_EMPTY_QUERY
 from toolkit.tools.utils_for_tests import create_test_user, print_output, project_creation
 
 
+@override_settings(CELERY_ALWAYS_EAGER=True)
 class BinaryAnnotatorTests(APITestCase):
 
     def setUp(self):
@@ -157,11 +158,10 @@ class BinaryAnnotatorTests(APITestCase):
         total = model_object.total
         annotated = model_object.annotated
         skipped = model_object.skipped
-        validated = model_object.validated
 
         annotation_url = reverse("v2:annotator-annotate-binary", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
 
-        for i in range(total - annotated - skipped - validated):
+        for i in range(1, total - annotated - skipped):
             random_document = self._pull_random_document()
             payload = {"annotation_type": "pos", "document_id": random_document["_id"], "index": random_document["_index"]}
             annotation_response = self.client.post(annotation_url, data=payload, format="json")
@@ -284,7 +284,7 @@ class EntityAnnotatorTests(APITestCase):
             }
         }
         response = self.client.post(self.list_view_url, data=payload, format="json")
-        print_output("_create_annotator:response.status", response.status_code)
+        print_output("_create_annotator:response.data", response.data)
         self.assertTrue(response.status_code == status.HTTP_201_CREATED)
 
         total_count = self.ec.es.count(index=f"{self.test_index_name},{self.secondary_index}").get("count", 0)
@@ -404,6 +404,13 @@ class MultilabelAnnotatorTests(APITestCase):
         self.assertTrue(response.status_code == status.HTTP_200_OK)
         return response.data
 
+    def _get_comments(self, document_id: str, annotator_pk: int):
+        url = reverse("v2:annotator-get-comments", kwargs={"project_pk": self.project.pk, "pk": annotator_pk})
+        response = self.client.post(url, data={"document_id": document_id}, format="json")
+        print_output("_get_comments:response.data", response.data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        return response.data
+
     def _create_labelset(self):
         payload = {
             "category": "new",
@@ -420,7 +427,14 @@ class MultilabelAnnotatorTests(APITestCase):
         self.assertTrue(Labelset.objects.count() != 0)
         return response.data
 
-    def _pull_random_document(self):
+    def _add_comment_to_document(self, document_id: str, text: str, annotator_pk: int):
+        url = reverse("v2:annotator-add-comment", kwargs={"project_pk": self.project.pk, "pk": annotator_pk})
+        response = self.client.post(url, data={"document_id": document_id, "text": text}, format="json")
+        print_output("_add_comment_to_document:response.data", response.data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def _pull_random_document(self) -> dict:
+        """Returns a full Elasticsearch document with the _id, _source etc."""
         url = reverse("v2:annotator-pull-document", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
         response = self.client.post(url, format="json")
         return response.data
@@ -499,3 +513,49 @@ class MultilabelAnnotatorTests(APITestCase):
         detail_response = self.client.get(url)
         self.assertTrue(detail_response.data["values"] == new_values)
         self.assertTrue(detail_response.data["category"] == new_category)
+
+    def _get_second_unique_document(self, first_id: str, max_limit=100):
+        counter = 0
+        document = self._pull_random_document()
+        while document["_id"] == first_id and counter <= max_limit:
+            document = self._pull_random_document()
+            counter += 1
+
+        if counter == max_limit - 1:
+            raise ValueError("Didn't find unique document!")
+
+        return document
+
+    # Test case for a bug where the user would see all of their comments through every document.
+    def test_that_comments_are_visible_only_from_their_specific_document(self):
+        first_document = self._pull_random_document()
+        first_id = first_document["_id"]
+        first_text = "Hello there, kenobi"
+
+        second_document = self._get_second_unique_document(first_id)
+        second_id = second_document["_id"]
+        second_text = "The number of seconds you shall wait is 3, not 2, 4 is totally out of question."
+
+        self._add_comment_to_document(first_id, first_text, self.annotator["id"])
+        self._add_comment_to_document(second_id, second_text, self.annotator["id"])
+
+        first_comments = self._get_comments(first_id, self.annotator["id"])
+        first_comments = first_comments["results"]
+        self.assertEqual(len(first_comments), 1)
+        self.assertTrue(first_comments[0]["text"] == first_text)
+        self.assertTrue(first_comments[0]["document_id"] == first_id)
+
+        second_comments = self._get_comments(second_id, self.annotator["id"])
+        second_comments = second_comments["results"]
+        self.assertEqual(len(second_comments), 1)
+        self.assertTrue(second_comments[0]["text"] == second_text)
+        self.assertTrue(second_comments[0]["document_id"] == second_id)
+
+    def test_that_comment_filter_returns_a_document_that_has_a_comment(self):
+        document = self._pull_random_document()
+        text = "The number of seconds you shall wait is 3, not 2, 4 is totally out of question."
+        self._add_comment_to_document(document["_id"], text, self.annotator["id"])
+        url = reverse("v2:annotator-pull-commented", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
+        response = self.client.post(url)
+        print_output("test_that_comment_filter_returns_a_document_that_has_a_comment:response.data", response.data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
