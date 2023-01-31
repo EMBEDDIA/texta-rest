@@ -132,20 +132,28 @@ class AnnotatorViewset(mixins.CreateModelMixin,
         else:
             return Response({"detail": "No such document!"}, status=status.HTTP_404_NOT_FOUND)
 
-    @action(detail=True, methods=["POST"], serializer_class=EmptySerializer)
+    @action(detail=True, methods=["POST"], serializer_class=PullDocumentSerializer)
     def pull_annotated(self, request, pk=None, project_pk=None):
         annotator: Annotator = self.get_object()
-        document = annotator.pull_annotated_document()
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        document_counter = serializer.validated_data["document_counter"]
+        document = annotator.pull_annotated_document(document_counter)
         if document:
             document = self._process_document_output(document, request.user, annotator)
             return Response(document)
         else:
             return Response({"detail": "No more documents left!"}, status=status.HTTP_404_NOT_FOUND)
 
-    @action(detail=True, methods=["POST"], serializer_class=EmptySerializer)
+    @action(detail=True, methods=["POST"], serializer_class=PullDocumentSerializer)
     def pull_commented(self, request, pk=None, project_pk=None):
         annotator: Annotator = self.get_object()
-        document = annotator.pull_commented_document(request.user)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        document_counter = serializer.validated_data["document_counter"]
+        document = annotator.pull_commented_document(request.user, document_counter)
         if document:
             document = self._process_document_output(document, request.user, annotator)
             return Response(document)

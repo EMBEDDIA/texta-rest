@@ -6,6 +6,7 @@ import elasticsearch_dsl
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Q
+from texta_elastic.core import ElasticCore
 from texta_elastic.document import ESDocObject, ElasticDocument
 from texta_elastic.searcher import ElasticSearcher
 
@@ -319,7 +320,7 @@ class Annotator(TaskModel):
         queryset = self.get_comment_queryset(document_id, document_uuid, user)
         return queryset.order_by("-created_at")
 
-    def _get_skipped_document_query_with_counter(self, elastic_core, json_query, document_counter):
+    def _get_skipped_document_query_with_counter(self, json_query, document_counter):
         negative_queries = [
             elasticsearch_dsl.Q("exists", field="texta_annotator.processed_timestamp_utc"),
             elasticsearch_dsl.Q("exists", field="texta_annotator.validated_timestamp_utc")
@@ -337,13 +338,20 @@ class Annotator(TaskModel):
         query = search.to_dict()
         return query
 
+    def _pull_documents_for_counter_from_elasticsearch(self, ec: ElasticCore, query: dict, indices: List[str]):
+        search = elasticsearch_dsl.Search \
+            .from_dict(query) \
+            .using(ec.es) \
+            .index(",".join(indices)) \
+            .sort({f"{TEXTA_ANNOTATOR_KEY}.document_counter": {"order": "asc"}})
+        documents = list(search.execute())
+        return documents
+
     def pull_skipped_document(self, document_counter: Optional[int]):
         """
         Returns all the documents that are marked for skipping.
         :return:
         """
-        from texta_elastic.core import ElasticCore
-
         ec = ElasticCore()
         json_query = json.loads(self.query)
         indices = self.get_indices()
@@ -353,61 +361,81 @@ class Annotator(TaskModel):
             document = ESDocObject.random_document(indices=indices, query=query)
             return document.document if document else None
         else:
-            query = self._get_skipped_document_query_with_counter(ec, json_query, document_counter)
-            es = ElasticSearcher(indices=indices, query=query)
-            search = elasticsearch_dsl.Search \
-                .from_dict(query) \
-                .using(ec.es) \
-                .index(",".join(indices)) \
-                .sort({f"{TEXTA_ANNOTATOR_KEY}.document_counter": {"order": "asc"}})
-            documents = list(search.execute())
+            query = self._get_skipped_document_query_with_counter(json_query, document_counter)
+            documents = self._pull_documents_for_counter_from_elasticsearch(ec, query, indices)
             document = documents[0] if documents else None
             return {"_index": document.meta.index, "_type": document.meta.doc_type, "_id": document.meta.id, "_source": document.to_dict()} if document else None
 
-    def pull_annotated_document(self) -> Optional[dict]:
-        """
-        Returns an already annotated document for validation purposes.
-        :return:
-        """
-        from texta_elastic.core import ElasticCore
-
-        ec = ElasticCore()
-        json_query = json.loads(self.query)
-        indices = self.get_indices()
-        query = ec.get_annotated_annotation_query(query=json_query, job_pk=self.pk)
-        document = ESDocObject.random_document(indices=indices, query=query)
-        # At one point in time, the documents will run out.
-        if document:
-            return document.document
-        else:
-            return None
-
-    def pull_commented_document(self, user: User) -> Optional[dict]:
-        """
-        Returns an already annotated document for validation purposes.
-        :return:
-        """
-        from texta_elastic.core import ElasticCore
-        from elasticsearch_dsl import Q as ElasticQ
-        ec = ElasticCore()
-        json_query = json.loads(self.query)
-        indices = self.get_indices()
-
+    def _get_annotated_document_query_with_counter(self, json_query, document_counter):
         positive_queries = [
-            ElasticQ(json_query["query"]),
-            ElasticQ("match", **{f"{TEXTA_ANNOTATOR_KEY}.job_id": self.pk}),
-            ElasticQ("match", **{f"{TEXTA_ANNOTATOR_KEY}.user": user.username}),
-            ElasticQ("exists", field=f"{TEXTA_ANNOTATOR_KEY}.comments")
+            elasticsearch_dsl.Q(json_query["query"]),
+            elasticsearch_dsl.Q("match", **{f"{TEXTA_ANNOTATOR_KEY}.job_id": self.pk}),
+            elasticsearch_dsl.Q("exists", field=f"{TEXTA_ANNOTATOR_KEY}.processed_timestamp_utc"),
+            elasticsearch_dsl.Q("range", **{f"{TEXTA_ANNOTATOR_KEY}.document_counter": {"gte": document_counter}})
         ]
-        s = ElasticQ("bool", must=positive_queries, must_not=ElasticQ("terms", **{f"{TEXTA_ANNOTATOR_KEY}.comments": []}))
 
-        query = s.to_dict()
-        document = ESDocObject.random_document(indices=indices, query=query)
-        # At one point in time, the documents will run out.
-        if document:
-            return document.document
+        negative_queries = [
+            elasticsearch_dsl.Q("exists", field=f"{TEXTA_ANNOTATOR_KEY}.skipped_timestamp_utc")
+        ]
+
+        s = elasticsearch_dsl.Q("bool", must_not=negative_queries, must=positive_queries)
+        search = elasticsearch_dsl.Search().query(s)
+        query = search.to_dict()
+        return query
+
+    def pull_annotated_document(self, document_counter: Optional[int]) -> Optional[dict]:
+        """
+        Returns an already annotated document for validation purposes.
+        :return:
+        """
+        from texta_elastic.core import ElasticCore
+
+        ec = ElasticCore()
+        json_query = json.loads(self.query)
+        indices = self.get_indices()
+
+        if document_counter is None:
+            query = ec.get_annotated_annotation_query(query=json_query, job_pk=self.pk)
+            document = ESDocObject.random_document(indices=indices, query=query)
+            return document.document if document else None
         else:
-            return None
+            query = self._get_annotated_document_query_with_counter(json_query, document_counter)
+            documents = self._pull_documents_for_counter_from_elasticsearch(ec, query, indices)
+            document = documents[0] if documents else None
+            return {"_index": document.meta.index, "_type": document.meta.doc_type, "_id": document.meta.id, "_source": document.to_dict()} if document else None
+
+    def pull_commented_document(self, user: User, document_counter: Optional[int]) -> Optional[dict]:
+        """
+        Returns an already annotated document for validation purposes.
+        :return:
+        """
+        from texta_elastic.core import ElasticCore
+
+        ec = ElasticCore()
+        json_query = json.loads(self.query)
+        indices = self.get_indices()
+
+        base_positives = [
+            elasticsearch_dsl.Q(json_query["query"]),
+            elasticsearch_dsl.Q("match", **{f"{TEXTA_ANNOTATOR_KEY}.job_id": self.pk}),
+            elasticsearch_dsl.Q("match", **{f"{TEXTA_ANNOTATOR_KEY}.user": user.username}),
+            elasticsearch_dsl.Q("exists", field=f"{TEXTA_ANNOTATOR_KEY}.comments")
+        ]
+
+        if document_counter is None:
+            s = elasticsearch_dsl.Q("bool", must=base_positives, must_not=elasticsearch_dsl.Q("terms", **{f"{TEXTA_ANNOTATOR_KEY}.comments": []}))
+            query = s.to_dict()
+            document = ESDocObject.random_document(indices=indices, query=query)
+            return document.document if document else None
+
+        else:
+            base_positives.append(elasticsearch_dsl.Q("range", **{f"{TEXTA_ANNOTATOR_KEY}.document_counter": {"gte": document_counter}}))
+            s = elasticsearch_dsl.Q("bool", must=base_positives, must_not=elasticsearch_dsl.Q("terms", **{f"{TEXTA_ANNOTATOR_KEY}.comments": []}))
+            search = elasticsearch_dsl.Search().query(s)
+            query = search.to_dict()
+            documents = self._pull_documents_for_counter_from_elasticsearch(ec, query, indices)
+            document = documents[0] if documents else None
+            return {"_index": document.meta.index, "_type": document.meta.doc_type, "_id": document.meta.id, "_source": document.to_dict()} if document else None
 
     def reset_processed_records(self, indices: List[str], query: dict):
         """
