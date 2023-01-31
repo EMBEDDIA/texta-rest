@@ -2,10 +2,12 @@ import json
 from datetime import datetime
 from typing import List, Optional
 
+import elasticsearch_dsl
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Q
 from texta_elastic.document import ESDocObject, ElasticDocument
+from texta_elastic.searcher import ElasticSearcher
 
 from toolkit.core.project.models import Project
 from toolkit.core.task.models import Task
@@ -33,6 +35,9 @@ class Labelset(models.Model):
     value_limit = models.IntegerField(null=True)
     category = models.CharField(max_length=50, default="")
     values = models.TextField(default=json.dumps([]))
+
+    def __str__(self):
+        return self.category
 
 
 class MultilabelAnnotatorConfiguration(models.Model):
@@ -208,7 +213,22 @@ class Annotator(TaskModel):
         from toolkit.annotator.tasks import add_entity_task
         add_entity_task.apply_async(args=(self.pk, document_id, texta_facts, index, user.pk), queue=CELERY_LONG_TERM_TASK_QUEUE)
 
-    def pull_document(self) -> Optional[dict]:
+    def _generated_pull_by_counter_query(self, json_query: dict, document_counter: int) -> dict:
+        import elasticsearch_dsl
+
+        # Does not use the job id restriction as not all documents get it when before an annotation happens
+        # and the singular index is enough to keep it restrained.
+        positive_queries = [
+            elasticsearch_dsl.Q(json_query["query"]),
+            elasticsearch_dsl.Q("term", **{f"{TEXTA_ANNOTATOR_KEY}.document_counter": document_counter})
+        ]
+        search = elasticsearch_dsl.Search()
+        restriction = elasticsearch_dsl.Q("bool", must=positive_queries)
+        search = search.query(restriction)
+        query = search.to_dict()
+        return query
+
+    def pull_document(self, document_counter: Optional[int]) -> Optional[dict]:
         """
         Function for returning a new Elasticsearch document for annotation.
         :return:
@@ -218,7 +238,12 @@ class Annotator(TaskModel):
         ec = ElasticCore()
         json_query = json.loads(self.query)
         indices = self.get_indices()
-        query = ec.get_annotation_query(json_query, job_pk=self.pk)
+
+        if document_counter is None:
+            query = ec.get_annotation_query(json_query, job_pk=self.pk)
+        else:
+            query = self._generated_pull_by_counter_query(json_query, document_counter)
+
         document = ESDocObject.random_document(indices=indices, query=query)
         # At one point in time, the documents will run out.
         if document:
@@ -294,7 +319,25 @@ class Annotator(TaskModel):
         queryset = self.get_comment_queryset(document_id, document_uuid, user)
         return queryset.order_by("-created_at")
 
-    def pull_skipped_document(self):
+    def _get_skipped_document_query_with_counter(self, elastic_core, json_query, document_counter):
+        negative_queries = [
+            elasticsearch_dsl.Q("exists", field="texta_annotator.processed_timestamp_utc"),
+            elasticsearch_dsl.Q("exists", field="texta_annotator.validated_timestamp_utc")
+        ]
+        positive_queries = [
+            elasticsearch_dsl.Q(json_query["query"]),
+            elasticsearch_dsl.Q("match", **{f"{TEXTA_ANNOTATOR_KEY}.job_id": self.pk}),
+            elasticsearch_dsl.Q("exists", field=f"{TEXTA_ANNOTATOR_KEY}.skipped_timestamp_utc"),
+            elasticsearch_dsl.Q("range", **{f"{TEXTA_ANNOTATOR_KEY}.document_counter": {"gte": document_counter}})
+        ]
+        s = elasticsearch_dsl.Q("bool", must_not=negative_queries, must=positive_queries)
+
+        search = elasticsearch_dsl.Search().query(s)
+
+        query = search.to_dict()
+        return query
+
+    def pull_skipped_document(self, document_counter: Optional[int]):
         """
         Returns all the documents that are marked for skipping.
         :return:
@@ -304,13 +347,22 @@ class Annotator(TaskModel):
         ec = ElasticCore()
         json_query = json.loads(self.query)
         indices = self.get_indices()
-        query = ec.get_skipped_annotation_query(json_query, self.pk)
-        document = ESDocObject.random_document(indices=indices, query=query)
-        # At one point in time, the documents will rune out.
-        if document:
-            return document.document
+
+        if document_counter is None:
+            query = ec.get_skipped_annotation_query(json_query, self.pk)
+            document = ESDocObject.random_document(indices=indices, query=query)
+            return document.document if document else None
         else:
-            return None
+            query = self._get_skipped_document_query_with_counter(ec, json_query, document_counter)
+            es = ElasticSearcher(indices=indices, query=query)
+            search = elasticsearch_dsl.Search \
+                .from_dict(query) \
+                .using(ec.es) \
+                .index(",".join(indices)) \
+                .sort({f"{TEXTA_ANNOTATOR_KEY}.document_counter": {"order": "asc"}})
+            documents = list(search.execute())
+            document = documents[0] if documents else None
+            return {"_index": document.meta.index, "_type": document.meta.doc_type, "_id": document.meta.id, "_source": document.to_dict()} if document else None
 
     def pull_annotated_document(self) -> Optional[dict]:
         """
@@ -400,9 +452,10 @@ class Comment(models.Model):
 
 
 class Record(models.Model):
-    document_id = models.CharField(max_length=SIZE_LIMIT, db_index=True)
-    index = models.CharField(max_length=SIZE_LIMIT)
-    fact_id = models.TextField(default=None, null=True, db_index=True)
+    document_id = models.CharField(max_length=SIZE_LIMIT, db_index=True, help_text="Elasticsearch document ID for the sub-index.")
+    document_uuid = models.CharField(max_length=SIZE_LIMIT, default=None, null=True, help_text="Reference UUID for the original document.")
+    index = models.CharField(max_length=SIZE_LIMIT, help_text="Which Elasticsearch index does the document live in.")
+    fact_id = models.TextField(default=None, null=True, db_index=True, help_text="UUID of the Texta Fact, useful for editing later.")
 
     fact = models.TextField(default=json.dumps({}))
 
