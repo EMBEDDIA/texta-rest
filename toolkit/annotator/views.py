@@ -1,4 +1,5 @@
 import rest_framework.filters as drf_filters
+from django.contrib.auth.models import User
 from django_filters import rest_framework as filters
 from rest_framework import mixins, permissions, status, viewsets
 # Create your views here.
@@ -64,39 +65,24 @@ class AnnotatorViewset(mixins.CreateModelMixin,
     filter_backends = (drf_filters.OrderingFilter, filters.DjangoFilterBackend)
     http_method_names = ["get", "post", "patch", "delete", "options"]
 
-    def _construct_meta(self, document_id: str, annotator: Annotator) -> dict:
+    def _construct_meta(self, document_id: str, document_uuid: str, user: User, annotator: Annotator) -> dict:
         return {
-            "comment_count": Comment.objects.filter(document_id=document_id).count(),
+            "comment_count": annotator.get_comment_queryset(document_id, document_uuid, user).count(),
             "total_count": annotator.total,
             "annotated_count": annotator.annotated,
-            "skipped_count": annotator.skipped,
-
+            "skipped_count": annotator.skipped
         }
 
-    def _enrich_document_with_meta(self, document: dict, annotator: Annotator):
+    def _enrich_document_with_meta(self, document: dict, user: User, annotator: Annotator):
 
         # Add comment count to the elastic document
         document_id = document["_id"]
 
         # Handle the legacy list methods and the newest dictionary schema.
         meta_data = document["_source"].get(TEXTA_ANNOTATOR_KEY, None)
+        document_uuid = document["_source"]["texta_meta"]["document_uuid"]
 
-        # Default to the newest dict structure.
-        if meta_data is None:
-            document["_source"][TEXTA_ANNOTATOR_KEY] = self._construct_meta(document_id, annotator)
-        elif isinstance(meta_data, dict):
-            document["_source"][TEXTA_ANNOTATOR_KEY] = self._construct_meta(document_id, annotator)
-
-        elif isinstance(meta_data, list):
-            job_list = [document for document in meta_data if document["job_id"] == annotator.pk]
-            meta_dict = job_list[-1] if len(job_list) > 0 else {}
-            meta_dict["comment_count"] = Comment.objects.filter(document_id=document_id).count()
-            # Add counts of things to the document.
-            meta_dict["total_count"] = annotator.total
-            meta_dict["annotated_count"] = annotator.annotated
-            meta_dict["skipped_count"] = annotator.skipped
-            meta_dict["validated_count"] = annotator.validated
-            document["_source"][TEXTA_ANNOTATOR_KEY] = meta_dict
+        document["_source"][TEXTA_ANNOTATOR_KEY] = self._construct_meta(document_id, document_uuid, user, annotator)
 
         return document
 
@@ -110,8 +96,8 @@ class AnnotatorViewset(mixins.CreateModelMixin,
         document["_source"] = flattened_source
         return document
 
-    def _process_document_output(self, document, annotator):
-        document = self._enrich_document_with_meta(document, annotator)
+    def _process_document_output(self, document, user: User, annotator: Annotator):
+        document = self._enrich_document_with_meta(document, user, annotator)
         document = self._flatten_document(document)
         return document
 
@@ -120,7 +106,7 @@ class AnnotatorViewset(mixins.CreateModelMixin,
         annotator: Annotator = self.get_object()
         document = annotator.pull_document()
         if document:
-            document = self._process_document_output(document, annotator)
+            document = self._process_document_output(document, request.user, annotator)
             return Response(document)
         else:
             return Response({"detail": "No more documents left!"}, status=status.HTTP_404_NOT_FOUND)
@@ -136,17 +122,27 @@ class AnnotatorViewset(mixins.CreateModelMixin,
         document_id = serializer.validated_data["document_id"]
         document = ed.get(document_id)
         if document:
-            document = self._process_document_output(document, annotator)
+            document = self._process_document_output(document, request.user, annotator)
             return Response(document)
         else:
-            return Response({"message": "No such document!"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "No such document!"}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=True, methods=["POST"], serializer_class=EmptySerializer)
     def pull_annotated(self, request, pk=None, project_pk=None):
         annotator: Annotator = self.get_object()
         document = annotator.pull_annotated_document()
         if document:
-            document = self._process_document_output(document, annotator)
+            document = self._process_document_output(document, request.user, annotator)
+            return Response(document)
+        else:
+            return Response({"detail": "No more documents left!"}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=["POST"], serializer_class=EmptySerializer)
+    def pull_commented(self, request, pk=None, project_pk=None):
+        annotator: Annotator = self.get_object()
+        document = annotator.pull_commented_document(request.user)
+        if document:
+            document = self._process_document_output(document, request.user, annotator)
             return Response(document)
         else:
             return Response({"detail": "No more documents left!"}, status=status.HTTP_404_NOT_FOUND)
@@ -156,10 +152,21 @@ class AnnotatorViewset(mixins.CreateModelMixin,
         annotator: Annotator = self.get_object()
         document = annotator.pull_skipped_document()
         if document:
-            document = self._process_document_output(document, annotator)
+            document = self._process_document_output(document, request.user, annotator)
             return Response(document)
         else:
             return Response({"detail": "No more documents left!"}, status=status.HTTP_404_NOT_FOUND)
+
+    def _handle_texta_annotation_meta(self, document: dict):
+        annotation_meta = document.get(TEXTA_ANNOTATOR_KEY, None)
+        if annotation_meta is None:
+            return {}
+        if isinstance(annotation_meta, list):
+            return annotation_meta[-1] if annotation_meta else {}
+        if isinstance(annotation_meta, dict):
+            return annotation_meta
+        else:
+            return annotation_meta
 
     @action(detail=True, methods=["POST"], serializer_class=DocumentEditSerializer)
     def skip_document(self, request, pk=None, project_pk=None):
@@ -170,30 +177,19 @@ class AnnotatorViewset(mixins.CreateModelMixin,
         ed = ElasticDocument(index=annotator.get_indices())
         document_id = serializer.validated_data["document_id"]
         document = ed.get(document_id)
-        texta_annotations = document["_source"].get("texta_annotator", [])
+        texta_annotation = self._handle_texta_annotation_meta(document["_source"])
 
-        processed_timestamp = None
-        if texta_annotations:
-            for texta_annotation in texta_annotations:
-                processed_timestamp = texta_annotation.get("processed_timestamp_utc", None)
+        processed_timestamp = texta_annotation.get("processed_timestamp_utc", None)
 
-                if processed_timestamp:
-                    return Response(
-                        {"detail": f"Document with ID: {serializer.validated_data['document_id']} is already annotated"})
+        if processed_timestamp:
+            return Response({"detail": f"Document with ID: {serializer.validated_data['document_id']} is already annotated"})
 
-            annotator.skip_document(
-                serializer.validated_data["document_id"],
-                serializer.validated_data["index"],
-                user=request.user
-            )
-            return Response({"detail": f"Skipped document with ID: {serializer.validated_data['document_id']}"})
-        else:
-            annotator.skip_document(
-                serializer.validated_data["document_id"],
-                serializer.validated_data["index"],
-                user=request.user
-            )
-            return Response({"detail": f"Skipped document with ID: {serializer.validated_data['document_id']}"})
+        annotator.skip_document(
+            serializer.validated_data["document_id"],
+            serializer.validated_data["index"],
+            user=request.user
+        )
+        return Response({"detail": f"Skipped document with ID: {serializer.validated_data['document_id']}"})
 
     @action(detail=True, methods=["POST"], serializer_class=EntityAnnotationSerializer)
     def annotate_entity(self, request, pk=None, project_pk=None):
