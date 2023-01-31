@@ -377,7 +377,7 @@ def reindex_test_dataset(query: dict = None, from_index: Optional[str] = None, h
 
     ec = ElasticCore()
     new_test_index_name = f"ttk_test_{uuid.uuid4().hex[:hex_size]}"
-    ec.create_index(index=new_test_index_name)
+    response = ec.create_index(index=new_test_index_name)
     ec.add_texta_facts_mapping(new_test_index_name)
 
     from_scan = elasticsearch_dsl.Search() if query is None else elasticsearch_dsl.Search.from_dict(query)

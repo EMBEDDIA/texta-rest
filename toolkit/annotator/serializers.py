@@ -207,6 +207,7 @@ class AnnotatorSerializer(FieldParseSerializer, ToolkitTaskSerializer, CommonMod
     multilabel_configuration = MultilabelAnnotatorConfigurationSerializer(required=False)
     entity_configuration = EntityAnnotatorConfigurationSerializer(required=False)
     url = serializers.SerializerMethodField()
+    use_shared_comments = serializers.BooleanField(default=False, help_text="Whether the users should be able to see all comments on the same document.")
     annotator_users = UserSerializer(many=True, read_only=True)
     annotating_users = serializers.ListField(child=serializers.CharField(), write_only=True, default=[], help_text="Names of users that will be annotating.")
     add_facts_mapping = serializers.BooleanField(
@@ -340,6 +341,7 @@ class AnnotatorSerializer(FieldParseSerializer, ToolkitTaskSerializer, CommonMod
             'fields',
             'add_facts_mapping',
             'query',
+            'use_shared_comments',
             'annotation_type',
             'annotator_users',
             'annotating_users',

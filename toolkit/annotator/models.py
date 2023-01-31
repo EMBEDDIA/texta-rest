@@ -57,7 +57,7 @@ class Annotator(TaskModel):
     annotator_users = models.ManyToManyField(User, default=None, related_name="annotators", help_text="Who are the users who will be annotating.")
 
     add_facts_mapping = models.BooleanField(default=True)
-
+    use_shared_comments = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     modified_at = models.DateTimeField(auto_now=True, null=True)
     completed_at = models.DateTimeField(null=True, default=None)
@@ -220,7 +220,7 @@ class Annotator(TaskModel):
         indices = self.get_indices()
         query = ec.get_annotation_query(json_query, job_pk=self.pk)
         document = ESDocObject.random_document(indices=indices, query=query)
-        # At one point in time, the documents will rune out.
+        # At one point in time, the documents will run out.
         if document:
             return document.document
         else:
@@ -241,6 +241,10 @@ class Annotator(TaskModel):
 
         return True
 
+    def __generate_annotator_meta(self, user: User) -> dict:
+        """Function for facilitating a common structure for the annotator meta."""
+        return {"job_id": self.pk, "user": user.username}
+
     def add_comment(self, document_id: str, comment: str, user: User) -> bool:
         """
         Adds an annotators comment into the document in question.
@@ -251,20 +255,30 @@ class Annotator(TaskModel):
         """
         indices = ",".join(self.get_available_or_all_indices())
         ed = ElasticDocument(index=indices)
-        document = ed.get(document_id)["_source"]
-        document_uuid = document["texta_meta"]["document_uuid"]
+        document = ed.get(document_id)
+        source = document["_source"]
+        document_uuid = source["texta_meta"]["document_uuid"]
 
-        if TEXTA_ANNOTATOR_KEY not in document:
-            document[TEXTA_ANNOTATOR_KEY] = {"comments": [comment]}
+        if TEXTA_ANNOTATOR_KEY not in source:
+            source[TEXTA_ANNOTATOR_KEY] = {"comments": [comment], **self.__generate_annotator_meta(user)}
 
         else:
-            comments = document[TEXTA_ANNOTATOR_KEY].get("comments", [])
+            comments = source[TEXTA_ANNOTATOR_KEY].get("comments", [])
             if comment not in comments:
                 comments.append(comment)
 
-        ed.update(index=indices, doc_id=document_id, doc={TEXTA_ANNOTATOR_KEY: document[TEXTA_ANNOTATOR_KEY]})
+        ed.update(index=document["_index"], doc_id=document_id, doc={TEXTA_ANNOTATOR_KEY: source[TEXTA_ANNOTATOR_KEY]})
         Comment.objects.create(annotation_job=self, text=comment, document_uuid=document_uuid, document_id=document_id, user=user)
         return True
+
+    def get_comment_queryset(self, document_id: str, document_uuid: str, user: User):
+        if self.use_shared_comments:
+            queryset = Comment.objects.filter(
+                Q(user__username=user.username, annotation_job__pk=self.pk, document_id=document_id) | Q(document_uuid=document_uuid)
+            )
+        else:
+            queryset = Comment.objects.filter(user__username=user.username, annotation_job__pk=self.pk, document_id=document_id)
+        return queryset
 
     def get_comments(self, document_id: str, user: User):
         """
@@ -277,7 +291,8 @@ class Annotator(TaskModel):
         ed = ElasticDocument(index=indices)
         document = ed.get(document_id)["_source"]
         document_uuid = document["texta_meta"]["document_uuid"]
-        return Comment.objects.filter(Q(user__username=user.username) | Q(document_uuid=document_uuid)).order_by("-created_at")[:10]
+        queryset = self.get_comment_queryset(document_id, document_uuid, user)
+        return queryset.order_by("-created_at")
 
     def pull_skipped_document(self):
         """
@@ -308,6 +323,33 @@ class Annotator(TaskModel):
         json_query = json.loads(self.query)
         indices = self.get_indices()
         query = ec.get_annotated_annotation_query(query=json_query, job_pk=self.pk)
+        document = ESDocObject.random_document(indices=indices, query=query)
+        # At one point in time, the documents will run out.
+        if document:
+            return document.document
+        else:
+            return None
+
+    def pull_commented_document(self, user: User) -> Optional[dict]:
+        """
+        Returns an already annotated document for validation purposes.
+        :return:
+        """
+        from texta_elastic.core import ElasticCore
+        from elasticsearch_dsl import Q as ElasticQ
+        ec = ElasticCore()
+        json_query = json.loads(self.query)
+        indices = self.get_indices()
+
+        positive_queries = [
+            ElasticQ(json_query["query"]),
+            ElasticQ("match", **{f"{TEXTA_ANNOTATOR_KEY}.job_id": self.pk}),
+            ElasticQ("match", **{f"{TEXTA_ANNOTATOR_KEY}.user": user.username}),
+            ElasticQ("exists", field=f"{TEXTA_ANNOTATOR_KEY}.comments")
+        ]
+        s = ElasticQ("bool", must=positive_queries, must_not=ElasticQ("terms", **{f"{TEXTA_ANNOTATOR_KEY}.comments": []}))
+
+        query = s.to_dict()
         document = ESDocObject.random_document(indices=indices, query=query)
         # At one point in time, the documents will run out.
         if document:
