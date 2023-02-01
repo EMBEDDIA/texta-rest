@@ -90,7 +90,7 @@ def add_doc_uuid_and_counter(generator: ElasticSearcher):
                 "_type": raw_doc.get("_type", "_doc"),
                 "_op_type": "update",
                 "doc": {
-                    "texta_meta": existing_annotator_meta if existing_texta_meta else {"document_uuid": str(uuid.uuid4())},
+                    "texta_meta": existing_texta_meta if existing_texta_meta else {"document_uuid": str(uuid.uuid4())},
                     TEXTA_ANNOTATOR_KEY: existing_annotator_meta
                 }
             }

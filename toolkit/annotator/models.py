@@ -287,11 +287,12 @@ class Annotator(TaskModel):
 
         if TEXTA_ANNOTATOR_KEY not in source:
             source[TEXTA_ANNOTATOR_KEY] = {"comments": [comment], **self.__generate_annotator_meta(user)}
-
         else:
             comments = source[TEXTA_ANNOTATOR_KEY].get("comments", [])
             if comment not in comments:
                 comments.append(comment)
+            if comment not in source[TEXTA_ANNOTATOR_KEY]:
+                source[TEXTA_ANNOTATOR_KEY]["comments"] = comments
 
         ed.update(index=document["_index"], doc_id=document_id, doc={TEXTA_ANNOTATOR_KEY: source[TEXTA_ANNOTATOR_KEY]})
         Comment.objects.create(annotation_job=self, text=comment, document_uuid=document_uuid, document_id=document_id, user=user)
@@ -415,10 +416,9 @@ class Annotator(TaskModel):
         json_query = json.loads(self.query)
         indices = self.get_indices()
 
+        # Not all commented documents are annotated and thus get the job_id and user values, hence we only use query and the existence of comments.
         base_positives = [
             elasticsearch_dsl.Q(json_query["query"]),
-            elasticsearch_dsl.Q("match", **{f"{TEXTA_ANNOTATOR_KEY}.job_id": self.pk}),
-            elasticsearch_dsl.Q("match", **{f"{TEXTA_ANNOTATOR_KEY}.user": user.username}),
             elasticsearch_dsl.Q("exists", field=f"{TEXTA_ANNOTATOR_KEY}.comments")
         ]
 
