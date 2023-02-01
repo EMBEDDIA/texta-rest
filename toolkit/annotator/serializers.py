@@ -398,3 +398,7 @@ class AnnotatorGroupSerializer(serializers.ModelSerializer):
         annotator_group.children.add(*children)
 
         return annotator_group
+
+
+class PullDocumentSerializer(serializers.Serializer):
+    document_counter = serializers.IntegerField(default=None, min_value=0)
