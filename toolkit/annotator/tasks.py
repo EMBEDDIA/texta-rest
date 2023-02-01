@@ -3,6 +3,7 @@ import logging
 import uuid
 from typing import List
 
+import elasticsearch_dsl
 import texta_mlp.settings
 from celery.decorators import task
 from django.contrib.auth.models import User
@@ -16,7 +17,7 @@ from toolkit.annotator.models import Annotator, AnnotatorGroup
 from toolkit.base_tasks import BaseTask
 from toolkit.core.project.models import Project
 from toolkit.elastic.index.models import Index
-from toolkit.settings import ERROR_LOGGER, INFO_LOGGER
+from toolkit.settings import ERROR_LOGGER, INFO_LOGGER, TEXTA_ANNOTATOR_KEY
 from toolkit.tools.show_progress import ShowProgress
 
 
@@ -69,24 +70,31 @@ def annotator_bulk_generator(generator, index: str):
         }
 
 
-def add_doc_uuid(generator: ElasticSearcher):
+def add_doc_uuid_and_counter(generator: ElasticSearcher):
     """
     Add unique document ID's so that annotations across multiple sub-indices could be mapped together in the end. Refer to https://git.texta.ee/texta/texta-rest/-/issues/589
     :param generator: Source of elasticsearch documents, can be any iterator.
     """
+    counter = 0
     for i, scroll_batch in enumerate(generator):
         for raw_doc in scroll_batch:
             hit = raw_doc["_source"]
             existing_texta_meta = hit.get("texta_meta", {})
+            existing_annotator_meta = hit.get(TEXTA_ANNOTATOR_KEY, {})
+            if "document_counter" not in existing_annotator_meta:
+                existing_annotator_meta["document_counter"] = int(counter)
 
-            if "document_uuid" not in existing_texta_meta:
-                yield {
-                    "_index": raw_doc["_index"],
-                    "_id": raw_doc["_id"],
-                    "_type": raw_doc.get("_type", "_doc"),
-                    "_op_type": "update",
-                    "doc": {"texta_meta": {"document_uuid": str(uuid.uuid4())}}
+            yield {
+                "_index": raw_doc["_index"],
+                "_id": raw_doc["_id"],
+                "_type": raw_doc.get("_type", "_doc"),
+                "_op_type": "update",
+                "doc": {
+                    "texta_meta": existing_texta_meta if existing_texta_meta else {"document_uuid": str(uuid.uuid4())},
+                    TEXTA_ANNOTATOR_KEY: existing_annotator_meta
                 }
+            }
+            counter += 1
 
 
 def bulk_add_documents(elastic_search: ElasticSearcher, elastic_doc: ElasticDocument, index: str, chunk_size: int, flatten_doc=False):
@@ -104,7 +112,7 @@ def __add_meta_to_original_index(indices: List[str], index_fields: List[str], sh
         output=ElasticSearcher.OUT_RAW,
         scroll_size=scroll_size
     )
-    index_actions = add_doc_uuid(generator=index_elastic_search)
+    index_actions = add_doc_uuid_and_counter(generator=index_elastic_search)
     for success, info in streaming_bulk(client=elastic_wrapper.es, actions=index_actions, refresh="wait_for", chunk_size=scroll_size, max_retries=3):
         if not success:
             logging.getLogger(ERROR_LOGGER).exception(json.dumps(info))
@@ -141,6 +149,23 @@ def add_entity_task(self, pk: int, document_id: str, texta_facts: List[dict], in
         annotator_obj.generate_record(document_id, index=index, user_pk=user_obj.pk, do_annotate=True)
 
 
+def add_annotator_meta_mapping(index):
+    ec = ElasticCore()
+    m = elasticsearch_dsl.Mapping()
+    texta_annotator = elasticsearch_dsl.Object(
+        properties={
+            "job_id": elasticsearch_dsl.Long(),
+            "document_counter": elasticsearch_dsl.Integer(),
+            "processed_timestamp_utc": elasticsearch_dsl.Date(),
+            "skipped_timestamp_utc": elasticsearch_dsl.Date(),
+        }
+    )
+
+    # Set the name of the field along with its mapping body
+    mapping = m.field(TEXTA_ANNOTATOR_KEY, texta_annotator).to_dict()
+    ec.es.indices.put_mapping(body=mapping, index=index)
+
+
 @task(name="annotator_task", base=BaseTask, bind=True)
 def annotator_task(self, annotator_task_id):
     annotator_obj = Annotator.objects.get(pk=annotator_task_id)
@@ -153,6 +178,7 @@ def annotator_task(self, annotator_task_id):
     annotator_fields = json.loads(annotator_obj.fields)
     all_fields = annotator_fields
     all_fields.append("texta_meta.document_uuid")
+    all_fields.append(f"{TEXTA_ANNOTATOR_KEY}.document_counter")
 
     if annotator_obj.annotation_type == 'entity':
         all_fields.append("texta_facts")
@@ -227,6 +253,13 @@ def annotator_task(self, annotator_task_id):
                         schema_input = update_field_types(indices, all_fields, field_type, flatten_doc=False)
                         updated_schema = update_mapping(schema_input, new_index, add_facts_mapping, add_texta_meta_mapping=True)
 
+                        # For all that is unholy, the update_mapping function changes the texta_annotator.document_counter FROM A INTEGER FIELD, TO A TEXT FIELD.
+                        # So now in this place we change it back... manually. (╯°□°）╯︵ ┻━┻
+                        field_settings = updated_schema["mappings"]["_doc"]["properties"]
+                        if TEXTA_ANNOTATOR_KEY in field_settings and "document_counter" in field_settings[TEXTA_ANNOTATOR_KEY]["properties"]:
+                            field_settings[TEXTA_ANNOTATOR_KEY]["properties"]["document_counter"]["type"] = "long"
+                            field_settings[TEXTA_ANNOTATOR_KEY]["properties"]["document_counter"].pop("fields", None)
+
                         logging.getLogger(INFO_LOGGER).info(f"Creating new index {new_index} for user {new_annotator}")
                         # create new_index
                         create_index_res = ElasticCore().create_index(new_index, updated_schema)
@@ -244,7 +277,6 @@ def annotator_task(self, annotator_task_id):
             new_annotator_obj.save()
             annotator_group_children.append(new_annotator_obj.id)
             logging.getLogger(INFO_LOGGER).info(f"Saving new annotator object ID {new_annotator_obj.id}")
-
 
         annotator_obj.annotator_users.clear()
         annotator_obj.save()
