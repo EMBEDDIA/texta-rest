@@ -6,6 +6,7 @@ import elasticsearch_dsl
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Q
+from rest_framework.exceptions import ValidationError
 from texta_elastic.core import ElasticCore
 from texta_elastic.document import ESDocObject, ElasticDocument
 from texta_elastic.searcher import ElasticSearcher
@@ -221,10 +222,14 @@ class Annotator(TaskModel):
         # and the singular index is enough to keep it restrained.
         positive_queries = [
             elasticsearch_dsl.Q(json_query["query"]),
-            elasticsearch_dsl.Q("term", **{f"{TEXTA_ANNOTATOR_KEY}.document_counter": document_counter})
+            elasticsearch_dsl.Q("range", **{f"{TEXTA_ANNOTATOR_KEY}.document_counter": {"gte": document_counter}})
+        ]
+        negative_queries = [
+            elasticsearch_dsl.Q("exists", field="texta_annotator.processed_timestamp_utc"),
+            elasticsearch_dsl.Q("exists", field="texta_annotator.skipped_timestamp_utc")
         ]
         search = elasticsearch_dsl.Search()
-        restriction = elasticsearch_dsl.Q("bool", must=positive_queries)
+        restriction = elasticsearch_dsl.Q("bool", must=positive_queries, must_not=negative_queries)
         search = search.query(restriction)
         query = search.to_dict()
         return query
@@ -242,15 +247,16 @@ class Annotator(TaskModel):
 
         if document_counter is None:
             query = ec.get_annotation_query(json_query, job_pk=self.pk)
+            document = ESDocObject.random_document(indices=indices, query=query)
+            # At one point in time, the documents will run out.
+            if document:
+                return document.document
+            else:
+                return None
         else:
             query = self._generated_pull_by_counter_query(json_query, document_counter)
-
-        document = ESDocObject.random_document(indices=indices, query=query)
-        # At one point in time, the documents will run out.
-        if document:
-            return document.document
-        else:
-            return None
+            document = self._pull_documents_for_counter_from_elasticsearch(ec, query, indices)
+            return document
 
     def skip_document(self, document_id: str, index: str, user) -> bool:
         """
@@ -316,7 +322,10 @@ class Annotator(TaskModel):
         """
         indices = ",".join(self.get_available_or_all_indices())
         ed = ElasticDocument(index=indices)
-        document = ed.get(document_id)["_source"]
+        document = ed.get(document_id)
+        if document is None:
+            raise ValidationError("Document with such an ID does not exist!")
+        document = document["_source"]
         document_uuid = document["texta_meta"]["document_uuid"]
         queryset = self.get_comment_queryset(document_id, document_uuid, user)
         return queryset.order_by("-created_at")
