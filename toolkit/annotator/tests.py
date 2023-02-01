@@ -161,7 +161,7 @@ class BinaryAnnotatorTests(APITestCase):
 
         annotation_url = reverse("v2:annotator-annotate-binary", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
 
-        for i in range(1, total - annotated - skipped):
+        for i in range(1, total - annotated - skipped + 1):
             random_document = self._pull_random_document()
             payload = {"annotation_type": "pos", "document_id": random_document["_id"], "index": random_document["_index"]}
             annotation_response = self.client.post(annotation_url, data=payload, format="json")
