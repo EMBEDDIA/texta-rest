@@ -133,19 +133,24 @@ def add_entity_task(self, pk: int, document_id: str, texta_facts: List[dict], in
                 spans.append([first, last])
 
             if fact["fact"] == annotator_obj.entity_configuration.fact_name:
-                ed.add_fact(source=fact.get("source", "annotator"), fact_value=fact["str_val"], fact_name=fact["fact"],
-                            doc_path=fact["doc_path"], spans=json.dumps(spans), sent_index=fact.get("sent_index", 0),
-                            author=user_obj.username)
+                ed.add_fact(
+                    source=fact.get("source", "annotator"),
+                    fact_value=fact["str_val"],
+                    fact_name=fact["fact"],
+                    doc_path=fact["doc_path"],
+                    spans=json.dumps(spans),
+                    sent_index=fact.get("sent_index", 0),
+                    author=user_obj.username
+                )
 
                 annotator_obj.generate_record(document_id, index=index, user_pk=user_obj.pk, fact=fact, do_annotate=True)
 
-        ed.add_annotated(annotator_obj, user_obj)
-
-        ed.update()
+        annotator_obj.add_annotation_tracking(ed, user_obj)
+        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
     else:
         # In case the users marks the document as 'done' but it has no Facts to add.
-        ed.add_annotated(annotator_obj, user_obj)
-        ed.update()
+        annotator_obj.add_annotation_tracking(ed, user_obj)
+        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
         annotator_obj.generate_record(document_id, index=index, user_pk=user_obj.pk, do_annotate=True)
 
 
