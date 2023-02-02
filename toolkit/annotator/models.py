@@ -135,13 +135,13 @@ class Annotator(TaskModel):
                 if facts["fact"] == self.binary_configuration.fact_name and facts["source"] == "annotator":
                     if facts["str_val"] != self.binary_configuration.pos_value:
                         facts["str_val"] = self.binary_configuration.pos_value
-                        ed.update()
+                        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
                         return
                     else:
                         return
         fact = ed.add_fact(fact_value=self.binary_configuration.pos_value, fact_name=self.binary_configuration.fact_name, doc_path=self.target_field)
-        ed.add_annotated(annotator_model=self, user=user)
-        ed.update()
+        self.add_annotation_tracking(ed, user)
+        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
         self.generate_record(document_id, index=index, user_pk=user.pk, fact=fact, do_annotate=True, fact_id=fact["id"])
 
     def generate_record(self, document_id, index, user_pk, fact=None, fact_id=None, do_annotate=False, do_skip=False):
@@ -157,6 +157,14 @@ class Annotator(TaskModel):
             record.skipped_utc = datetime.utcnow()
         record.save()
 
+    def add_annotation_tracking(self, ed: ESDocObject, user: User):
+        ed.document["_source"][TEXTA_ANNOTATOR_KEY] = {
+            "job_id": self.pk,
+            "user": user.username,
+            "document_counter": ed.document["_source"][TEXTA_ANNOTATOR_KEY].get("document_counter", None),
+            "processed_timestamp_utc": datetime.utcnow()
+        }
+
     def add_neg_label(self, document_id: str, index: str, user):
         """
         Adds a negative label to the Elasticsearch document for Binary annotation.
@@ -170,13 +178,14 @@ class Annotator(TaskModel):
                 if facts["fact"] == self.binary_configuration.fact_name and facts["source"] == "annotator":
                     if facts["str_val"] != self.binary_configuration.neg_value:
                         facts["str_val"] = self.binary_configuration.neg_value
-                        ed.update()
+                        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
+
                         return
                     else:
                         return
         fact = ed.add_fact(fact_value=self.binary_configuration.neg_value, fact_name=self.binary_configuration.fact_name, doc_path=self.target_field)
-        ed.add_annotated(self, user)
-        ed.update()
+        self.add_annotation_tracking(ed, user)
+        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
         self.generate_record(document_id, index=index, user_pk=user.pk, fact=fact, do_annotate=True, fact_id=fact["id"])
 
     def add_labels(self, document_id: str, labels: List[str], index: str, user: User):
@@ -188,16 +197,16 @@ class Annotator(TaskModel):
         :return:
         """
         ed = ESDocObject(document_id=document_id, index=index)
+
         if labels:
             for label in labels:
                 fact = ed.add_fact(fact_value=label, fact_name=self.multilabel_configuration.labelset.category, doc_path=self.target_field, author=user.username)
-                ed.add_annotated(self, user)
                 self.generate_record(document_id, index=index, user_pk=user.pk, fact=fact, do_annotate=True, fact_id=fact["id"])
         else:
-            ed.add_annotated(self, user)
             self.generate_record(document_id, index=index, user_pk=user.pk, fact=None, do_annotate=True, fact_id=None)
 
-        ed.update()
+        self.add_annotation_tracking(ed, user)
+        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
 
     def __split_fact(self, fact: dict):
         fact_name, value, spans, field, fact_id = fact["fact"], fact.get("str_val") or fact.get("num_val"), fact.get("spans"), fact.get("doc_path"), fact.get("id", "")
@@ -267,8 +276,13 @@ class Annotator(TaskModel):
         :return:
         """
         ed = ESDocObject(document_id=document_id, index=index)
-        ed.add_skipped(self, user)
-        ed.update()
+        ed.document["_source"][TEXTA_ANNOTATOR_KEY] = {
+            "job_id": self.pk,
+            "user": user.username,
+            "document_counter": ed.document["_source"][TEXTA_ANNOTATOR_KEY].get("document_counter", None),
+            "skipped_timestamp_utc": datetime.utcnow()
+        }
+        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
         self.generate_record(document_id, index=index, user_pk=user.pk, do_skip=True)
 
         return True

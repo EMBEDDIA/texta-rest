@@ -194,12 +194,6 @@ class AnnotatorViewset(mixins.CreateModelMixin,
         ed = ElasticDocument(index=annotator.get_indices())
         document_id = serializer.validated_data["document_id"]
         document = ed.get(document_id)
-        texta_annotation = self._handle_texta_annotation_meta(document["_source"])
-
-        processed_timestamp = texta_annotation.get("processed_timestamp_utc", None)
-
-        if processed_timestamp:
-            return Response({"detail": f"Document with ID: {serializer.validated_data['document_id']} is already annotated"})
 
         annotator.skip_document(
             serializer.validated_data["document_id"],
