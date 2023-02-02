@@ -15,7 +15,7 @@ from toolkit.core.project.models import Project
 from toolkit.core.task.models import Task
 from toolkit.elastic.index.models import Index
 from toolkit.model_constants import TaskModel
-from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, DESCRIPTION_CHAR_LIMIT, TEXTA_ANNOTATOR_KEY
+from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, DESCRIPTION_CHAR_LIMIT, TEXTA_ANNOTATOR_KEY, TEXTA_TAGS_KEY
 
 # Create your models here.
 
@@ -130,19 +130,24 @@ class Annotator(TaskModel):
         :return:
         """
         ed = ESDocObject(document_id=document_id, index=index)
-        if "texta_facts" in ed.document["_source"]:
-            for facts in ed.document["_source"]["texta_facts"]:
-                if facts["fact"] == self.binary_configuration.fact_name and facts["source"] == "annotator":
-                    if facts["str_val"] != self.binary_configuration.pos_value:
-                        facts["str_val"] = self.binary_configuration.pos_value
-                        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
-                        return
-                    else:
-                        return
-        fact = ed.add_fact(fact_value=self.binary_configuration.pos_value, fact_name=self.binary_configuration.fact_name, doc_path=self.target_field)
+
+        fact = Annotator.generate_fact(
+            fact_value=self.binary_configuration.pos_value,
+            fact_name=self.binary_configuration.fact_name,
+            doc_path=self.target_field,
+            author=user.username
+        )
+        ed.document["_source"][TEXTA_TAGS_KEY] = [fact]
         self.add_annotation_tracking(ed, user)
-        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
+        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"], refresh="wait_for")
         self.generate_record(document_id, index=index, user_pk=user.pk, fact=fact, do_annotate=True, fact_id=fact["id"])
+
+    # TODO Later one update the elastic library instead to filter out duplicate facts after the addition of uuid's broke it.
+    @staticmethod
+    def generate_fact(fact_name, fact_value, doc_path, spans=json.dumps([[0, 0]]), sent_index=0, author="", source="annotator"):
+        template_fact = ESDocObject.generate_fact_template(source=source)
+        fact = {**template_fact, "str_val": fact_value, "fact": fact_name, "doc_path": doc_path, "spans": spans, "sent_index": sent_index, "author": author}
+        return fact
 
     def generate_record(self, document_id, index, user_pk, fact=None, fact_id=None, do_annotate=False, do_skip=False):
         user = User.objects.get(pk=user_pk)
@@ -165,7 +170,7 @@ class Annotator(TaskModel):
             "processed_timestamp_utc": datetime.utcnow()
         }
 
-    def add_neg_label(self, document_id: str, index: str, user):
+    def add_neg_label(self, document_id: str, index: str, user: User):
         """
         Adds a negative label to the Elasticsearch document for Binary annotation.
         :param index: Which index does said Elasticsearch document reside in.
@@ -178,14 +183,20 @@ class Annotator(TaskModel):
                 if facts["fact"] == self.binary_configuration.fact_name and facts["source"] == "annotator":
                     if facts["str_val"] != self.binary_configuration.neg_value:
                         facts["str_val"] = self.binary_configuration.neg_value
-                        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
+                        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"], refresh="wait_for")
 
                         return
                     else:
                         return
-        fact = ed.add_fact(fact_value=self.binary_configuration.neg_value, fact_name=self.binary_configuration.fact_name, doc_path=self.target_field)
+        fact = Annotator.generate_fact(
+            fact_value=self.binary_configuration.neg_value,
+            fact_name=self.binary_configuration.fact_name,
+            doc_path=self.target_field,
+            author=user.username
+        )
+        ed.document["_source"][TEXTA_TAGS_KEY] = [fact]
         self.add_annotation_tracking(ed, user)
-        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
+        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"], refresh="wait_for")
         self.generate_record(document_id, index=index, user_pk=user.pk, fact=fact, do_annotate=True, fact_id=fact["id"])
 
     def add_labels(self, document_id: str, labels: List[str], index: str, user: User):
@@ -197,16 +208,24 @@ class Annotator(TaskModel):
         :return:
         """
         ed = ESDocObject(document_id=document_id, index=index)
-
+        facts = []
         if labels:
             for label in labels:
-                fact = ed.add_fact(fact_value=label, fact_name=self.multilabel_configuration.labelset.category, doc_path=self.target_field, author=user.username)
+                fact = Annotator.generate_fact(
+                    fact_value=label,
+                    fact_name=self.multilabel_configuration.labelset.category,
+                    doc_path=self.target_field,
+                    author=user.username
+                )
+                facts.append(fact)
                 self.generate_record(document_id, index=index, user_pk=user.pk, fact=fact, do_annotate=True, fact_id=fact["id"])
         else:
+            # Empty annotation.
             self.generate_record(document_id, index=index, user_pk=user.pk, fact=None, do_annotate=True, fact_id=None)
 
+        ed.document["_source"][TEXTA_TAGS_KEY] = facts
         self.add_annotation_tracking(ed, user)
-        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
+        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"], refresh="wait_for")
 
     def __split_fact(self, fact: dict):
         fact_name, value, spans, field, fact_id = fact["fact"], fact.get("str_val") or fact.get("num_val"), fact.get("spans"), fact.get("doc_path"), fact.get("id", "")
@@ -282,7 +301,7 @@ class Annotator(TaskModel):
             "document_counter": ed.document["_source"][TEXTA_ANNOTATOR_KEY].get("document_counter", None),
             "skipped_timestamp_utc": datetime.utcnow()
         }
-        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
+        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"], refresh="wait_for")
         self.generate_record(document_id, index=index, user_pk=user.pk, do_skip=True)
 
         return True
