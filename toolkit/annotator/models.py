@@ -139,7 +139,7 @@ class Annotator(TaskModel):
         )
         ed.document["_source"][TEXTA_TAGS_KEY] = [fact]
         self.add_annotation_tracking(ed, user)
-        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
+        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"], refresh="wait_for")
         self.generate_record(document_id, index=index, user_pk=user.pk, fact=fact, do_annotate=True, fact_id=fact["id"])
 
     # TODO Later one update the elastic library instead to filter out duplicate facts after the addition of uuid's broke it.
@@ -183,7 +183,7 @@ class Annotator(TaskModel):
                 if facts["fact"] == self.binary_configuration.fact_name and facts["source"] == "annotator":
                     if facts["str_val"] != self.binary_configuration.neg_value:
                         facts["str_val"] = self.binary_configuration.neg_value
-                        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
+                        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"], refresh="wait_for")
 
                         return
                     else:
@@ -196,7 +196,7 @@ class Annotator(TaskModel):
         )
         ed.document["_source"][TEXTA_TAGS_KEY] = [fact]
         self.add_annotation_tracking(ed, user)
-        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
+        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"], refresh="wait_for")
         self.generate_record(document_id, index=index, user_pk=user.pk, fact=fact, do_annotate=True, fact_id=fact["id"])
 
     def add_labels(self, document_id: str, labels: List[str], index: str, user: User):
@@ -225,7 +225,7 @@ class Annotator(TaskModel):
 
         ed.document["_source"][TEXTA_TAGS_KEY] = facts
         self.add_annotation_tracking(ed, user)
-        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
+        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"], refresh="wait_for")
 
     def __split_fact(self, fact: dict):
         fact_name, value, spans, field, fact_id = fact["fact"], fact.get("str_val") or fact.get("num_val"), fact.get("spans"), fact.get("doc_path"), fact.get("id", "")
@@ -301,7 +301,7 @@ class Annotator(TaskModel):
             "document_counter": ed.document["_source"][TEXTA_ANNOTATOR_KEY].get("document_counter", None),
             "skipped_timestamp_utc": datetime.utcnow()
         }
-        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
+        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"], refresh="wait_for")
         self.generate_record(document_id, index=index, user_pk=user.pk, do_skip=True)
 
         return True

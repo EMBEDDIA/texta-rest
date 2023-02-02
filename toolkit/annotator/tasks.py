@@ -145,12 +145,12 @@ def add_entity_task(self, pk: int, document_id: str, texta_facts: List[dict], in
 
         annotator_obj.add_annotation_tracking(ed, user_obj)
         ed.document["_source"][TEXTA_TAGS_KEY] = facts
-        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
+        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"], refresh="wait_for")
     else:
         # In case the users marks the document as 'done' but it has no Facts to add.
         annotator_obj.add_annotation_tracking(ed, user_obj)
         ed.document["_source"][TEXTA_TAGS_KEY] = []
-        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
+        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"], refresh="wait_for")
         annotator_obj.generate_record(document_id, index=index, user_pk=user_obj.pk, do_annotate=True)
 
 
