@@ -17,7 +17,7 @@ from toolkit.annotator.models import Annotator, AnnotatorGroup
 from toolkit.base_tasks import BaseTask
 from toolkit.core.project.models import Project
 from toolkit.elastic.index.models import Index
-from toolkit.settings import ERROR_LOGGER, INFO_LOGGER, TEXTA_ANNOTATOR_KEY
+from toolkit.settings import ERROR_LOGGER, INFO_LOGGER, TEXTA_ANNOTATOR_KEY, TEXTA_TAGS_KEY
 from toolkit.tools.show_progress import ShowProgress
 
 
@@ -123,18 +123,16 @@ def add_entity_task(self, pk: int, document_id: str, texta_facts: List[dict], in
     annotator_obj = Annotator.objects.get(pk=pk)
     user_obj = User.objects.get(pk=user_pk)
     ed = ESDocObject(document_id=document_id, index=index)
-    filtered_facts = ed.filter_facts(fact_name=annotator_obj.entity_configuration.fact_name, doc_path=json.loads(annotator_obj.fields)[0])
-    new_facts = filtered_facts + texta_facts
-    if new_facts:
-        for fact in new_facts:
+    facts = []
+    if texta_facts:
+        for fact in texta_facts:
             spans = []
             for span in json.loads(fact["spans"]):
                 first, last = span
                 spans.append([first, last])
 
             if fact["fact"] == annotator_obj.entity_configuration.fact_name:
-                ed.add_fact(
-                    source=fact.get("source", "annotator"),
+                fact = Annotator.generate_fact(
                     fact_value=fact["str_val"],
                     fact_name=fact["fact"],
                     doc_path=fact["doc_path"],
@@ -142,15 +140,17 @@ def add_entity_task(self, pk: int, document_id: str, texta_facts: List[dict], in
                     sent_index=fact.get("sent_index", 0),
                     author=user_obj.username
                 )
-
+                facts.append(fact)
                 annotator_obj.generate_record(document_id, index=index, user_pk=user_obj.pk, fact=fact, do_annotate=True)
 
         annotator_obj.add_annotation_tracking(ed, user_obj)
-        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
+        ed.document["_source"][TEXTA_TAGS_KEY] = facts
+        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"], refresh="wait_for")
     else:
         # In case the users marks the document as 'done' but it has no Facts to add.
         annotator_obj.add_annotation_tracking(ed, user_obj)
-        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"])
+        ed.document["_source"][TEXTA_TAGS_KEY] = []
+        response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"], refresh="wait_for")
         annotator_obj.generate_record(document_id, index=index, user_pk=user_obj.pk, do_annotate=True)
 
 
