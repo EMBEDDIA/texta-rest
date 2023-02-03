@@ -167,6 +167,7 @@ class Annotator(TaskModel):
             "job_id": self.pk,
             "user": user.username,
             "document_counter": ed.document["_source"][TEXTA_ANNOTATOR_KEY].get("document_counter", None),
+            "comments": ed.document["_source"][TEXTA_ANNOTATOR_KEY].get("comments", []),
             "processed_timestamp_utc": datetime.utcnow()
         }
 
