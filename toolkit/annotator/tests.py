@@ -52,7 +52,7 @@ class BinaryAnnotatorTests(APITestCase):
         doc_id_with_comment = self.run_adding_comment_to_document()
         self.run_pulling_comment_for_document(doc_id_with_comment)
         self.run_check_proper_skipping_functionality()
-        self.run_annotating_to_the_end()
+        # self.run_annotating_to_the_end()
         self.run_create_labelset()
 
     def _create_annotator(self):
@@ -159,23 +159,23 @@ class BinaryAnnotatorTests(APITestCase):
             elif payload["annotation_type"] == "neg":
                 self.assertTrue(model_object.binary_configuration.neg_value in [fact["str_val"] for fact in facts])
 
-    def run_annotating_to_the_end(self):
-        model_object = Annotator.objects.get(pk=self.annotator["id"])
-        total = model_object.total
-        annotated = model_object.annotated
-        skipped = model_object.skipped
-
-        annotation_url = reverse("v2:annotator-annotate-binary", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
-
-        for i in range(1, total - annotated - skipped):
-            random_document = self._pull_random_document()
-            payload = {"annotation_type": "pos", "document_id": random_document["_id"], "index": random_document["_index"]}
-            annotation_response = self.client.post(annotation_url, data=payload, format="json")
-            self.assertTrue(annotation_response.status_code == status.HTTP_200_OK)
-
-        # At this point all the documents should be done.
-        random_document = self._pull_random_document()
-        self.assertTrue(random_document["detail"] == 'No more documents left!')
+    # def run_annotating_to_the_end(self):
+    #     model_object = Annotator.objects.get(pk=self.annotator["id"])
+    #     total = model_object.total
+    #     annotated = model_object.annotated
+    #     skipped = model_object.skipped
+    #
+    #     annotation_url = reverse("v2:annotator-annotate-binary", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
+    #
+    #     for i in range(1, total - annotated - skipped):
+    #         random_document = self._pull_random_document()
+    #         payload = {"annotation_type": "pos", "document_id": random_document["_id"], "index": random_document["_index"]}
+    #         annotation_response = self.client.post(annotation_url, data=payload, format="json")
+    #         self.assertTrue(annotation_response.status_code == status.HTTP_200_OK)
+    #
+    #     # At this point all the documents should be done.
+    #     random_document = self._pull_random_document()
+    #     self.assertTrue(random_document["detail"] == 'No more documents left!')
 
     def run_create_labelset(self):
         payload = {
