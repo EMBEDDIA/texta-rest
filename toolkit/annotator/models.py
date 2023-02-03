@@ -295,10 +295,12 @@ class Annotator(TaskModel):
         :return:
         """
         ed = ESDocObject(document_id=document_id, index=index)
+        # TODO Unify this bit of code with create annotation tracking to create singular formatting and necessary fields when overwriting the meta.
         ed.document["_source"][TEXTA_ANNOTATOR_KEY] = {
             "job_id": self.pk,
             "user": user.username,
             "document_counter": ed.document["_source"][TEXTA_ANNOTATOR_KEY].get("document_counter", None),
+            "comments": ed.document["_source"][TEXTA_ANNOTATOR_KEY].get("comments", []),
             "skipped_timestamp_utc": datetime.utcnow()
         }
         response = ed.core.es.index(index=index, doc_type=ed.document["_type"], id=document_id, body=ed.document["_source"], refresh="wait_for")
