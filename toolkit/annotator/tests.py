@@ -1,5 +1,6 @@
 # Create your tests here.
 import json
+from typing import Optional
 
 from django.urls import reverse
 from django.test import override_settings
@@ -10,9 +11,14 @@ from texta_elastic.core import ElasticCore
 from toolkit.annotator.models import Annotator, Labelset
 from toolkit.elastic.index.models import Index
 from toolkit.helper_functions import reindex_test_dataset
-from toolkit.settings import TEXTA_ANNOTATOR_KEY
+from toolkit.settings import TEXTA_ANNOTATOR_KEY, TEXTA_TAGS_KEY
 from toolkit.test_settings import TEST_FIELD, TEST_MATCH_TEXT, TEST_QUERY, TEST_EMPTY_QUERY
 from toolkit.tools.utils_for_tests import create_test_user, print_output, project_creation
+
+
+# TODO Add test for checking that moving within the filters rotates to the beginning when reaching the end.
+# TODO Check that facts have the proper meta fields like uuid, source and author names.
+# TODO Check that when tagging a skipped document they don't appear in filters and their meta fields in elastic are overwritten.
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
@@ -161,7 +167,7 @@ class BinaryAnnotatorTests(APITestCase):
 
         annotation_url = reverse("v2:annotator-annotate-binary", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
 
-        for i in range(1, total - annotated - skipped + 1):
+        for i in range(1, total - annotated - skipped):
             random_document = self._pull_random_document()
             payload = {"annotation_type": "pos", "document_id": random_document["_id"], "index": random_document["_index"]}
             annotation_response = self.client.post(annotation_url, data=payload, format="json")
@@ -433,10 +439,11 @@ class MultilabelAnnotatorTests(APITestCase):
         print_output("_add_comment_to_document:response.data", response.data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def _pull_random_document(self) -> dict:
+    def _pull_random_document(self, document_counter: Optional[int] = None) -> dict:
         """Returns a full Elasticsearch document with the _id, _source etc."""
         url = reverse("v2:annotator-pull-document", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
-        response = self.client.post(url, format="json")
+        kwargs = {"document_counter": document_counter} if document_counter else {}
+        response = self.client.post(url, data=kwargs, format="json")
         return response.data
 
     def run_multilabel_annotation(self):
@@ -559,3 +566,28 @@ class MultilabelAnnotatorTests(APITestCase):
         response = self.client.post(url)
         print_output("test_that_comment_filter_returns_a_document_that_has_a_comment:response.data", response.data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_that_facts_are_overwritten_with_new_selections(self):
+        annotation_url = reverse("v2:annotator-annotate-multilabel", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
+
+        random_document = self._pull_random_document(0)
+        bar, foo = self.labelset["values"][0], self.labelset["values"][1]
+
+        annotation_response = self.client.post(annotation_url, data={
+            "document_id": random_document["_id"],
+            "index": random_document["_index"],
+            "labels": [bar, foo]
+        }, format="json")
+        self.assertEqual(annotation_response.status_code, status.HTTP_200_OK)
+
+        annotation_response = self.client.post(annotation_url, data={
+            "document_id": random_document["_id"],
+            "index": random_document["_index"],
+            "labels": [bar]
+        }, format="json")
+
+        ec = ElasticCore()
+        document_in_elastic = ec.es.get(index=random_document["_index"], id=random_document["_id"])
+        facts = document_in_elastic["_source"][TEXTA_TAGS_KEY]
+        self.assertEqual(len(facts), 1)
+        self.assertEqual(facts[0]["str_val"], bar)
