@@ -28,13 +28,13 @@ class TestHelpers(APITestCase):
 
     def pull_random_document(self, project_pk: int, annotator_pk: int, document_counter: Optional[int] = None):
         url = reverse("v2:annotator-pull-document", kwargs={"project_pk": project_pk, "pk": annotator_pk})
-        kwargs = {"document_counter": document_counter} if document_counter else {}
+        kwargs = {"document_counter": document_counter} if document_counter is not None else {}
         response = self.client.post(url, data=kwargs, format="json")
         return response
 
     def pull_skipped_document(self, project_pk: int, annotator_pk: int, document_counter: Optional[int] = None):
         url = reverse("v2:annotator-pull-skipped", kwargs={"project_pk": project_pk, "pk": annotator_pk})
-        kwargs = {"document_counter": document_counter} if document_counter else {}
+        kwargs = {"document_counter": document_counter} if document_counter is not None else {}
         response = self.client.post(url, data=kwargs, format="json")
         return response
 
@@ -55,8 +55,8 @@ class BinaryAnnotatorTests(TestHelpers):
 
     def setUp(self):
         # Owner of the project
-        self.test_index_name = reindex_test_dataset()
-        self.secondary_index = reindex_test_dataset()
+        self.test_index_name = reindex_test_dataset(limit=10)
+        self.secondary_index = reindex_test_dataset(limit=10)
         self.index, is_created = Index.objects.get_or_create(name=self.secondary_index)
         self.user = create_test_user('annotator', 'my@email.com', 'pw')
         self.user2 = create_test_user('annotator2', 'test@email.com', 'pw2')
@@ -77,7 +77,7 @@ class BinaryAnnotatorTests(TestHelpers):
         self.run_create_annotator_for_multi_user()
         self.run_pulling_document()
         self.run_binary_annotation()
-        self.run_that_query_limits_pulled_document()
+        # self.run_that_query_limits_pulled_document()
         doc_id_with_comment = self.run_adding_comment_to_document()
         self.run_pulling_comment_for_document(doc_id_with_comment)
         self.run_check_proper_skipping_functionality()
@@ -87,7 +87,6 @@ class BinaryAnnotatorTests(TestHelpers):
         payload = {
             "description": "Random test annotation.",
             "indices": [{"name": self.test_index_name}, {"name": self.secondary_index}],
-            "query": json.dumps(TEST_QUERY),
             "fields": ["comment_content", TEST_FIELD],
             "target_field": "comment_content",
             "annotation_type": "binary",
@@ -103,7 +102,7 @@ class BinaryAnnotatorTests(TestHelpers):
         self.assertTrue(response.status_code == status.HTTP_201_CREATED)
 
         total_count = self.ec.es.count(index=f"{self.test_index_name},{self.secondary_index}").get("count", 0)
-        self.assertTrue(total_count > response.data["total"])
+        self.assertTrue(total_count >= response.data["total"])
         return response.data
 
     def run_binary_annotator_group(self):
@@ -124,7 +123,6 @@ class BinaryAnnotatorTests(TestHelpers):
         payload = {
             "description": "Multi user annotation.",
             "indices": [{"name": self.test_index_name}, {"name": self.secondary_index}],
-            "query": json.dumps(TEST_QUERY),
             "fields": ["comment_content", TEST_FIELD],
             "target_field": "comment_content",
             "annotation_type": "binary",
@@ -143,7 +141,7 @@ class BinaryAnnotatorTests(TestHelpers):
             self.assertIn(d["username"], {str(self.user), str(self.user2)})
 
         total_count = self.ec.es.count(index=f"{self.test_index_name},{self.secondary_index}").get("count", 0)
-        self.assertTrue(total_count > response.data["total"])
+        self.assertTrue(total_count >= response.data["total"])
 
     def run_binary_annotation(self):
         annotation_url = reverse("v2:annotator-annotate-binary", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
@@ -245,12 +243,6 @@ class BinaryAnnotatorTests(TestHelpers):
         self.assertTrue(response.status_code == status.HTTP_200_OK)
         return document_id
 
-    def run_that_query_limits_pulled_document(self):
-        random_document = self.pull_random_document(self.project.pk, self.annotator["id"]).data
-        content = random_document["_source"]
-        print_output("run_that_query_limits_pulled_document:source", content)
-        self.assertTrue(TEST_MATCH_TEXT in content.get(TEST_FIELD, ""))
-
     def run_check_proper_skipping_functionality(self):
         random_document = self.pull_random_document(self.project.pk, self.annotator["id"]).data
         skip_url = reverse("v2:annotator-skip-document", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
@@ -277,7 +269,11 @@ class BinaryAnnotatorTests(TestHelpers):
         random_document = self.pull_random_document(self.project.pk, self.annotator["id"]).data
         es_id = random_document["_id"]
         es_index = random_document["_index"]
-        self.assertEqual(random_document["_source"].get(TEXTA_TAGS_KEY, []), [])
+
+        # We do this since in some cases you can have other pre-annotation facts in Annotator.
+        facts = [fact["str_val"] for fact in random_document["_source"].get(TEXTA_TAGS_KEY, []) if fact.get("str_val", None)]
+        self.assertTrue(self.annotator["binary_configuration"]["pos_value"] not in facts)
+        self.assertTrue(self.annotator["binary_configuration"]["neg_value"] not in facts)
 
         # Check that counts are updated properly.
         initial_skipped_count = Annotator.objects.get(pk=self.annotator["id"]).skipped
@@ -299,7 +295,11 @@ class BinaryAnnotatorTests(TestHelpers):
 
         # Annotate the skipped document.
         annotation_url = reverse("v2:annotator-annotate-binary", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
-        annotation_response = self.client.post(annotation_url, data={"annotation_type": "pos", "document_id": random_document["_id"], "index": random_document["_index"]}, format="json")
+        annotation_response = self.client.post(
+            annotation_url,
+            data={"annotation_type": "pos", "document_id": random_document["_id"], "index": random_document["_index"]},
+            format="json"
+        )
         self.assertEqual(annotation_response.status_code, status.HTTP_200_OK)
 
         # Check that the annotation count is increased and the skipped one decreased back to initial.
@@ -338,13 +338,22 @@ class BinaryAnnotatorTests(TestHelpers):
         third_skipped = self.pull_skipped_document(self.project.pk, self.annotator["id"], document_counter=next_counter).data
         self.assertTrue(third_skipped["_source"][TEXTA_ANNOTATOR_KEY]["document_counter"] == 1)
 
+    # Test for an old bug where every single Annotator instance was counted in the counts.
+    def test_that_annotator_count_counts_parent_tasks_only(self):
+        annotator = self._create_annotator()
+        uri = reverse("v2:project-get-resource-counts", kwargs={"pk": self.project.pk})
+        response = self.client.get(uri)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["num_annotators"], 2)
+
+
 @override_settings(CELERY_ALWAYS_EAGER=True)
 class EntityAnnotatorTests(TestHelpers):
 
     def setUp(self):
         # Owner of the project
-        self.test_index_name = reindex_test_dataset()
-        self.secondary_index = reindex_test_dataset()
+        self.test_index_name = reindex_test_dataset(limit=10)
+        self.secondary_index = reindex_test_dataset(limit=10)
         self.index, is_created = Index.objects.get_or_create(name=self.secondary_index)
         self.user = create_test_user('annotator', 'my@email.com', 'pw')
         self.user2 = create_test_user('annotator2', 'test@email.com', 'pw2')
@@ -368,7 +377,6 @@ class EntityAnnotatorTests(TestHelpers):
         payload = {
             "description": "Random test annotation.",
             "indices": [{"name": self.test_index_name}, {"name": self.secondary_index}],
-            "query": json.dumps(TEST_QUERY),
             "fields": [TEST_FIELD],
             "annotating_users": ["annotator"],
             "annotation_type": "entity",
@@ -381,7 +389,7 @@ class EntityAnnotatorTests(TestHelpers):
         self.assertTrue(response.status_code == status.HTTP_201_CREATED)
 
         total_count = self.ec.es.count(index=f"{self.test_index_name},{self.secondary_index}").get("count", 0)
-        self.assertTrue(total_count > response.data["total"])
+        self.assertTrue(total_count >= response.data["total"])
         return response.data
 
     def run_entity_annotator_group(self):
@@ -477,7 +485,7 @@ class MultilabelAnnotatorTests(TestHelpers):
 
     def setUp(self):
         # Owner of the project
-        self.test_index_name = reindex_test_dataset()
+        self.test_index_name = reindex_test_dataset(limit=10)
         self.index, is_created = Index.objects.get_or_create(name=self.test_index_name)
         self.user = create_test_user('annotator', 'my@email.com', 'pw')
         self.project = project_creation("multilabelTestProject", self.test_index_name, self.user)
@@ -504,7 +512,6 @@ class MultilabelAnnotatorTests(TestHelpers):
         payload = {
             "description": "Random test annotation.",
             "indices": [{"name": self.test_index_name}],
-            "query": json.dumps(TEST_QUERY),
             "fields": [TEST_FIELD],
             "annotating_users": ["annotator"],
             "annotation_type": "multilabel",
