@@ -26,6 +26,12 @@ class TestHelpers(APITestCase):
         print_output("skip_document:response.data", response.data)
         return response
 
+    def add_comment_to_document(self, document_id: str, text: str, project_pk: int, annotator_pk: int):
+        url = reverse("v2:annotator-add-comment", kwargs={"project_pk": project_pk, "pk": annotator_pk})
+        response = self.client.post(url, data={"document_id": document_id, "text": text}, format="json")
+        print_output("add_comment_to_document:response.data", response.data)
+        return response
+
     def pull_random_document(self, project_pk: int, annotator_pk: int, document_counter: Optional[int] = None):
         url = reverse("v2:annotator-pull-document", kwargs={"project_pk": project_pk, "pk": annotator_pk})
         kwargs = {"document_counter": document_counter} if document_counter is not None else {}
@@ -77,16 +83,33 @@ class BinaryAnnotatorTests(TestHelpers):
         self.run_create_annotator_for_multi_user()
         self.run_pulling_document()
         self.run_binary_annotation()
-        # self.run_that_query_limits_pulled_document()
         doc_id_with_comment = self.run_adding_comment_to_document()
         self.run_pulling_comment_for_document(doc_id_with_comment)
         self.run_check_proper_skipping_functionality()
-        # self.run_annotating_to_the_end()
+        self.run_that_using_query_limits_the_document_selection_for_pulls()
+        self.run_annotating_to_the_end()
 
-    def _create_annotator(self):
+    def run_that_using_query_limits_the_document_selection_for_pulls(self):
+        ec = ElasticCore()
+
+        extra_index = reindex_test_dataset()
+        index, is_created = Index.objects.get_or_create(name=extra_index)
+        self.project.indices.add(index)
+        annotator = self._create_annotator(indices=[{"name": extra_index}], query=TEST_QUERY)
+        random_document = self.pull_random_document(self.project.pk, annotator["id"], 0)
+        self.assertTrue(TEST_MATCH_TEXT in random_document.data["_source"][TEST_FIELD])
+
+        # Check that the annotator only keeps track of documents that match the query.
+        self.assertTrue(self.annotator["total"] < ec.es.count(index=extra_index)["count"])
+
+        # Cleanup
+        self.project.indices.remove(index)
+        ec.delete_index(extra_index)
+
+    def _create_annotator(self, indices: Optional[List] = None, query=None):
         payload = {
             "description": "Random test annotation.",
-            "indices": [{"name": self.test_index_name}, {"name": self.secondary_index}],
+            "indices": indices or [{"name": self.test_index_name}, {"name": self.secondary_index}],
             "fields": ["comment_content", TEST_FIELD],
             "target_field": "comment_content",
             "annotation_type": "binary",
@@ -97,12 +120,13 @@ class BinaryAnnotatorTests(TestHelpers):
                 "neg_value": "SAFE"
             }
         }
+
+        if query is not None:
+            payload["query"] = json.dumps(query, ensure_ascii=False)
+
         response = self.client.post(self.list_view_url, data=payload, format="json")
         print_output("_create_annotator:response.status", response.status_code)
         self.assertTrue(response.status_code == status.HTTP_201_CREATED)
-
-        total_count = self.ec.es.count(index=f"{self.test_index_name},{self.secondary_index}").get("count", 0)
-        self.assertTrue(total_count >= response.data["total"])
         return response.data
 
     def run_binary_annotator_group(self):
@@ -186,23 +210,28 @@ class BinaryAnnotatorTests(TestHelpers):
 
             self.check_fact_structure(es_index, es_doc_id, [model_object.binary_configuration.neg_value, model_object.binary_configuration.pos_value], self.user)
 
-    # def run_annotating_to_the_end(self):
-    #     model_object = Annotator.objects.get(pk=self.annotator["id"])
-    #     total = model_object.total
-    #     annotated = model_object.annotated
-    #     skipped = model_object.skipped
-    #
-    #     annotation_url = reverse("v2:annotator-annotate-binary", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
-    #
-    #     for i in range(1, total - annotated - skipped):
-    #         random_document = self._pull_random_document()
-    #         payload = {"annotation_type": "pos", "document_id": random_document["_id"], "index": random_document["_index"]}
-    #         annotation_response = self.client.post(annotation_url, data=payload, format="json")
-    #         self.assertTrue(annotation_response.status_code == status.HTTP_200_OK)
-    #
-    #     # At this point all the documents should be done.
-    #     random_document = self._pull_random_document()
-    #     self.assertTrue(random_document["detail"] == 'No more documents left!')
+    def run_annotating_to_the_end(self):
+        model_object = Annotator.objects.get(pk=self.annotator["id"])
+        total = model_object.total
+        annotated = model_object.annotated
+        skipped = model_object.skipped
+
+        annotation_url = reverse("v2:annotator-annotate-binary", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
+
+        counter = 0
+        index = 0
+        while counter < (total - annotated - skipped):
+            random_document = self.pull_random_document(project_pk=self.project.pk, annotator_pk=self.annotator["id"], document_counter=index).data
+            payload = {"annotation_type": "pos", "document_id": random_document["_id"], "index": random_document["_index"]}
+            annotation_response = self.client.post(annotation_url, data=payload, format="json")
+            self.assertTrue(annotation_response.status_code == status.HTTP_200_OK)
+            index = random_document["_source"][TEXTA_ANNOTATOR_KEY]["document_counter"] + 1
+            counter += 1
+
+        # At this point all the documents should be done.
+        random_document = self.pull_random_document(project_pk=self.project.pk, annotator_pk=self.annotator["id"], document_counter=index + 1)
+        self.assertEqual(random_document.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertTrue(random_document.data["detail"] == 'No such document!')
 
     def run_pulling_comment_for_document(self, document_id):
         url = reverse("v2:annotator-get-comments", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
@@ -554,12 +583,6 @@ class MultilabelAnnotatorTests(TestHelpers):
         self.assertTrue(Labelset.objects.count() != 0)
         return response.data
 
-    def _add_comment_to_document(self, document_id: str, text: str, annotator_pk: int):
-        url = reverse("v2:annotator-add-comment", kwargs={"project_pk": self.project.pk, "pk": annotator_pk})
-        response = self.client.post(url, data={"document_id": document_id, "text": text}, format="json")
-        print_output("_add_comment_to_document:response.data", response.data)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
     def run_multilabel_annotation(self):
         annotation_url = reverse("v2:annotator-annotate-multilabel", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
         print_output("run_multilabel_annotation:annotation_url", annotation_url)
@@ -661,8 +684,8 @@ class MultilabelAnnotatorTests(TestHelpers):
         second_id = second_document["_id"]
         second_text = "The number of seconds you shall wait is 3, not 2, 4 is totally out of question."
 
-        self._add_comment_to_document(first_id, first_text, self.annotator["id"])
-        self._add_comment_to_document(second_id, second_text, self.annotator["id"])
+        self.add_comment_to_document(first_id, first_text, self.project.pk, self.annotator["id"])
+        self.add_comment_to_document(second_id, second_text, self.project.pk, self.annotator["id"])
 
         first_comments = self._get_comments(first_id, self.annotator["id"])
         first_comments = first_comments["results"]
@@ -679,7 +702,7 @@ class MultilabelAnnotatorTests(TestHelpers):
     def test_that_comment_filter_returns_a_document_that_has_a_comment(self):
         document = self.pull_random_document(self.project.pk, self.annotator["id"]).data
         text = "The number of seconds you shall wait is 3, not 2, 4 is totally out of question."
-        self._add_comment_to_document(document["_id"], text, self.annotator["id"])
+        self.add_comment_to_document(document["_id"], text, self.project.pk, self.annotator["id"])
         url = reverse("v2:annotator-pull-commented", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
         response = self.client.post(url)
         print_output("test_that_comment_filter_returns_a_document_that_has_a_comment:response.data", response.data)
@@ -737,3 +760,24 @@ class MultilabelAnnotatorTests(TestHelpers):
         next_counter = second_skipped["_source"][TEXTA_ANNOTATOR_KEY]["document_counter"] + 1
         third_skipped = self.pull_skipped_document(self.project.pk, self.annotator["id"], document_counter=next_counter).data
         self.assertTrue(third_skipped["_source"][TEXTA_ANNOTATOR_KEY]["document_counter"] == 1)
+
+    def test_comment_filter_functionality(self):
+        first_index = 5
+        second_index = 9
+
+        random_document = self.pull_random_document(self.project.pk, self.annotator["id"], first_index).data
+        self.add_comment_to_document(random_document["_id"], "this is a proper comment", self.project.pk, self.annotator["id"])
+
+        second_random_document = self.pull_random_document(self.project.pk, self.annotator["id"], second_index).data
+        self.add_comment_to_document(second_random_document["_id"], "this is a proper comment", self.project.pk, self.annotator["id"])
+
+        # Check that the 0th index is upgraded towards the first available one.
+        uri = reverse("v2:annotator-pull-commented", kwargs={"project_pk": self.project.pk, "pk": self.annotator["id"]})
+        response = self.client.post(uri, data={"document_counter": 0}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["_source"][TEXTA_ANNOTATOR_KEY]["document_counter"], first_index)
+
+        # Check the logic of upgrade further.
+        response = self.client.post(uri, data={"document_counter": first_index + 1}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["_source"][TEXTA_ANNOTATOR_KEY]["document_counter"], second_index)

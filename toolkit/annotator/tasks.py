@@ -282,6 +282,8 @@ def annotator_task(self, annotator_task_id):
                         # set new_index name as mapping name
                         bulk_add_documents(elastic_search, elastic_doc, index=new_index, chunk_size=scroll_size, flatten_doc=False)
 
+            # Readding this here since in the beginning, multiple indices are used in the count.
+            new_annotator_obj.total = ec.es.count(index=new_index)["count"]
             new_annotator_obj.save()
             annotator_group_children.append(new_annotator_obj.id)
             logging.getLogger(INFO_LOGGER).info(f"Saving new annotator object ID {new_annotator_obj.id}")
