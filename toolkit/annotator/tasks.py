@@ -79,10 +79,13 @@ def add_doc_uuid_and_counter(generator: ElasticSearcher):
     for i, scroll_batch in enumerate(generator):
         for raw_doc in scroll_batch:
             hit = raw_doc["_source"]
-            existing_texta_meta = hit.get("texta_meta", {})
+            texta_meta = hit.get("texta_meta", {})
             existing_annotator_meta = hit.get(TEXTA_ANNOTATOR_KEY, {})
-            if "document_counter" not in existing_annotator_meta:
-                existing_annotator_meta["document_counter"] = int(counter)
+
+            # Always overwrite the document_counter to avoid problems when new documents get added etc.
+            existing_annotator_meta["document_counter"] = int(counter)
+            if "document_uuid" not in texta_meta:
+                texta_meta["document_uuid"] = uuid.uuid4().hex
 
             yield {
                 "_index": raw_doc["_index"],
@@ -90,7 +93,7 @@ def add_doc_uuid_and_counter(generator: ElasticSearcher):
                 "_type": raw_doc.get("_type", "_doc"),
                 "_op_type": "update",
                 "doc": {
-                    "texta_meta": existing_texta_meta if existing_texta_meta else {"document_uuid": str(uuid.uuid4())},
+                    "texta_meta": texta_meta,
                     TEXTA_ANNOTATOR_KEY: existing_annotator_meta
                 }
             }
@@ -279,6 +282,8 @@ def annotator_task(self, annotator_task_id):
                         # set new_index name as mapping name
                         bulk_add_documents(elastic_search, elastic_doc, index=new_index, chunk_size=scroll_size, flatten_doc=False)
 
+            # Readding this here since in the beginning, multiple indices are used in the count.
+            new_annotator_obj.total = ec.es.count(index=new_index)["count"]
             new_annotator_obj.save()
             annotator_group_children.append(new_annotator_obj.id)
             logging.getLogger(INFO_LOGGER).info(f"Saving new annotator object ID {new_annotator_obj.id}")
