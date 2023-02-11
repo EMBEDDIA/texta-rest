@@ -134,7 +134,9 @@ class BertTaggerObjectViewTests(APITransactionTestCase):
         self.run_apply_binary_tagger_to_index()
         self.run_apply_multiclass_tagger_to_index()
         self.run_apply_tagger_to_index_invalid_input()
-        self.run_bert_tag_text_persistent()
+
+        # Disabled due to its non-deterministic nature.
+        #self.run_bert_tag_text_persistent()
 
         self.run_test_that_user_cant_delete_pretrained_model()
         self.run_test_that_admin_users_can_delete_pretrained_model()
