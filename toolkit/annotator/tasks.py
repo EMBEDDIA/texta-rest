@@ -247,7 +247,8 @@ def annotator_task(self, annotator_task_id):
 
         # Set the total count for proper progress tracking, since we have multiple users it means we need to multiply it
         # per user to accommodate for the whole process instead of a single index along with the run of adding the meta to the original, hence the + 1.
-        task_object.total = ec.es.count(index=",".join(indices), body=query)["count"] * (len(new_annotator_sub_indices) + 1)
+        count = ElasticSearcher(indices=indices, field_data=all_fields, callback_progress=show_progress, query=query, scroll_size=scroll_size).count()
+        task_object.total = count * (len(new_annotator_sub_indices) + 1)
         task_object.save()
 
         __add_meta_to_original_index(indices, index_fields, show_progress, query, scroll_size, ec)
