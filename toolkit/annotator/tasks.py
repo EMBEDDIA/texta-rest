@@ -16,6 +16,7 @@ from texta_elastic.searcher import ElasticSearcher
 from toolkit.annotator.models import Annotator, AnnotatorGroup
 from toolkit.base_tasks import BaseTask
 from toolkit.core.project.models import Project
+from toolkit.core.task.models import Task
 from toolkit.elastic.index.models import Index
 from toolkit.settings import ERROR_LOGGER, INFO_LOGGER, TEXTA_ANNOTATOR_KEY, TEXTA_TAGS_KEY
 from toolkit.tools.show_progress import ShowProgress
@@ -174,6 +175,23 @@ def add_annotator_meta_mapping(index):
     ec.es.indices.put_mapping(body=mapping, index=index)
 
 
+def prepare_new_index(index: str, username):
+    logger = logging.getLogger(INFO_LOGGER)
+
+    ec = ElasticCore()
+    logger.info(f"Creating new index for annotator: {index}")
+    ec.es.indices.create(index, ignore=[400, 404])
+
+    logger.info(f"Transferring mapping from old index to new for index: {index}")
+    mapping = ec.es.indices.get_mapping(index=index)
+    ec.es.indices.put_mapping(body=mapping[index]["mappings"], index=index)
+    ec.add_texta_facts_mapping(index)
+
+    logger.info(f"Creating Django representation of the new index: {index}!")
+    index, is_created = Index.objects.get_or_create(name=index, defaults={"added_by": username})
+    return index
+
+
 @task(name="annotator_task", base=BaseTask, bind=True)
 def annotator_task(self, annotator_task_id):
     annotator_obj = Annotator.objects.get(pk=annotator_task_id)
@@ -182,7 +200,7 @@ def annotator_task(self, annotator_task_id):
     indices = annotator_obj.get_indices()
     users = [user.pk for user in annotator_obj.annotator_users.all()]
 
-    task_object = annotator_obj.tasks.last()
+    task_object: Task = annotator_obj.tasks.last()
     annotator_fields = json.loads(annotator_obj.fields)
     all_fields = annotator_fields
     all_fields.append("texta_meta.document_uuid")
@@ -193,19 +211,17 @@ def annotator_task(self, annotator_task_id):
         all_fields.append(texta_mlp.settings.META_KEY)  # Include MLP Meta key here so it would be pulled from Elasticsearch.
 
     project_obj = Project.objects.get(id=annotator_obj.project_id)
-    new_field_type = get_selected_fields(indices, annotator_fields)
-    field_type = add_field_type(new_field_type)
     add_facts_mapping = annotator_obj.add_facts_mapping
     scroll_size = 100
 
-    new_indices = []
+    new_annotator_sub_indices = []
     new_annotators = []
 
     for user in users:
         annotating_user = User.objects.get(pk=user)
         new_annotators.append(annotating_user.pk)
         for index in indices:
-            new_indices.append(f"{index}_{user}_{annotator_obj.pk}")
+            new_annotator_sub_indices.append(f"{index}_{user}_{annotator_obj.pk}")
 
     query = annotator_obj.query
 
@@ -213,6 +229,7 @@ def annotator_task(self, annotator_task_id):
 
     try:
         ec = ElasticCore()
+
         index_fields = ec.get_fields(indices)
         index_fields = [index_field["path"] for index_field in index_fields]
 
@@ -227,6 +244,12 @@ def annotator_task(self, annotator_task_id):
         show_progress = ShowProgress(task_object, multiplier=1)
         show_progress.update_step("scrolling data")
         show_progress.update_view(0)
+
+        # Set the total count for proper progress tracking, since we have multiple users it means we need to multiply it
+        # per user to accommodate for the whole process instead of a single index along with the run of adding the meta to the original, hence the + 1.
+        count = ElasticSearcher(indices=indices, field_data=all_fields, callback_progress=show_progress, query=query, scroll_size=scroll_size).count()
+        task_object.total = count * (len(new_annotator_sub_indices) + 1)
+        task_object.save()
 
         __add_meta_to_original_index(indices, index_fields, show_progress, query, scroll_size, ec)
 
@@ -246,45 +269,19 @@ def annotator_task(self, annotator_task_id):
                 entity_configuration=annotator_obj.entity_configuration,
             )
             new_annotator_obj.annotator_users.add(new_annotator)
-            for new_index in new_indices:
-                logging.getLogger(INFO_LOGGER).info(f"New Index check {new_index} for user {new_annotator}")
-                logging.getLogger(INFO_LOGGER).info(f"Index object {indices}")
 
-                for index in indices:
-                    if new_index == f"{index}_{new_annotator}_{annotator_obj.pk}":
+            for new_index in new_annotator_sub_indices:
+                # Since we don't keep track of ordering of annotator, user and index name objects we just manually check for the right name.
+                if new_index == f"{new_index}_{new_annotator}_{annotator_obj.pk}":
+                    created_index = prepare_new_index(new_index, annotator_obj.author.username)
+                    new_annotator_obj.indices.add(created_index)
+                    elastic_search = ElasticSearcher(indices=indices, field_data=all_fields, callback_progress=show_progress, query=query, scroll_size=scroll_size)
+                    ed = ElasticDocument(index="")
+                    bulk_add_documents(elastic_search, ed, index=new_index, chunk_size=scroll_size, flatten_doc=False)
+                    new_annotator_obj.total = ec.es.count(index=new_index)["count"]
+                    new_annotator_obj.save()
+                    project_obj.indices.add(created_index)
 
-                        elastic_search = ElasticSearcher(indices=indices, field_data=all_fields, callback_progress=show_progress, query=query, scroll_size=scroll_size)
-                        elastic_doc = ElasticDocument(new_index)
-
-                        logging.getLogger(INFO_LOGGER).info(f"Updating index schema for index {new_index}")
-                        ''' the operations that don't require a mapping update have been completed '''
-                        schema_input = update_field_types(indices, all_fields, field_type, flatten_doc=False)
-                        updated_schema = update_mapping(schema_input, new_index, add_facts_mapping, add_texta_meta_mapping=True)
-
-                        # For all that is unholy, the update_mapping function changes the texta_annotator.document_counter FROM A INTEGER FIELD, TO A TEXT FIELD.
-                        # So now in this place we change it back... manually. (╯°□°）╯︵ ┻━┻
-                        field_settings = updated_schema["mappings"]["_doc"]["properties"]
-                        if TEXTA_ANNOTATOR_KEY in field_settings and "document_counter" in field_settings[TEXTA_ANNOTATOR_KEY]["properties"]:
-                            field_settings[TEXTA_ANNOTATOR_KEY]["properties"]["document_counter"]["type"] = "long"
-                            field_settings[TEXTA_ANNOTATOR_KEY]["properties"]["document_counter"].pop("fields", None)
-
-                        logging.getLogger(INFO_LOGGER).info(f"Creating new index {new_index} for user {new_annotator}")
-                        # create new_index
-                        create_index_res = ElasticCore().create_index(new_index, updated_schema)
-
-                        index_model, is_created = Index.objects.get_or_create(name=new_index, defaults={"added_by": annotator_obj.author.username})
-                        project_obj.indices.add(index_model)
-                        index_user = index_model.name.rsplit('_', 2)[1]
-                        if str(index_user) == str(new_annotator):
-                            new_annotator_obj.indices.add(index_model)
-
-                        logging.getLogger(INFO_LOGGER).info("Indexing documents.")
-                        # set new_index name as mapping name
-                        bulk_add_documents(elastic_search, elastic_doc, index=new_index, chunk_size=scroll_size, flatten_doc=False)
-
-            # Readding this here since in the beginning, multiple indices are used in the count.
-            new_annotator_obj.total = ec.es.count(index=new_index)["count"]
-            new_annotator_obj.save()
             annotator_group_children.append(new_annotator_obj.id)
             logging.getLogger(INFO_LOGGER).info(f"Saving new annotator object ID {new_annotator_obj.id}")
 
