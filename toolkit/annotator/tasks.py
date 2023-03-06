@@ -193,6 +193,8 @@ def prepare_new_index(index: str, username):
 
 @task(name="annotator_task", base=BaseTask, bind=True)
 def annotator_task(self, annotator_task_id):
+    logger = logging.getLogger(INFO_LOGGER)
+
     annotator_obj = Annotator.objects.get(pk=annotator_task_id)
     annotator_group_children = []
 
@@ -214,6 +216,7 @@ def annotator_task(self, annotator_task_id):
 
     container = []
 
+    logger.info(f"[Annotator] Detected users for annotator id '{annotator_task_id}': {[user.username for user in annotator_obj.annotator_users.all()]}!")
     for user in annotator_obj.annotator_users.all():
         annotating_user = User.objects.get(pk=user.pk)
         for index in indices:
@@ -221,7 +224,7 @@ def annotator_task(self, annotator_task_id):
 
     query = annotator_obj.query
 
-    logging.getLogger(INFO_LOGGER).info(f"Starting task annotator with Task ID {annotator_obj.pk}.")
+    logger.info(f"Starting task annotator with Task ID {annotator_obj.pk}.")
 
     try:
         ec = ElasticCore()
@@ -277,7 +280,7 @@ def annotator_task(self, annotator_task_id):
             project_obj.indices.add(created_index)
 
             annotator_group_children.append(new_annotator_obj.id)
-            logging.getLogger(INFO_LOGGER).info(f"Saving new annotator object ID {new_annotator_obj.id}")
+            logger.info(f"Saving new annotator object ID {new_annotator_obj.id}")
 
         annotator_obj.annotator_users.clear()
         annotator_obj.save()
@@ -292,5 +295,5 @@ def annotator_task(self, annotator_task_id):
         task_object.handle_failed_task(e)
         raise e
 
-    logging.getLogger(INFO_LOGGER).info(f"Annotator with ID {annotator_obj.pk} successfully completed.")
+    logger.info(f"Annotator with ID {annotator_obj.pk} successfully completed.")
     return True

@@ -1,4 +1,5 @@
 import json
+import logging
 
 from django.contrib.auth.models import User
 from django.urls import reverse
@@ -14,6 +15,7 @@ from toolkit.core.project.models import Project
 from toolkit.core.user_profile.serializers import UserSerializer
 from toolkit.elastic.index.models import Index
 from toolkit.serializer_constants import CommonModelSerializerMixin, FieldParseSerializer, ToolkitTaskSerializer
+from toolkit.settings import INFO_LOGGER
 
 ANNOTATION_MAPPING = {
     "entity": EntityAnnotatorConfiguration,
@@ -252,6 +254,8 @@ class AnnotatorSerializer(FieldParseSerializer, ToolkitTaskSerializer, CommonMod
         return ec.count()
 
     def create(self, validated_data):
+        logger = logging.getLogger(INFO_LOGGER)
+
         request = self.context.get('request')
         project_pk = request.parser_context.get('kwargs').get("project_pk")
         project_obj = Project.objects.get(id=project_pk)
@@ -266,6 +270,7 @@ class AnnotatorSerializer(FieldParseSerializer, ToolkitTaskSerializer, CommonMod
         add_facts_mapping = validated_data.pop("add_facts_mapping")
 
         annotating_users = []
+        logger.info(f"[Annotator] Adding the following users to the annotator: {str(users)}")
         for user in users:
             annotating_user = User.objects.get(username=user)
             try:
