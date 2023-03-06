@@ -217,7 +217,7 @@ def annotator_task(self, annotator_task_id):
     for user in annotator_obj.annotator_users.all():
         annotating_user = User.objects.get(pk=user.pk)
         for index in indices:
-            container.append({"user": annotating_user, "new_index": f"{index}_{user}_{annotator_obj.pk}"})
+            container.append({"user": annotating_user, "new_index": f"{index}_{user.pk}_{annotator_obj.pk}"})
 
     query = annotator_obj.query
 
