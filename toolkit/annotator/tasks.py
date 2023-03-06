@@ -10,7 +10,6 @@ from django.contrib.auth.models import User
 from elasticsearch.helpers import streaming_bulk
 from texta_elastic.core import ElasticCore
 from texta_elastic.document import ESDocObject, ElasticDocument
-from texta_elastic.mapping_tools import get_selected_fields, update_field_types, update_mapping
 from texta_elastic.searcher import ElasticSearcher
 
 from toolkit.annotator.models import Annotator, AnnotatorGroup
@@ -198,7 +197,6 @@ def annotator_task(self, annotator_task_id):
     annotator_group_children = []
 
     indices = annotator_obj.get_indices()
-    users = [user.pk for user in annotator_obj.annotator_users.all()]
 
     task_object: Task = annotator_obj.tasks.last()
     annotator_fields = json.loads(annotator_obj.fields)
@@ -214,14 +212,12 @@ def annotator_task(self, annotator_task_id):
     add_facts_mapping = annotator_obj.add_facts_mapping
     scroll_size = 100
 
-    new_annotator_sub_indices = []
-    new_annotators = []
+    container = []
 
-    for user in users:
-        annotating_user = User.objects.get(pk=user)
-        new_annotators.append(annotating_user.pk)
+    for user in annotator_obj.annotator_users.all():
+        annotating_user = User.objects.get(pk=user.pk)
         for index in indices:
-            new_annotator_sub_indices.append(f"{index}_{user}_{annotator_obj.pk}")
+            container.append({"user": annotating_user, "new_index": f"{index}_{user.pk}_{annotator_obj.pk}"})
 
     query = annotator_obj.query
 
@@ -248,14 +244,14 @@ def annotator_task(self, annotator_task_id):
         # Set the total count for proper progress tracking, since we have multiple users it means we need to multiply it
         # per user to accommodate for the whole process instead of a single index along with the run of adding the meta to the original, hence the + 1.
         count = ElasticSearcher(indices=indices, field_data=all_fields, callback_progress=show_progress, query=query, scroll_size=scroll_size).count()
-        task_object.total = count * (len(new_annotator_sub_indices) + 1)
+        task_object.total = count * (len(container) + 1)
         task_object.save()
 
         __add_meta_to_original_index(indices, index_fields, show_progress, query, scroll_size, ec)
 
-        for new_annotator in new_annotators:
+        for record in container:
             new_annotator_obj = Annotator.objects.create(
-                annotator_uid=f"{annotator_obj.description}_{new_annotator}_{annotator_obj.pk}",
+                annotator_uid=f"{annotator_obj.description}_{record['user'].pk}_{annotator_obj.pk}",
                 description=f"{annotator_obj.description}",
                 author=annotator_obj.author,
                 project=annotator_obj.project,
@@ -268,19 +264,17 @@ def annotator_task(self, annotator_task_id):
                 multilabel_configuration=annotator_obj.multilabel_configuration,
                 entity_configuration=annotator_obj.entity_configuration,
             )
-            new_annotator_obj.annotator_users.add(new_annotator)
+            new_annotator_obj.annotator_users.add(record["user"])
 
-            for new_index in new_annotator_sub_indices:
-                # Since we don't keep track of ordering of annotator, user and index name objects we just manually check for the right name.
-                if new_index == f"{new_index}_{new_annotator}_{annotator_obj.pk}":
-                    created_index = prepare_new_index(new_index, annotator_obj.author.username)
-                    new_annotator_obj.indices.add(created_index)
-                    elastic_search = ElasticSearcher(indices=indices, field_data=all_fields, callback_progress=show_progress, query=query, scroll_size=scroll_size)
-                    ed = ElasticDocument(index="")
-                    bulk_add_documents(elastic_search, ed, index=new_index, chunk_size=scroll_size, flatten_doc=False)
-                    new_annotator_obj.total = ec.es.count(index=new_index)["count"]
-                    new_annotator_obj.save()
-                    project_obj.indices.add(created_index)
+            new_index = record["new_index"]
+            created_index = prepare_new_index(new_index, annotator_obj.author.username)
+            new_annotator_obj.indices.add(created_index)
+            elastic_search = ElasticSearcher(indices=indices, field_data=all_fields, callback_progress=show_progress, query=query, scroll_size=scroll_size)
+            ed = ElasticDocument(index="")
+            bulk_add_documents(elastic_search, ed, index=new_index, chunk_size=scroll_size, flatten_doc=False)
+            new_annotator_obj.total = ec.es.count(index=new_index)["count"]
+            new_annotator_obj.save()
+            project_obj.indices.add(created_index)
 
             annotator_group_children.append(new_annotator_obj.id)
             logging.getLogger(INFO_LOGGER).info(f"Saving new annotator object ID {new_annotator_obj.id}")
