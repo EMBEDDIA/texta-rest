@@ -6,6 +6,7 @@ from typing import List
 import elasticsearch_dsl
 import texta_mlp.settings
 from celery.decorators import task
+from django.conf import settings
 from django.contrib.auth.models import User
 from elasticsearch.helpers import streaming_bulk
 from texta_elastic.core import ElasticCore
@@ -13,7 +14,7 @@ from texta_elastic.document import ESDocObject, ElasticDocument
 from texta_elastic.searcher import ElasticSearcher
 
 from toolkit.annotator.models import Annotator, AnnotatorGroup
-from toolkit.base_tasks import BaseTask
+from toolkit.base_tasks import BaseTask, TransactionAwareTask
 from toolkit.core.project.models import Project
 from toolkit.core.task.models import Task
 from toolkit.elastic.index.models import Index
@@ -178,12 +179,14 @@ def prepare_new_index(index: str, username):
     logger = logging.getLogger(INFO_LOGGER)
 
     ec = ElasticCore()
-    logger.info(f"Creating new index for annotator: {index}")
+    logger.info(f"[Annotator] Creating new index for annotator: {index}")
     ec.es.indices.create(index, ignore=[400, 404])
 
-    logger.info(f"Transferring mapping from old index to new for index: {index}")
+    logger.info(f"[Annotator] Transferring mapping from old index to new for index: {index}")
     mapping = ec.es.indices.get_mapping(index=index)
-    ec.es.indices.put_mapping(body=mapping[index]["mappings"], index=index)
+    logger.info(f"[Annotator] Re-adding the mapping back to index: {index}!")
+    put_response = ec.es.indices.put_mapping(body=mapping[index]["mappings"], index=index)
+    logger.info(f"[Annotator] Adding texta_facts mapping to index: {index}!")
     ec.add_texta_facts_mapping(index)
 
     logger.info(f"Creating Django representation of the new index: {index}!")
@@ -191,7 +194,7 @@ def prepare_new_index(index: str, username):
     return index
 
 
-@task(name="annotator_task", base=BaseTask, bind=True)
+@task(name="annotator_task", base=TransactionAwareTask, bind=True, queue=settings.CELERY_LONG_TERM_TASK_QUEUE)
 def annotator_task(self, annotator_task_id):
     logger = logging.getLogger(INFO_LOGGER)
 
@@ -224,7 +227,7 @@ def annotator_task(self, annotator_task_id):
 
     query = annotator_obj.query
 
-    logger.info(f"Starting task annotator with Task ID {annotator_obj.pk}.")
+    logger.info(f"[Annotator] Starting task annotator with Task ID {annotator_obj.pk}.")
 
     try:
         ec = ElasticCore()
@@ -280,7 +283,7 @@ def annotator_task(self, annotator_task_id):
             project_obj.indices.add(created_index)
 
             annotator_group_children.append(new_annotator_obj.id)
-            logger.info(f"Saving new annotator object ID {new_annotator_obj.id}")
+            logger.info(f"[Annotator] Saving new annotator object ID {new_annotator_obj.id}")
 
         annotator_obj.annotator_users.clear()
         annotator_obj.save()
@@ -295,5 +298,5 @@ def annotator_task(self, annotator_task_id):
         task_object.handle_failed_task(e)
         raise e
 
-    logger.info(f"Annotator with ID {annotator_obj.pk} successfully completed.")
+    logger.info(f"[Annotator] Annotator with ID {annotator_obj.pk} successfully completed.")
     return True

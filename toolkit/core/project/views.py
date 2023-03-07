@@ -124,7 +124,7 @@ class ExportSearchView(APIView):
 
 class ScrollView(APIView):
     permission_classes = [IsAuthenticated, ProjectAccessInApplicationsAllowed]
-
+    serializer_class = ElasticScrollSerializer
 
     @elastic_view
     def post(self, request, project_pk: int):
@@ -151,7 +151,7 @@ class ScrollView(APIView):
 
 class GetSpamView(APIView):
     permission_classes = [IsAuthenticated, ProjectAccessInApplicationsAllowed]
-
+    serializer_class = ProjectGetSpamSerializer
 
     @elastic_view
     def post(self, request, project_pk: int):
@@ -210,7 +210,7 @@ class GetFieldsView(APIView):
 
 class GetFactsView(APIView):
     permission_classes = [IsAuthenticated, ProjectAccessInApplicationsAllowed]
-
+    serializer_class = ProjectGetFactsSerializer
 
     @elastic_view
     def post(self, request, project_pk: int):
@@ -267,7 +267,7 @@ class GetFactsView(APIView):
 
 class AggregateFactsView(APIView):
     permission_classes = [IsAuthenticated, ProjectAccessInApplicationsAllowed]
-
+    serializer_class = ProjectFactAggregatorSerializer
 
     @elastic_view
     def post(self, request, project_pk: int):
@@ -320,7 +320,7 @@ class GetIndicesView(APIView):
 
 class SearchView(APIView):
     permission_classes = [IsAuthenticated, ProjectAccessInApplicationsAllowed]
-
+    serializer_class = ProjectSimplifiedSearchSerializer
 
     @elastic_view
     def post(self, request, project_pk: int):
@@ -368,7 +368,7 @@ class SearchView(APIView):
 
 class SearchByQueryView(APIView):
     permission_classes = [IsAuthenticated, ProjectAccessInApplicationsAllowed]
-
+    serializer_class = ProjectSearchByQuerySerializer
 
     @elastic_view
     def post(self, request, project_pk: int):
