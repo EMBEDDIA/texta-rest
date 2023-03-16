@@ -15,7 +15,7 @@ class ElasticDocumentSerializer(serializers.Serializer):
 
 class InsertDocumentsSerializer(serializers.Serializer):
     documents = ElasticDocumentSerializer(many=True, help_text="Collection of raw Elasticsearch documents.")
-    split_text_in_fields = serializers.ListSerializer(child=serializers.CharField(), default=["text"], help_text="Specifies which text fields should be split into smaller pieces.")
+    split_text_in_fields = serializers.ListSerializer(child=serializers.CharField(), default=[], help_text="Specifies which text fields should be split into smaller pieces.")
 
 
 class UpdateSplitDocumentSerializer(serializers.Serializer):
