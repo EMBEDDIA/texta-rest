@@ -6,18 +6,15 @@ from celery.decorators import task
 from texta_elastic.document import ElasticDocument
 from texta_elastic.searcher import ElasticSearcher
 
-from toolkit.base_tasks import QuietTransactionAwareTask
+from toolkit.base_tasks import QuietTransactionAwareTask, TransactionAwareTask
 from toolkit.elastic.document_api.helpers import check_if_dict_is_subdict
 from toolkit.elastic.document_api.models import DeleteFactsByQueryTask, EditFactsByQueryTask
 from toolkit.settings import CELERY_LONG_TERM_TASK_QUEUE, INFO_LOGGER, TEXTA_TAGS_KEY
 from toolkit.tools.show_progress import ShowProgress
 
 
-@task(name="start_fact_delete_query_task", base=QuietTransactionAwareTask, queue=CELERY_LONG_TERM_TASK_QUEUE, bind=True)
+@task(name="start_fact_delete_query_task", base=TransactionAwareTask, queue=CELERY_LONG_TERM_TASK_QUEUE, bind=True)
 def start_fact_delete_query_task(self, worker_id: int):
-    """
-    Scrolls the document ID-s and passes them to MLP worker.
-    """
     worker_object = DeleteFactsByQueryTask.objects.get(pk=worker_id)
     info_logger = logging.getLogger(INFO_LOGGER)
     task_object = worker_object.tasks.last()
@@ -45,7 +42,7 @@ def start_fact_delete_query_task(self, worker_id: int):
         show_progress.update_step(f'Deleting facts from {count} documents')
         show_progress.update_view(0)
         task_object.set_total(count)
-        return True
+        return worker_id
 
     except Exception as e:
         task_object.handle_failed_task(e)
@@ -73,12 +70,16 @@ def query_delete_actions_generator(searcher, target_facts: List[dict]):
             }
 
 
-@task(name="fact_delete_query_task", base=QuietTransactionAwareTask, queue=CELERY_LONG_TERM_TASK_QUEUE, bind=True)
+@task(name="fact_delete_query_task", base=TransactionAwareTask, queue=CELERY_LONG_TERM_TASK_QUEUE, bind=True)
 def fact_delete_query_task(self, worker_id: int):
+    print(worker_id)
+
     worker_object = DeleteFactsByQueryTask.objects.get(pk=worker_id)
     task_object = worker_object.tasks.last()
 
     try:
+        info_logger = logging.getLogger(INFO_LOGGER)
+
         show_progress = ShowProgress(task_object, multiplier=1)
         show_progress.update_step('Scrolling through the indices to delete the facts.')
 
@@ -97,9 +98,11 @@ def fact_delete_query_task(self, worker_id: int):
             scroll_timeout=f"{worker_object.es_timeout}m"
         )
 
+        info_logger.info(f"[Delete Facts By Query] Starting fact deletion process for Task ID '{worker_id}'!")
         ed = ElasticDocument(index=None)
         actions = query_delete_actions_generator(searcher, target_facts)
         ed.bulk_update(actions)
+        info_logger.info(f"[Delete Facts By Query] Finished fact deletion process for Task ID '{worker_id}'!")
 
         task_object.complete()
         worker_object.save()
@@ -143,7 +146,7 @@ def start_fact_edit_query_task(self, worker_id: int):
         show_progress.update_view(0)
 
         task_object.set_total(count)
-        return True
+        return worker_id
 
     except Exception as e:
         task_object.handle_failed_task(e)
