@@ -3,13 +3,13 @@ from datetime import datetime
 from typing import List, Optional
 
 import elasticsearch_dsl
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Q
 from rest_framework.exceptions import ValidationError
 from texta_elastic.core import ElasticCore
 from texta_elastic.document import ESDocObject, ElasticDocument
-from texta_elastic.searcher import ElasticSearcher
 
 from toolkit.core.project.models import Project
 from toolkit.core.task.models import Task
@@ -109,7 +109,7 @@ class Annotator(TaskModel):
     def create_annotator_task(self):
         self.save()
 
-        new_task = Task.objects.create(annotator=self, task_type=Task.TYPE_APPLY, status=Task.STATUS_CREATED)
+        new_task = Task.objects.create(annotator=self, task_type=Task.TYPE_APPLY, status=Task.STATUS_QUEUED)
         self.tasks.add(new_task)
 
         annotator_obj = Annotator.objects.get(pk=self.pk)
@@ -119,7 +119,7 @@ class Annotator(TaskModel):
         )
 
         from toolkit.annotator.tasks import annotator_task
-        annotator_task.apply_async(args=(self.pk,), queue=CELERY_LONG_TERM_TASK_QUEUE)
+        annotator_task.s().apply_async(args=(self.pk,), queue=settings.CELERY_LONG_TERM_TASK_QUEUE)
 
     def add_pos_label(self, document_id: str, index: str, user):
         """

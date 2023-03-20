@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APITransactionTestCase
 from texta_elastic.core import ElasticCore
 
 from toolkit.annotator.models import Annotator, Labelset
@@ -17,7 +17,7 @@ from toolkit.test_settings import TEST_FIELD, TEST_MATCH_TEXT, TEST_QUERY
 from toolkit.tools.utils_for_tests import create_test_user, print_output, project_creation
 
 
-class TestHelpers(APITestCase):
+class TestHelpers(APITransactionTestCase):
 
     # Check for response status is kept out since in certain cases a 404 is what we want.
     def skip_document(self, document_id: str, index: str, project_pk, annotator_pk):
