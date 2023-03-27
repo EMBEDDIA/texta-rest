@@ -1,10 +1,12 @@
 import json
 import logging
+from itertools import chain
 from typing import List, Optional
 
 from celery.decorators import task
 from texta_elastic.core import ElasticCore
 from texta_elastic.document import ElasticDocument
+from texta_elastic.mapping_generator import SchemaGenerator
 from texta_elastic.mapping_tools import update_field_types, update_mapping
 from texta_elastic.searcher import ElasticSearcher
 
@@ -14,7 +16,6 @@ from toolkit.elastic.index.models import Index
 from toolkit.elastic.reindexer.models import Reindexer
 from toolkit.settings import INFO_LOGGER
 from toolkit.tools.show_progress import ShowProgress
-
 
 """ TODOs:
     unique name problem and testing it.
@@ -113,6 +114,49 @@ def bulk_add_documents(
     elastic_doc.bulk_add_generator(actions=actions, chunk_size=chunk_size, refresh=refresh)
 
 
+def set(obj, path, value):
+    *path, last = path.split(".")
+    for bit in path:
+        obj = obj.setdefault(bit, {})
+    obj[last] = value
+
+
+def post_process_mapping_schema(elastic_schema: dict, grouped_fields: dict, reindexer_mapping: dict, field_type_to_process="nested", mappings={
+    "long": SchemaGenerator()._get_long_structure(),
+    "float": SchemaGenerator()._get_float_structure(),
+    "text": SchemaGenerator()._get_text_structure(),
+    "date": SchemaGenerator()._get_date_structure(),
+}):
+    """
+    Since the current code at version 3.12.12 is faulty  in regards how it handles objects (they got assigned nested and slapped with text mapping)
+    this function is used to go through nested fields and try to assign them a proper mapping structure.
+
+    :param field_type_to_process: What field type to process (EX. nested, long, float, text).
+    :param elastic_schema: Raw Elasticsearch mapping of an index.
+    :param grouped_fields: Dictionary of index fields grouped by their filetypes for ex {"nested": ["texta_facts.str_val"], "float": ["chat_count"]} etc.
+    :param reindexer_mapping: Reindexer input mapping of how a field should be remapped. Includes old index name, new index name and new field type.
+    :param mappings: How to map the assigned type to a proper Elasticsearch mapping.
+    :return: Raw Elasticsearch mapping that's usable in index updates.
+    """
+
+    for field in grouped_fields[field_type_to_process]:
+        root_key, *nested_objects, field_key = field.split(".")
+        mapping_key = list(elastic_schema["mappings"].keys())[0]
+        field_mapping = elastic_schema["mappings"][mapping_key]["properties"][root_key]["properties"]
+
+        # Traverse the nested structure until you reach the end.
+        for key in nested_objects:
+            field_mapping = field_mapping[key]["properties"]
+
+        assigned_type = [setting for setting in reindexer_mapping if setting["path"] == field]
+        if assigned_type:
+            # We use itertools.chain() to be able to do a list comprehension with two consecutive values.
+            path = ["mappings", mapping_key, "properties", root_key, "properties"] + list(chain.from_iterable((key, "properties") for key in nested_objects)) + [field_key]
+            set(elastic_schema, ".".join(path), mappings[assigned_type[0]["field_type"]])
+
+    return elastic_schema
+
+
 @task(name="reindex_task", base=BaseTask)
 def reindex_task(reindexer_task_id: int):
     info_logger = logging.getLogger(INFO_LOGGER)
@@ -159,6 +203,8 @@ def reindex_task(reindexer_task_id: int):
         # the operations that don't require a mapping update have been completed
         schema_input = update_field_types(indices, fields, field_type, flatten_doc=FLATTEN_DOC)
         updated_schema = update_mapping(schema_input, new_index, reindexer_obj.add_facts_mapping, add_texta_meta_mapping=False)
+
+        updated_schema = post_process_mapping_schema(updated_schema, schema_input, field_type)
 
         info_logger.info(f"[Reindexer] Creating new index: '{new_index}'.")
         # create new_index
