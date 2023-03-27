@@ -148,11 +148,11 @@ def post_process_mapping_schema(elastic_schema: dict, grouped_fields: dict, rein
         for key in nested_objects:
             field_mapping = field_mapping[key]["properties"]
 
-        assigned_type = [setting for setting in reindexer_mapping if setting["path"] == field][0]["field_type"]
-
-        # We use itertools.chain() to be able to do a list comprehension with two consecutive values.
-        path = ["mappings", mapping_key, "properties", root_key, "properties"] + list(chain.from_iterable((key, "properties") for key in nested_objects)) + [field_key]
-        set(elastic_schema, ".".join(path), mappings[assigned_type])
+        assigned_type = [setting for setting in reindexer_mapping if setting["path"] == field]
+        if assigned_type:
+            # We use itertools.chain() to be able to do a list comprehension with two consecutive values.
+            path = ["mappings", mapping_key, "properties", root_key, "properties"] + list(chain.from_iterable((key, "properties") for key in nested_objects)) + [field_key]
+            set(elastic_schema, ".".join(path), mappings[assigned_type[0]["field_type"]])
 
     return elastic_schema
 
