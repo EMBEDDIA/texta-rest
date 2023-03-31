@@ -61,7 +61,7 @@ TestBack:
     - ci-test
   script:
     - sh wait-for-uaa.sh
-    - python manage.py test
+    - python manage.py test -v 2
   except:
     - tags
 
@@ -109,6 +109,6 @@ BuildFinalImage:
   script:
     - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD docker.texta.ee
     - sh ./docker/build_and_push.sh
-    - docker system prune -a
+    - docker system prune -a -f
   only:
     - tags

@@ -32,6 +32,7 @@ from toolkit.helper_functions import load_stop_words, get_core_setting, get_mini
 from toolkit.model_constants import CommonModelMixin, FavoriteModelMixin, S3ModelMixin
 from toolkit.tagger import choices
 from toolkit.tools.lemmatizer import CeleryLemmatizer, ElasticAnalyzer
+from toolkit.tools.common_utils import format_tagger_prediction
 
 
 class Tagger(FavoriteModelMixin, CommonModelMixin, S3ModelMixin):
@@ -229,12 +230,12 @@ class Tagger(FavoriteModelMixin, CommonModelMixin, S3ModelMixin):
         # Use tagger description as tag for binary taggers and tagger prediction as tag for multiclass taggers
         tag = tagger.description if tagger_result["prediction"] in {"true", "false"} else tagger_result["prediction"]
         # create output dict
-        prediction = {
-            'tag': tag,
-            'probability': tagger_result['probability'],
-            'tagger_id': self.pk,
-            'result': result
-        }
+        prediction = format_tagger_prediction(
+            tag = tag,
+            probability = tagger_result["probability"],
+            tagger_id = self.pk,
+            result = result
+        )
         # add feedback if asked
         if feedback:
             logging.getLogger(settings.INFO_LOGGER).info(f"Adding feedback for Tagger id: {self.pk}")
@@ -269,8 +270,10 @@ class TaggerGroup(FavoriteModelMixin, CommonModelMixin, S3ModelMixin):
 
     fact_name = models.CharField(max_length=MAX_DESC_LEN)
     blacklisted_facts = models.TextField(default='[]')
-    num_tags = models.IntegerField(default=0)
+    ner_lexicons = models.ManyToManyField(Lexicon, default=[])
     minimum_sample_size = models.IntegerField(default=choices.DEFAULT_MIN_SAMPLE_SIZE)
+    num_tags = models.IntegerField(default=0)
+    use_taggers_as_ner_filter = models.BooleanField(default=True)
 
     taggers = models.ManyToManyField(Tagger, default=None)
 
@@ -320,16 +323,31 @@ class TaggerGroup(FavoriteModelMixin, CommonModelMixin, S3ModelMixin):
                 json_string = archive.read(Tagger.MODEL_JSON_NAME).decode()
                 model_json: dict = json.loads(json_string)
                 model_json.pop("favorited_users", None)
+                ner_lexicons = model_json.pop("ner_lexicons", [])
 
                 tg_data = {key: model_json[key] for key in model_json if key != 'taggers'}
                 tg_data.pop("favorited_users", None)
                 new_model = TaggerGroup(**tg_data)
-                new_model.author = User.objects.get(id=user_pk)
-                new_model.project = Project.objects.get(id=project_pk)
+
+                user_obj = User.objects.get(id=user_pk)
+                project_obj = Project.objects.get(id=project_pk)
+
+                new_model.author = user_obj
+                new_model.project = project_obj
+
                 new_model.save()  # Save the intermediate results.
 
                 task_object = Task.objects.create(taggergroup=new_model, status=Task.STATUS_COMPLETED)
                 new_model.tasks.add(task_object)
+
+                # Create NER lexicons & add them to the new tagger group
+                for ner_lex in ner_lexicons:
+                    new_lexicon = Lexicon(**ner_lex)
+                    new_lexicon.author = user_obj
+                    new_lexicon.project = project_obj
+                    new_lexicon.save()
+                    new_model.ner_lexicons.add(new_lexicon)
+
 
                 for tagger in model_json["taggers"]:
                     tagger.pop("favorited_users", None)
@@ -337,8 +355,8 @@ class TaggerGroup(FavoriteModelMixin, CommonModelMixin, S3ModelMixin):
                     tagger_model = Tagger(**tagger)
 
                     task_object = Task.objects.create(tagger=tagger_model, status=Task.STATUS_COMPLETED)
-                    tagger_model.author = User.objects.get(id=user_pk)
-                    tagger_model.project = Project.objects.get(id=project_pk)
+                    tagger_model.author = user_obj
+                    tagger_model.project = project_obj
                     tagger_model.save()
 
                     tagger_model.tasks.add(task_object)
@@ -363,6 +381,7 @@ class TaggerGroup(FavoriteModelMixin, CommonModelMixin, S3ModelMixin):
         serialized = serializers.serialize('json', [self])
         json_obj = json.loads(serialized)[0]["fields"]
         json_obj["taggers"] = [tg.to_json() for tg in self.taggers.all()]
+        json_obj["ner_lexicons"] = [ner_lex.to_json() for ner_lex in self.ner_lexicons.all()]
         del json_obj["project"]
         del json_obj["author"]
         del json_obj["tasks"]

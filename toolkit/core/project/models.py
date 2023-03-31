@@ -90,5 +90,5 @@ class Project(models.Model):
             'num_elastic_analyzers': proj.applyesanalyzerworker_set.count(),
             'num_rakun_keyword_extractors': proj.rakunextractor_set.count(),
             'num_crf_extractors': proj.crfextractor_set.count(),
-            'num_annotators': proj.annotator_set.count()
+            'num_annotators': proj.annotatorgroup_set.count()
         }

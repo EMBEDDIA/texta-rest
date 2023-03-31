@@ -43,7 +43,7 @@ class DeleteFactsByQueryTask(CommonModelMixin):
 
     def process(self):
         from .tasks import start_fact_delete_query_task, fact_delete_query_task
-        new_task = Task.objects.create(deletefactsbyquerytask=self, task_type=Task.TYPE_APPLY, status=Task.STATUS_CREATED)
+        new_task = Task.objects.create(deletefactsbyquerytask=self, task_type=Task.TYPE_APPLY, status=Task.STATUS_QUEUED)
         self.save()
         self.tasks.add(new_task)
         chain = start_fact_delete_query_task.s() | fact_delete_query_task.s()

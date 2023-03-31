@@ -361,8 +361,8 @@ def parse_bool_env(env_name: str, default: bool):
     else:
         return False
 
-
-def reindex_test_dataset(query: dict = None, from_index: Optional[str] = None, hex_size=20) -> str:
+# Set the limit of documents to an unreasonably high to include all documents by default.
+def reindex_test_dataset(query: dict = None, from_index: Optional[str] = None, hex_size=20, limit=1e+7) -> str:
     """
     Reindexes the master test dataset into isolated pieces.
     :param from_index: Index from which to reindex.
@@ -377,7 +377,7 @@ def reindex_test_dataset(query: dict = None, from_index: Optional[str] = None, h
 
     ec = ElasticCore()
     new_test_index_name = f"ttk_test_{uuid.uuid4().hex[:hex_size]}"
-    ec.create_index(index=new_test_index_name)
+    response = ec.create_index(index=new_test_index_name)
     ec.add_texta_facts_mapping(new_test_index_name)
 
     from_scan = elasticsearch_dsl.Search() if query is None else elasticsearch_dsl.Search.from_dict(query)
@@ -385,13 +385,16 @@ def reindex_test_dataset(query: dict = None, from_index: Optional[str] = None, h
     from_scan = from_scan.scan()
 
     def doc_actions(generator):
-        for document in generator:
-            yield {
-                "_index": new_test_index_name,
-                "_type": "_doc",
-                "_source": document.to_dict(),
-                "retry_on_conflict": 3
-            }
+        for i, document in enumerate(generator):
+            if i < limit:
+                yield {
+                    "_index": new_test_index_name,
+                    "_type": "_doc",
+                    "_source": document.to_dict(),
+                    "retry_on_conflict": 3
+                }
+            else:
+                break
 
     actions = doc_actions(from_scan)
     from elasticsearch.helpers import bulk

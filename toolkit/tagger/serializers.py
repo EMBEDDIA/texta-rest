@@ -8,6 +8,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from texta_elastic.searcher import EMPTY_QUERY
 
+from toolkit.core.lexicon.models import Lexicon
 from toolkit.core.task.models import Task
 from toolkit.core.user_profile.serializers import UserSerializer
 from toolkit.elastic.choices import DEFAULT_SNOWBALL_LANGUAGE, get_snowball_choices
@@ -221,7 +222,16 @@ class TaggerGroupSerializer(serializers.ModelSerializer, ProjectResourceUrlSeria
                                       help_text=f'Fact name used to filter tags (fact values). Default: {choices.DEFAULT_TAGGER_GROUP_FACT_NAME}')
     tagger = TaggerSerializer(write_only=True, remove_fields=['description', 'query', 'fact_name', 'minimum_sample_size'])
     num_tags = serializers.IntegerField(read_only=True)
-    blacklisted_facts = serializers.ListField(child=serializers.CharField(), default=[], help_text="Which fact values to ignore when creating the taggers.")
+    blacklisted_facts = serializers.ListField(child=serializers.CharField(), default=[], help_text='Which fact values to ignore when creating the taggers.')
+    ner_lexicons = ProjectFilteredPrimaryKeyRelatedField(
+        queryset=Lexicon.objects,
+        many=True,
+        allow_null=True,
+        default=[],
+        help_text='Lexicon(s) for filtering named-entity tags.'
+    )
+    use_taggers_as_ner_filter = serializers.BooleanField(default=True, help_text='Use tagger descriptions in addition to lexicons for filtering named-entity tags.')
+
     tagger_status = serializers.SerializerMethodField()
     tagger_statistics = serializers.SerializerMethodField()
     tagger_params = serializers.SerializerMethodField()
@@ -237,7 +247,7 @@ class TaggerGroupSerializer(serializers.ModelSerializer, ProjectResourceUrlSeria
 
     class Meta:
         model = TaggerGroup
-        fields = ('id', 'url', 'author', 'description', 'fact_name', 'num_tags', 'blacklisted_facts', 'minimum_sample_size',
+        fields = ('id', 'url', 'author', 'description', 'fact_name', 'num_tags', 'blacklisted_facts', 'minimum_sample_size', 'ner_lexicons', 'use_taggers_as_ner_filter',
                   'tagger_status', 'tagger_params', 'tagger', 'tagger_statistics', 'is_favorited', 'tasks')
 
     # TODO This can be optimised into a single query.
