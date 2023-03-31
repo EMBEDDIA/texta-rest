@@ -22,8 +22,9 @@ class LexiconViewsTests(APITestCase):
 
 
     def test_run(self):
-        self.run_lexicon_create(),
-        self.run_lexicon_update(),
+        self.run_lexicon_create()
+        self.run_lexicon_update()
+        self.run_lexicon_add_positive_used()
         self.run_defaults()
 
 
@@ -83,6 +84,23 @@ class LexiconViewsTests(APITestCase):
         print_output('test_lexicon_updated_retrieval:response.data', response.data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue('neljas fraas' in response.data['positives_used'])
+    
+
+    def run_lexicon_add_positive_used(self):
+        payload = {
+            "description": "TestLexicon",
+            "positives_used": ["esimene fraas", "teine fraas"],
+        }
+        response = self.client.post(self.url, payload)
+        created_id = response.data['id']
+        payload = {"word": "kolmas fraas"}
+        response = self.client.post(f'{self.url}{created_id}/add_positive_used/', payload)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        response = self.client.get(f'{self.url}{created_id}/')
+        print_output('test_lexicon_add_positive_used:response.data', response.data)
+        response_json = response.json()
+        self.assertTrue(len(response_json["positives_used"]) == 3)
+        self.assertTrue("kolmas fraas" in response_json["positives_used"])
 
 
     def run_defaults(self):
