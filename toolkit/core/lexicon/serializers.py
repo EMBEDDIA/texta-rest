@@ -24,3 +24,7 @@ class LexiconSerializer(FieldParseSerializer, serializers.ModelSerializer, Proje
         fields = ('id', 'author', 'url', 'description', 'positives_used', 'negatives_used', 'positives_unused', 'negatives_unused')
         read_only_fields = ('project', 'author', 'url')
         fields_to_parse = ('positives_used', 'negatives_used', 'positives_unused', 'negatives_unused')
+
+
+class LexiconAddWordSerializer(serializers.Serializer):
+    word = serializers.CharField(help_text="Add new word to lexicon.", required=True)
