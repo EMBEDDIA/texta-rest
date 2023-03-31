@@ -56,6 +56,8 @@ class LexiconViewSet(viewsets.ModelViewSet):
         # load & append new item
         positives_used = json.loads(lexicon.positives_used)
         positives_used.append(serializer.validated_data["word"])
+        # remove duplicates
+        positives_used = list(set(positives_used))
         # dump & save new list
         lexicon.positives_used = json.dumps(positives_used)
         lexicon.save()
