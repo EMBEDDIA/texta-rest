@@ -125,6 +125,7 @@ class DataSample:
     def _get_max_and_min_class_size(self) -> int:
         """Aggregates over values of the selected fact and returns the size of the largest class."""
         max_class_size = 0
+        min_class_Size = 0
         fact_name = self._get_fact_name()
 
         try:
