@@ -59,7 +59,7 @@ class DataSample:
         self.use_sentence_shuffle = use_sentence_shuffle
         self.balance_to_max_limit = balance_to_max_limit
         self.class_display_name = None  # used for logging messages related to taggers in tagger groups
-        self.max_class_size, self.min_class_size = self._get_max_class_size()
+        self.max_class_size, self.min_class_size = self._get_max_and_min_class_size()
         self.class_names, self.queries = self._prepare_class_names_with_queries()
         self.ignore_ids = set()
 
@@ -404,7 +404,7 @@ class DataSample:
 
         pos_size = min(pos_size, limit)
         neg_size = min(neg_size, limit)
-        
+
         n_neg_wished = int(pos_size*negative_multiplier)
         n_neg_actual = min(n_neg_wished, neg_size)
         n_pos_actual = int(n_neg_actual/negative_multiplier)
