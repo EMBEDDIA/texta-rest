@@ -120,6 +120,7 @@ class BertTaggerObjectViewTests(APITransactionTestCase):
         self.run_train_bert_tagger_from_checkpoint_model_bin2mc()
         self.run_train_binary_multiclass_bert_tagger_using_fact_name()
         self.run_train_binary_multiclass_bert_tagger_using_fact_name_invalid_payload()
+        self.run_train_binary_multiclass_bert_tagger_using_fact_name_and_neg_multiplier()
         self.run_train_bert_tagger_using_query()
         self.run_bert_tag_text()
         self.run_bert_tag_with_imported_gpu_model()
@@ -273,6 +274,54 @@ class BertTaggerObjectViewTests(APITransactionTestCase):
         print_output('test_run_train_binary_multiclass_bert_tagger_using_fact_name_invalid_pos_label:response.data', response.data)
         # Check if creating the BertTagger fails with status code 400
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+    def run_train_binary_multiclass_bert_tagger_using_fact_name_and_neg_multiplier(self):
+        """Tests BertTagger training with binary facts."""
+        payload = {
+            "description": "Test Bert Tagger training binary multiclass with negative_multiplier",
+            "fact_name": TEST_FACT_NAME,
+            "fields": TEST_FIELD_CHOICE,
+            "pos_label": TEST_POS_LABEL,
+            "query": json.dumps(TEST_BIN_FACT_QUERY),
+            "indices": [{"name": self.test_index_name}],
+            "maximum_sample_size": 50,
+            "num_epochs": 1,
+            "max_length": 15,
+            "negative_multiplier": 1.5,
+            "bert_model": TEST_BERT_MODEL
+        }
+        response = self.client.post(self.url, payload, format='json')
+
+        print_output('test_run_train_binary_multiclass_bert_tagger_using_fact_name_and_neg_multiplier:response.data', response.data)
+        # Check if BertTagger gets created
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        # Give the tagger some time to finish training
+        sleep(5)
+        tagger_id = response.data['id']
+        response = self.client.get(f'{self.url}{tagger_id}/')
+        print_output('test_binary_multiclass_bert_tagger_w_neg_multiplier_has_stats:response.data', response.data)
+        for score in ['f1_score', 'precision', 'recall', 'accuracy']:
+            self.assertTrue(isinstance(response.data[score], float))
+
+        classes = response.data["classes"]
+
+        print_output('test_binary_multiclass_bert_tagger_w_neg_multiplier_has_classes:response.data.classes', classes)
+        self.assertTrue(isinstance(classes, list))
+        self.assertTrue(len(classes) == 2)
+
+        num_examples = json.loads(response.data["num_examples"])
+
+        pos_label = response.data["pos_label"]
+        neg_label = [cl for cl in classes if cl != pos_label][0]
+
+
+        n_pos = num_examples.get(pos_label)
+        n_neg = num_examples.get(neg_label)
+
+        # Checks if negative multiplier is actually applied
+        self.assertEqual(int(n_pos*1.5), n_neg)
+        self.add_cleanup_files(tagger_id)
 
     def run_train_balanced_multiclass_bert_tagger_using_fact_name(self):
         """Tests balanced BertTagger training with multiple classes and if a new Task gets created via the signal."""

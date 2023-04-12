@@ -59,7 +59,7 @@ class DataSample:
         self.use_sentence_shuffle = use_sentence_shuffle
         self.balance_to_max_limit = balance_to_max_limit
         self.class_display_name = None  # used for logging messages related to taggers in tagger groups
-        self.max_class_size = self._get_max_class_size()
+        self.max_class_size, self.min_class_size = self._get_max_class_size()
         self.class_names, self.queries = self._prepare_class_names_with_queries()
         self.ignore_ids = set()
 
@@ -122,7 +122,7 @@ class DataSample:
         return fact_name
 
 
-    def _get_max_class_size(self) -> int:
+    def _get_max_and_min_class_size(self) -> int:
         """Aggregates over values of the selected fact and returns the size of the largest class."""
         max_class_size = 0
         fact_name = self._get_fact_name()
@@ -138,7 +138,8 @@ class DataSample:
             facts = es_aggregator.get_fact_values_distribution(fact_name=fact_name, fact_name_size=10, fact_value_size=10)
             logging.getLogger(INFO_LOGGER).info(f"Class frequencies: {facts}")
             max_class_size = max(facts.values())
-        return max_class_size
+            min_class_size = min(facts.values())
+        return max_class_size, min_class_size
 
 
     @staticmethod
@@ -384,6 +385,43 @@ class DataSample:
         return positive_sample
 
 
+    def _resize_examples(self, class_sample: List[dict], class_name: str, limit: int):
+        """ Used only for binary taggers. Resizes the number of examples for both classes in order to
+        fit the required negative multiplier."""
+
+        max_size = self.max_class_size
+        min_size = self.min_class_size
+        class_size = len(class_sample)
+
+        negative_multiplier = self.tagger_object.negative_multiplier
+
+        if class_name == self.tagger_object.pos_label:
+            pos_size = max_size if (max_size == class_size) else min_size
+            neg_size = min_size if (max_size == class_size) else max_size
+        else:
+            pos_size = min_size if (max_size == class_size) else max_size
+            neg_size = max_size if (max_size == class_size) else min_size
+
+        pos_size = min(pos_size, limit)
+        neg_size = min(neg_size, limit)
+        
+        n_neg_wished = int(pos_size*negative_multiplier)
+        n_neg_actual = min(n_neg_wished, neg_size)
+        n_pos_actual = int(n_neg_actual/negative_multiplier)
+
+        shuffle(class_sample)
+
+        if class_name == self.tagger_object.pos_label:
+            logging.getLogger(INFO_LOGGER).info(f"Resizing positive class ({self.class_name}) to fit required negative multiplier ({negative_multiplier}) from {pos_size} -> {n_pos_actual}.")
+            class_sample = class_sample[:n_pos_actual]
+
+        else:
+            logging.getLogger(INFO_LOGGER).info(f"Resizing negative class ({self.class_name}) to fit required negative multiplier ({negative_multiplier}) from {neg_size} -> {n_neg_actual}.")
+            class_sample = class_sample[:n_neg_actual]
+
+        return class_sample
+
+
     def _get_class_sample(self, query, class_name):
         """Returns sample for given class"""
         # limit the docs according to max sample size & feedback size
@@ -416,6 +454,9 @@ class DataSample:
         # If class balancing is enabled, modify number of required samples
         if self.balance:
             positive_sample = self._duplicate_examples(positive_sample, class_name, limit)
+
+        if self.tagger_object.pos_label:
+            positive_sample = self._resize_examples(positive_sample, class_name, limit)
 
         # document doct to value string if asked
         if self.join_fields:
