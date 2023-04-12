@@ -413,11 +413,11 @@ class DataSample:
         shuffle(class_sample)
 
         if class_name == self.tagger_object.pos_label:
-            logging.getLogger(INFO_LOGGER).info(f"Resizing positive class ({self.class_name}) to fit required negative multiplier ({negative_multiplier}) from {pos_size} -> {n_pos_actual}.")
+            logging.getLogger(INFO_LOGGER).info(f"Resizing positive class ({class_name}) to fit required negative multiplier ({negative_multiplier}) from {pos_size} -> {n_pos_actual}.")
             class_sample = class_sample[:n_pos_actual]
 
         else:
-            logging.getLogger(INFO_LOGGER).info(f"Resizing negative class ({self.class_name}) to fit required negative multiplier ({negative_multiplier}) from {neg_size} -> {n_neg_actual}.")
+            logging.getLogger(INFO_LOGGER).info(f"Resizing negative class ({class_name}) to fit required negative multiplier ({negative_multiplier}) from {neg_size} -> {n_neg_actual}.")
             class_sample = class_sample[:n_neg_actual]
 
         return class_sample
