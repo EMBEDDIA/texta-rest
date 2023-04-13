@@ -71,8 +71,19 @@ class Task(models.Model):
 
     @avoid_db_timeout
     def handle_failed_task(self, e: Exception):
-        logging.getLogger(ERROR_LOGGER).exception(e)
-        self.add_error(str(e))
+        from elasticsearch.helpers.errors import BulkIndexError
+
+        # Handle bulk index errors differently considering their default behavior is to vomit out all the documents in the logs.
+        if isinstance(e, BulkIndexError):
+            # Only keep a single error, take out the rest.
+            message, errors = e.args[0], e.args[1]
+            error_string = f'{message}: {errors[0]}'
+            logging.getLogger(ERROR_LOGGER).error(error_string)
+            self.add_error(error_string)
+        else:
+            logging.getLogger(ERROR_LOGGER).exception(e)
+            self.add_error(str(e))
+
         self.update_status(Task.STATUS_FAILED)
 
     @avoid_db_timeout
