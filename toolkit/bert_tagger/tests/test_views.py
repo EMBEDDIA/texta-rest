@@ -315,12 +315,14 @@ class BertTaggerObjectViewTests(APITransactionTestCase):
         pos_label = response.data["pos_label"]
         neg_label = [cl for cl in classes if cl != pos_label][0]
 
-
         n_pos = num_examples.get(pos_label)
         n_neg = num_examples.get(neg_label)
 
+        eps = 1 # allow a small margin of error from rounding
+        are_equal = lambda x, y: x - eps <= y <= x + eps
+
         # Checks if negative multiplier is actually applied
-        self.assertEqual(int(n_pos*1.5), n_neg)
+        self.assertTrue(are_equal(int(n_pos*1.5), n_neg))
         self.add_cleanup_files(tagger_id)
 
     def run_train_balanced_multiclass_bert_tagger_using_fact_name(self):
